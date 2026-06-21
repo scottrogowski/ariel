@@ -1,0 +1,54 @@
+title: "User Authentication Flow"
+
+mermaid_diagram: |
+  graph TD
+    U([User]) -->|submits credentials| LF[Login Form]
+    LF -->|POST /auth/login| API[Auth API]
+    API -->|lookup| DB[(User DB)]
+    DB -->|user record| API
+    API --> PV{Password Valid?}
+    PV -->|yes| TG[Token Generator]
+    PV -->|no| ER[Error Response]
+    TG --> SE[Set Cookie]
+    SE --> DA[Dashboard]
+    ER -->|401| LF
+
+steps:
+  - label: "Overview"
+    narration: "This is a user authentication flow. Before stepping through it, take a moment to see the full system — a login form, an API, a database, and a decision point that determines whether a user gets in or gets rejected."
+
+  - label: "Entry point"
+    narration: "It starts with the user submitting credentials into the login form. This is the only human-initiated action in the entire flow."
+    highlight_nodes: [U, LF]
+    animate_edges: [U-LF]
+
+  - label: "API handoff"
+    narration: "The form POSTs to the Auth API. The API is the brain from here — it will decide everything downstream."
+    highlight_nodes: [API]
+    active_nodes: [LF]
+    animate_edges: [LF-API]
+
+  - label: "Database lookup"
+    narration: "The API looks up the user in the database. This is a blocking round-trip — if the DB is slow or down, the entire flow stalls here."
+    highlight_nodes: [DB]
+    active_nodes: [API]
+    animate_edges: [API-DB, DB-API]
+
+  - label: "The decision"
+    narration: "Here is the critical fork. Everything downstream depends on this single check. What does 'valid' actually mean — bcrypt comparison, rate limiting, account lockout? This spec does not say."
+    highlight_nodes: [PV]
+    animate_edges: [API-PV]
+
+  - label: "Failure path"
+    narration: "On failure, a 401 is returned and the form is shown again. Notice this loop can repeat indefinitely — there is no brute-force protection visible in this spec."
+    highlight_nodes: [ER, LF]
+    animate_edges: [PV-ER, ER-LF]
+
+  - label: "Success path"
+    narration: "On success, a JWT is generated, stored in a cookie, and the user is redirected to the dashboard. The security properties of the JWT — expiry, algorithm, rotation — are unspecified."
+    highlight_nodes: [TG, SE, DA]
+    animate_edges: [PV-TG, TG-SE, SE-DA]
+
+  - label: "What to scrutinize"
+    narration: "Two things deserve attention in a review: the absence of rate limiting on the failure loop, and the unspecified JWT security properties."
+    highlight_nodes: [PV, ER, TG]

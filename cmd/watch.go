@@ -1,0 +1,177 @@
+package cmd
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"os/signal"
+	"path/filepath"
+	"runtime"
+	"syscall"
+	"time"
+
+	"github.com/fsnotify/fsnotify"
+	"github.com/scottmrogowski/ariel/dsl"
+	"github.com/scottmrogowski/ariel/renderer"
+	"github.com/spf13/cobra"
+)
+
+var watchPort int
+
+var watchCmd = &cobra.Command{
+	Use:   "watch <file>",
+	Short: "Serve a live-reloading browser preview of a walkthrough file",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		path := args[0]
+		name := filepath.Base(path)
+
+		// Initial load — print errors but don't refuse to start.
+		initialHTML := loadForWatch(path, name, watchPort)
+
+		srv := renderer.NewWatchServer(path, watchPort, initialHTML)
+
+		watcher, err := fsnotify.NewWatcher()
+		if err != nil {
+			return fmt.Errorf("watch: failed to create watcher: %w", err)
+		}
+		defer watcher.Close()
+
+		if err := watcher.Add(path); err != nil {
+			return fmt.Errorf("watch: %v", err)
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+		go func() {
+			<-sigs
+			cancel()
+		}()
+
+		go watchLoop(ctx, watcher, path, name, watchPort, srv)
+
+		url := fmt.Sprintf("http://localhost:%d", watchPort)
+		fmt.Printf("watching %s\nserving at %s\n", name, url)
+		openBrowser(url)
+
+		if err := srv.Start(ctx); err != nil {
+			select {
+			case <-ctx.Done():
+				return nil
+			default:
+				fmt.Fprintf(os.Stderr, "watch: %v\n", err)
+				os.Exit(1)
+			}
+		}
+		return nil
+	},
+}
+
+func init() {
+	watchCmd.Flags().IntVarP(&watchPort, "port", "p", 2313, "port to bind")
+	rootCmd.AddCommand(watchCmd)
+}
+
+// watchLoop processes file events and broadcasts updates to connected clients.
+func watchLoop(ctx context.Context, watcher *fsnotify.Watcher, path, name string, port int, srv *renderer.WatchServer) {
+	var debounce <-chan time.Time
+	for {
+		select {
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return
+			}
+			if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) {
+				debounce = time.After(80 * time.Millisecond)
+			}
+		case <-debounce:
+			debounce = nil
+			handleFileChange(path, name, port, srv)
+		case err := <-watcher.Errors:
+			fmt.Fprintf(os.Stderr, "watch error: %v\n", err)
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+// handleFileChange re-parses the file and broadcasts the result to clients.
+func handleFileChange(path, name string, port int, srv *renderer.WatchServer) {
+	w, issues, err := dsl.ParseFile(path)
+	if err != nil {
+		msg := fmt.Sprintf("%s: %v", name, err)
+		fmt.Fprintln(os.Stderr, msg)
+		srv.BroadcastError(msg)
+		return
+	}
+
+	if hasErrors(issues) {
+		printIssues(name, issues)
+		srv.BroadcastError(issueSummary(name, issues))
+		return
+	}
+
+	if len(issues) > 0 {
+		printIssues(name, issues) // warnings only
+	}
+
+	srv.UpdateContent(w)
+	fmt.Printf("reloaded %s\n", name)
+}
+
+// loadForWatch parses and renders the file for the initial watch page load.
+// On error it returns an error-state HTML page so the browser shows something.
+func loadForWatch(path, name string, port int) string {
+	w, issues, err := dsl.ParseFile(path)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", name, err)
+		return errorHTML(fmt.Sprintf("%s: %v", name, err))
+	}
+	if hasErrors(issues) {
+		printIssues(name, issues)
+		return errorHTML(issueSummary(name, issues))
+	}
+	if len(issues) > 0 {
+		printIssues(name, issues)
+	}
+
+	html, rerr := renderer.RenderWatch(w, port)
+	if rerr != nil {
+		fmt.Fprintf(os.Stderr, "%s: render error: %v\n", name, rerr)
+		return errorHTML(fmt.Sprintf("render error: %v", rerr))
+	}
+	return html
+}
+
+func issueSummary(name string, issues []dsl.Issue) string {
+	errCount := 0
+	for _, i := range issues {
+		if i.Severity == dsl.SeverityError {
+			errCount++
+		}
+	}
+	return fmt.Sprintf("%s: %d error(s) — fix the file and save to reload", name, errCount)
+}
+
+// errorHTML returns a minimal dark-themed error page.
+func errorHTML(msg string) string {
+	return fmt.Sprintf(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ariel error</title>
+<style>body{background:#0f1117;color:#fca5a5;font-family:monospace;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}pre{padding:24px;background:#1a1d27;border:1px solid #7f1d1d;border-radius:8px;max-width:80%%}</style>
+</head><body><pre>%s</pre></body></html>`, msg)
+}
+
+func openBrowser(url string) {
+	var browserCmd string
+	switch runtime.GOOS {
+	case "darwin":
+		browserCmd = "open"
+	case "linux":
+		browserCmd = "xdg-open"
+	default:
+		return
+	}
+	_ = exec.Command(browserCmd, url).Start()
+}
