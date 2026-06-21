@@ -1,7 +1,24 @@
 package dsl
 
 type Walkthrough struct {
-	Title          string `yaml:"title"`
+	Title string `yaml:"title"`
+	// Multi-diagram format.
+	Sections []Section `yaml:"sections,omitempty"`
+	// Single-diagram convenience format; normalized to Sections via ToSections().
+	MermaidDiagram string `yaml:"mermaid_diagram,omitempty"`
+	Steps          []Step `yaml:"steps,omitempty"`
+}
+
+// ToSections returns the effective sections regardless of which format was used.
+func (w *Walkthrough) ToSections() []Section {
+	if len(w.Sections) > 0 {
+		return w.Sections
+	}
+	return []Section{{MermaidDiagram: w.MermaidDiagram, Steps: w.Steps}}
+}
+
+type Section struct {
+	Title          string `yaml:"title,omitempty"`
 	MermaidDiagram string `yaml:"mermaid_diagram"`
 	Steps          []Step `yaml:"steps"`
 }

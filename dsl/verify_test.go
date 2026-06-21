@@ -23,7 +23,7 @@ func TestVerify_ValidWalkthrough(t *testing.T) {
 		},
 	}
 
-	issues := Verify(w, nodes, edges)
+	issues := Verify(w.Steps, nodes, edges)
 	if len(issues) != 0 {
 		t.Errorf("expected no issues, got %d: %+v", len(issues), issues)
 	}
@@ -37,7 +37,7 @@ func TestVerify_UnknownNodeInHighlight(t *testing.T) {
 		},
 	}
 
-	issues := Verify(w, nodes, edges)
+	issues := Verify(w.Steps, nodes, edges)
 	if len(issues) != 1 {
 		t.Fatalf("expected 1 issue, got %d", len(issues))
 	}
@@ -54,7 +54,7 @@ func TestVerify_UnknownNodeInActive(t *testing.T) {
 		},
 	}
 
-	issues := Verify(w, nodes, edges)
+	issues := Verify(w.Steps, nodes, edges)
 	if len(issues) != 1 || issues[0].Severity != SeverityError {
 		t.Errorf("expected 1 error, got %+v", issues)
 	}
@@ -68,7 +68,7 @@ func TestVerify_NonExistentEdge(t *testing.T) {
 		},
 	}
 
-	issues := Verify(w, nodes, edges)
+	issues := Verify(w.Steps, nodes, edges)
 	if len(issues) != 1 || issues[0].Severity != SeverityError {
 		t.Errorf("expected 1 error, got %+v", issues)
 	}
@@ -82,7 +82,7 @@ func TestVerify_InvalidEdgeFormat(t *testing.T) {
 		},
 	}
 
-	issues := Verify(w, nodes, edges)
+	issues := Verify(w.Steps, nodes, edges)
 	if len(issues) != 1 || issues[0].Severity != SeverityError {
 		t.Errorf("expected 1 error, got %+v", issues)
 	}
@@ -96,7 +96,7 @@ func TestVerify_EmptyStepWarning(t *testing.T) {
 		},
 	}
 
-	issues := Verify(w, nodes, edges)
+	issues := Verify(w.Steps, nodes, edges)
 	if len(issues) != 1 || issues[0].Severity != SeverityWarning {
 		t.Errorf("expected 1 warning, got %+v", issues)
 	}

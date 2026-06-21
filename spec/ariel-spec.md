@@ -6,6 +6,12 @@
 
 ---
 
+## About This Spec
+
+This document is the source of truth for ariel's DSL, CLI contracts, and frontend behavior. It is a **living document** — every code change that affects user-visible behavior, the DSL schema, CLI flags, exit codes, or output format must be accompanied by a corresponding update to this spec. A spec that diverges from the code is worse than no spec. When in doubt: update the spec first, then write the code.
+
+---
+
 ## Problem Statement
 
 Code is being generated faster than engineers can understand it. Specs are written, PRs are opened, and reviewers approve without truly comprehending what the system does. Static diagrams help but are insufficient — they show structure without conveying flow, decision points, or what is non-obvious.
@@ -98,13 +104,19 @@ Respect the context window of the calling LLM. Be as brief as possible
 - All edge references in `animate_edges` reference valid node ID pairs that exist as edges in the diagram
 - Mermaid diagram block is itself valid Mermaid syntax (parse and validate)
 - At least one step exists
-- Steps with no narration AND no visual changes are flagged as warnings (not errors)
+- Steps with no narration, no label, AND no visual changes are flagged as warnings (not errors)
+- Steps where `highlight_nodes` or `active_nodes` contain two nodes with no direct edge between them are flagged as warnings — this often indicates nodes that belong in separate steps
 
 **Output format:**
 
-On success:
+On success (single diagram):
 ```
 ✓ ariel.yaml is valid (8 steps, 12 nodes, 9 edges)
+```
+
+On success (multiple sections):
+```
+✓ ariel.yaml is valid (2 sections, 14 steps, 19 nodes, 20 edges)
 ```
 
 On failure (one line per issue, file:line format for editor compatibility):
@@ -174,14 +186,14 @@ The output file must be openable by double-clicking in any modern browser with n
 6. Browser receives the update, re-renders the diagram and resets to step 1
 
 **Websocket behavior:**
-- Server sends a JSON message on change: `{ "type": "update", "content": "<full yaml string>" }`
+- Server sends a JSON message on change: `{ "type": "update", "content": "<full rendered HTML page>" }`
 - On verify error after a change: `{ "type": "error", "message": "<error text>" }`
 - Browser displays error state non-destructively (overlay, does not lose current step position if the error is minor)
 
 **The watch output HTML is identical to generate output except:**
 - Includes a small websocket client snippet (~20 lines of JS)
 - Connects to `ws://localhost:<port>/ws` on load
-- On `update` message: re-parses content, re-renders Mermaid, resets step player
+- On `update` message: replaces the entire page document with the new HTML (resets to step 1)
 - On `error` message: shows error overlay with the message
 
 **Exit codes:**
@@ -195,7 +207,9 @@ The output file must be openable by double-clicking in any modern browser with n
 
 Files use the `.ariel.yaml` extension by convention (not enforced).
 
-### Top-level structure
+Two top-level formats are supported. The two formats cannot be combined in one file.
+
+### Single-diagram format
 
 ```yaml
 # Required. Title shown in the browser header.
@@ -207,15 +221,7 @@ title: "User Authentication Flow"
 mermaid_diagram: |
   graph TD
     U([User]) -->|submits credentials| LF[Login Form]
-    LF -->|POST /auth/login| API[Auth API]
-    API -->|lookup| DB[(User DB)]
-    DB -->|user record| API
-    API --> PV{Password Valid?}
-    PV -->|yes| TG[Token Generator]
-    PV -->|no| ER[Error Response]
-    TG --> SE[Set Cookie]
-    SE --> DA[Dashboard]
-    ER -->|401| LF
+    ...
 
 # Required. Ordered list of walkthrough steps.
 # Must contain at least one step.
@@ -223,9 +229,34 @@ steps:
   - ...
 ```
 
+### Multi-diagram format
+
+```yaml
+title: "My Walkthrough"
+
+# Required. Each section has its own diagram and step list.
+# Must contain at least one section; each section must have at least one step.
+sections:
+  - title: "Overview"           # optional section title; shown in progress UI
+    mermaid_diagram: |
+      graph LR
+        A --> B
+    steps:
+      - narration: "Section one."
+
+  - title: "Detail"
+    mermaid_diagram: |
+      graph TD
+        ...
+    steps:
+      - narration: "Section two."
+```
+
+Clicking Next at the last step of a section transitions to the first step of the next section, re-rendering the diagram. The browser-level progress UI shows section dots (if more than one section) above step dots for the current section.
+
 ### Step structure
 
-All fields in a step are optional except at least one of `narration`, `highlight_nodes`, `active_nodes`, or `animate_edges` must be present.
+All fields in a step are optional except at least one of `narration`, `label`, `highlight_nodes`, `active_nodes`, or `animate_edges` must be present.
 
 ```yaml
 steps:
@@ -352,6 +383,20 @@ steps:
 - Theme: `dark`
 - Mermaid renders the diagram as an inline SVG into a container div
 
+### Node identification
+
+After Mermaid renders, the frontend identifies nodes by parsing the `id` attribute of each `.node` SVG group element. Mermaid 10.6.1 gives every node group an ID of the form `flowchart-{nodeId}-{n}`. The node ID is extracted from this pattern. This approach is robust to duplicate display labels — two nodes can share the same label text without collision.
+
+### Click-to-navigate
+
+Nodes that appear in at least one step's `highlight_nodes` or `active_nodes` are navigable. Clicking a navigable node jumps to the next step (relative to the current position) that references that node, wrapping around. Nodes not referenced by any step in the current section are non-interactive and show no hover affordance.
+
+Behavior:
+- Cursor changes to `pointer` on hover for navigable nodes
+- Subtle opacity reduction on hover to signal interactivity
+- If the current step already references the node, the next click advances to the subsequent occurrence (cycling)
+- Click navigation is scoped to the current section; cross-section navigation is not supported
+
 ### Node highlighting
 
 After Mermaid renders, the frontend builds a node map by scanning the SVG for `.node` elements and matching their text content to node IDs in the step script.
@@ -386,12 +431,13 @@ All edges not in `animate_edges` for the current step are in their default (non-
 ### Step player
 
 - Previous / Next buttons
-- Progress indicator (dot per step, current step pill-shaped)
+- Progress indicator (dot per step, current step pill-shaped); intro dot is circular and accent-colored
 - Dots are clickable for direct navigation
 - Keyboard navigation: ArrowRight / Space = next, ArrowLeft = previous
 - Narration text fades out and in on step change (0.2s opacity transition)
-- Label shown above narration (e.g. "3 of 8 — The decision")
-- On the last step, Next button changes to "Done" and is disabled
+- First step of each section is an **intro slide**: no step counter shown; label displays the section title (multi-diagram) or the step's label field (single-diagram)
+- Numbered steps start at "1 of N" where N excludes the intro (e.g. "2 of 8 — The decision" is step index 2 of a 9-step section)
+- On the last step of the last section, Next button changes to "Done" and is disabled
 
 ### Layout
 
@@ -399,6 +445,13 @@ All edges not in `animate_edges` for the current step are in their default (non-
 - All CSS and JS inlined in the output HTML
 - Background: dark theme (consistent with developer tooling context)
 - No external fonts — system font stack
+
+### Header
+
+- Browser tab title: `<walkthrough title> | Ariel`
+- Header shows the walkthrough title as a large centered `<h1>`
+- "Ariel ↗" link in the top-right corner, linking to the ariel GitHub repository
+- No "Walkthrough" badge or chip
 
 ### Self-contained output requirement
 

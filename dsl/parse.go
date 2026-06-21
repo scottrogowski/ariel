@@ -12,6 +12,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// errorf is a shorthand for constructing a top-level structural Issue.
+func errorf(msg string, args ...any) *Issue {
+	return &Issue{Line: 1, Severity: SeverityError, Message: fmt.Sprintf(msg, args...)}
+}
+
 // lineNumRe matches "line N:" in yaml error strings.
 var lineNumRe = regexp.MustCompile(`line (\d+):`)
 
@@ -37,7 +42,7 @@ func Parse(data []byte) (*Walkthrough, []Issue, error) {
 	}
 
 	var issues []Issue
-	if err := requireTopLevelFields(&w, data); err != nil {
+	if err := requireTopLevelFields(&w); err != nil {
 		issues = append(issues, *err)
 	}
 	if len(issues) > 0 {
@@ -47,17 +52,40 @@ func Parse(data []byte) (*Walkthrough, []Issue, error) {
 	return &w, nil, nil
 }
 
-// requireTopLevelFields checks that mandatory top-level fields are present and non-empty.
-func requireTopLevelFields(w *Walkthrough, data []byte) *Issue {
+// requireTopLevelFields checks that the walkthrough uses exactly one valid format.
+func requireTopLevelFields(w *Walkthrough) *Issue {
 	if w.Title == "" {
-		return &Issue{Line: 1, Severity: SeverityError, Message: `missing required field "title"`}
+		return errorf(`missing required field "title"`)
 	}
-	if w.MermaidDiagram == "" {
-		return &Issue{Line: 1, Severity: SeverityError, Message: `missing required field "mermaid_diagram"`}
+
+	hasSections := len(w.Sections) > 0
+	hasFlat := w.MermaidDiagram != "" || len(w.Steps) > 0
+
+	if hasSections && hasFlat {
+		return errorf(`"sections" cannot be combined with "mermaid_diagram" or "steps"`)
 	}
-	if len(w.Steps) == 0 {
-		return &Issue{Line: 1, Severity: SeverityError, Message: `"steps" must contain at least one step`}
+	if !hasSections && !hasFlat {
+		return errorf(`missing content: use "sections" for multiple diagrams or "mermaid_diagram"+"steps" for a single diagram`)
 	}
+
+	if hasFlat {
+		if w.MermaidDiagram == "" {
+			return errorf(`missing required field "mermaid_diagram"`)
+		}
+		if len(w.Steps) == 0 {
+			return errorf(`"steps" must contain at least one step`)
+		}
+	}
+
+	for i, sec := range w.Sections {
+		if sec.MermaidDiagram == "" {
+			return errorf(`section %d: missing required field "mermaid_diagram"`, i+1)
+		}
+		if len(sec.Steps) == 0 {
+			return errorf(`section %d: "steps" must contain at least one step`, i+1)
+		}
+	}
+
 	return nil
 }
 

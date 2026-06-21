@@ -27,6 +27,11 @@ var watchCmd = &cobra.Command{
 		path := args[0]
 		name := filepath.Base(path)
 
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			fmt.Fprintf(os.Stderr, "%s: file not found\n", name)
+			os.Exit(2)
+		}
+
 		// Initial load — print errors but don't refuse to start.
 		initialHTML := loadForWatch(path, name, watchPort)
 

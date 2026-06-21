@@ -2,7 +2,7 @@ package guide
 
 const Reference = `ariel DSL reference — read this before authoring a walkthrough file.
 
-FILE STRUCTURE
+FILE STRUCTURE — single diagram
   title: "My Walkthrough"          # required; shown in browser header
   mermaid_diagram: |               # required; valid Mermaid syntax
     graph TD
@@ -13,6 +13,25 @@ FILE STRUCTURE
       highlight_nodes: [A, B]      # optional; node IDs to emphasize (context)
       active_nodes: [A]            # optional; node IDs for primary actor (stronger emphasis)
       animate_edges: [A-B]         # optional; edges to animate (SOURCE_ID-TARGET_ID)
+
+FILE STRUCTURE — multiple diagrams
+  title: "My Walkthrough"
+  sections:
+    - title: "Overview"            # optional section title
+      mermaid_diagram: |
+        graph LR
+          A --> B
+      steps:
+        - narration: "Section one."
+    - title: "Detail"
+      mermaid_diagram: |
+        graph TD
+          ...
+      steps:
+        - narration: "Section two."
+
+  Use "sections" for multi-diagram walkthroughs. Use "mermaid_diagram"+"steps"
+  for single-diagram. The two formats cannot be combined in one file.
 
   Each step must have at least one of: narration, label, highlight_nodes,
   active_nodes, or animate_edges. Unknown fields at any level are errors.
@@ -41,6 +60,10 @@ AUTHORING TIPS
     4. Failure path — cover error branches after the happy path
     5. "What to scrutinize" — final step identifying what deserves review
 
+  For multi-diagram files, use sections to progress from simple to detailed:
+    - Section 1: high-level overview (few nodes, major components only)
+    - Section 2+: drill into subsystems or failure paths
+
   What to narrate:
     - Decision points (forks where the system chooses between paths)
     - Non-obvious design choices (surprising or could easily be done differently)
@@ -65,11 +88,14 @@ COMMON ERRORS
   animate_edges references a non-existent edge
     → Both node IDs must exist AND there must be a direct edge between them
 
-  Unknown field in step
+  Unknown field in step or section
     → Remove it; the DSL does not support extra fields
 
   Missing title, mermaid_diagram, or steps
-    → All three are required at the top level
+    → All three are required (in either the flat or sections format)
+
+  Mixing "sections" with "mermaid_diagram"/"steps"
+    → Use one format per file, not both
 
   Steps with no content
     → Every step needs at least one of: narration, label, highlight_nodes,

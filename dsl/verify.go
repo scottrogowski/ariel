@@ -5,13 +5,13 @@ import (
 	"strings"
 )
 
-// Verify runs semantic checks on a parsed walkthrough against its extracted graph.
+// Verify runs semantic checks on a slice of steps against its extracted graph.
 // It does not re-parse the mermaid diagram; the caller supplies nodes and edges.
-func Verify(w *Walkthrough, nodes map[string]string, edges [][2]string) []Issue {
+func Verify(steps []Step, nodes map[string]string, edges [][2]string) []Issue {
 	edgeSet := buildEdgeSet(edges)
 
 	var issues []Issue
-	for i, step := range w.Steps {
+	for i, step := range steps {
 		stepNum := i + 1
 
 		for _, id := range step.HighlightNodes {
@@ -63,6 +63,8 @@ func Verify(w *Walkthrough, nodes map[string]string, edges [][2]string) []Issue 
 			}
 		}
 
+		issues = append(issues, nonAdjacentWarnings(step, stepNum, nodes, edgeSet)...)
+
 		if isEmpty(step) {
 			issues = append(issues, Issue{
 				Severity: SeverityWarning,
@@ -91,6 +93,35 @@ func splitEdgeRef(ref string) (src, dst string, ok bool) {
 		return "", "", false
 	}
 	return ref[:idx], ref[idx+1:], true
+}
+
+// nonAdjacentWarnings warns for each pair of highlighted/active nodes in a step
+// that share no direct edge. Skips unknown node IDs (already reported as errors).
+func nonAdjacentWarnings(step Step, stepNum int, nodes map[string]string, edgeSet map[[2]string]bool) []Issue {
+	seen := make(map[string]bool)
+	var combined []string
+	for _, id := range append(step.HighlightNodes, step.ActiveNodes...) {
+		if _, ok := nodes[id]; ok && !seen[id] {
+			combined = append(combined, id)
+			seen[id] = true
+		}
+	}
+	if len(combined) < 2 {
+		return nil
+	}
+	var issues []Issue
+	for i := 0; i < len(combined); i++ {
+		for j := i + 1; j < len(combined); j++ {
+			a, b := combined[i], combined[j]
+			if !edgeSet[[2]string{a, b}] && !edgeSet[[2]string{b, a}] {
+				issues = append(issues, Issue{
+					Severity: SeverityWarning,
+					Message:  fmt.Sprintf("step %d: highlighted nodes %q and %q have no direct edge between them", stepNum, a, b),
+				})
+			}
+		}
+	}
+	return issues
 }
 
 // isEmpty returns true if a step has neither narration nor any visual change.

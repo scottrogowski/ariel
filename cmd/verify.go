@@ -35,24 +35,36 @@ func runVerify(path, displayName string, printResult bool) int {
 		fmt.Fprintf(os.Stderr, "%s: error: %v\n", displayName, err)
 		return 2
 	}
-
 	if len(issues) > 0 {
 		printIssues(displayName, issues)
 		return 1
 	}
 
-	nodes, edges := dsl.ExtractGraph(w.MermaidDiagram)
+	sections := w.ToSections()
+	var totalNodes, totalEdges, totalSteps int
+	multi := len(sections) > 1
 
-	// Mermaid syntax validation via embedded JS runtime.
-	if err := mermaidjs.Validate(w.MermaidDiagram); err != nil {
-		issues = append(issues, dsl.Issue{
-			Severity: dsl.SeverityError,
-			Message:  fmt.Sprintf("mermaid_diagram: %v", err),
-		})
+	for i, sec := range sections {
+		nodes, edges := dsl.ExtractGraph(sec.MermaidDiagram)
+		totalNodes += len(nodes)
+		totalEdges += len(edges)
+		totalSteps += len(sec.Steps)
+
+		if err := mermaidjs.Validate(sec.MermaidDiagram); err != nil {
+			msg := fmt.Sprintf("mermaid_diagram: %v", err)
+			if multi {
+				msg = fmt.Sprintf("section %d %s", i+1, msg)
+			}
+			issues = append(issues, dsl.Issue{Severity: dsl.SeverityError, Message: msg})
+		}
+
+		for _, issue := range dsl.Verify(sec.Steps, nodes, edges) {
+			if multi {
+				issue.Message = fmt.Sprintf("section %d: %s", i+1, issue.Message)
+			}
+			issues = append(issues, issue)
+		}
 	}
-
-	semanticIssues := dsl.Verify(w, nodes, edges)
-	issues = append(issues, semanticIssues...)
 
 	if len(issues) > 0 {
 		printIssues(displayName, issues)
@@ -63,8 +75,13 @@ func runVerify(path, displayName string, printResult bool) int {
 	}
 
 	if printResult {
-		fmt.Printf("✓ %s is valid (%d steps, %d nodes, %d edges)\n",
-			displayName, len(w.Steps), len(nodes), len(edges))
+		if multi {
+			fmt.Printf("✓ %s is valid (%d sections, %d steps, %d nodes, %d edges)\n",
+				displayName, len(sections), totalSteps, totalNodes, totalEdges)
+		} else {
+			fmt.Printf("✓ %s is valid (%d steps, %d nodes, %d edges)\n",
+				displayName, totalSteps, totalNodes, totalEdges)
+		}
 	}
 	return 0
 }
