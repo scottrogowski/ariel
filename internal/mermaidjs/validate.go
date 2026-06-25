@@ -152,6 +152,8 @@ var (
 	compileErr   error
 )
 
+// getCompiled compiles the combined Mermaid+shim JS once and caches the result;
+// subsequent calls return the cached program without recompiling.
 func getCompiled() (*goja.Program, error) {
 	compileOnce.Do(func() {
 		combined := jsPrefix + mermaidJS + jsSuffix
@@ -165,7 +167,8 @@ type validationResult struct {
 	Error *string `json:"error"`
 }
 
-// Validate returns nil if diagram is valid Mermaid syntax, or an error describing the problem.
+// Validate returns nil if diagram is valid Mermaid syntax, or an error with the
+// parser's own message. Runs a fresh goja VM per call; each call is independent.
 func Validate(diagram string) error {
 	prog, err := getCompiled()
 	if err != nil {

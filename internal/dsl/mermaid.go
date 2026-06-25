@@ -6,7 +6,7 @@ import (
 )
 
 // nodeShapeRe matches a node ID followed by any Mermaid shape syntax.
-// Order is significant: longer/more specific openers must come first.
+// Order matters: longer/more specific openers must come before shorter overlapping ones.
 var nodeShapeRe = regexp.MustCompile(
 	`\b(\w+)` +
 		`(?:` +
@@ -26,7 +26,6 @@ var edgeSyntaxRe = regexp.MustCompile(`(?:--[->oOxX]|==+[>=]|-.->|<-->|<--)`)
 // edgeLabelRe matches inline edge labels: |...|
 var edgeLabelRe = regexp.MustCompile(`\|[^|]*\|`)
 
-// nodeIDRe validates a bare node ID token.
 var nodeIDRe = regexp.MustCompile(`^\w+$`)
 
 // ExtractGraph parses a Mermaid diagram string and returns:
@@ -41,7 +40,6 @@ func ExtractGraph(diagram string) (nodes map[string]string, edges [][2]string) {
 			continue
 		}
 
-		// Extract all node definitions with shapes on this line.
 		for _, m := range nodeShapeRe.FindAllStringSubmatch(line, -1) {
 			id := m[1]
 			if _, exists := nodes[id]; !exists {
@@ -49,38 +47,14 @@ func ExtractGraph(diagram string) (nodes map[string]string, edges [][2]string) {
 			}
 		}
 
-		if !edgeSyntaxRe.MatchString(line) {
-			continue
-		}
-
-		// Simplify the line to extract edge source/target pairs:
-		// replace each shaped node with just its ID, strip edge labels.
-		simplified := nodeShapeRe.ReplaceAllStringFunc(line, func(match string) string {
-			sub := nodeShapeRe.FindStringSubmatch(match)
-			if sub != nil {
-				return sub[1]
+		for _, e := range edgesFromLine(line) {
+			edges = append(edges, e)
+			// Register bare node IDs that have no explicit shape definition.
+			if _, exists := nodes[e[0]]; !exists {
+				nodes[e[0]] = ""
 			}
-			return match
-		})
-		simplified = edgeLabelRe.ReplaceAllString(simplified, " ")
-
-		parts := edgeSyntaxRe.Split(simplified, -1)
-		for i := range parts {
-			parts[i] = strings.TrimSpace(parts[i])
-		}
-
-		for i := 0; i+1 < len(parts); i++ {
-			src, dst := parts[i], parts[i+1]
-			if !nodeIDRe.MatchString(src) || !nodeIDRe.MatchString(dst) {
-				continue
-			}
-			edges = append(edges, [2]string{src, dst})
-			// Register bare IDs that may not have an explicit shape definition.
-			if _, exists := nodes[src]; !exists {
-				nodes[src] = ""
-			}
-			if _, exists := nodes[dst]; !exists {
-				nodes[dst] = ""
+			if _, exists := nodes[e[1]]; !exists {
+				nodes[e[1]] = ""
 			}
 		}
 	}
@@ -88,7 +62,37 @@ func ExtractGraph(diagram string) (nodes map[string]string, edges [][2]string) {
 	return nodes, edges
 }
 
-// extractShapeLabel strips the node ID and shape delimiters to return the display label.
+// edgesFromLine extracts source→target node ID pairs from a line containing edge syntax.
+// Replaces shaped nodes with bare IDs and strips edge labels before splitting on connectors.
+func edgesFromLine(line string) [][2]string {
+	if !edgeSyntaxRe.MatchString(line) {
+		return nil
+	}
+	simplified := nodeShapeRe.ReplaceAllStringFunc(line, func(match string) string {
+		if sub := nodeShapeRe.FindStringSubmatch(match); sub != nil {
+			return sub[1]
+		}
+		return match
+	})
+	simplified = edgeLabelRe.ReplaceAllString(simplified, " ")
+
+	parts := edgeSyntaxRe.Split(simplified, -1)
+	for i := range parts {
+		parts[i] = strings.TrimSpace(parts[i])
+	}
+
+	var pairs [][2]string
+	for i := 0; i+1 < len(parts); i++ {
+		src, dst := parts[i], parts[i+1]
+		if nodeIDRe.MatchString(src) && nodeIDRe.MatchString(dst) {
+			pairs = append(pairs, [2]string{src, dst})
+		}
+	}
+	return pairs
+}
+
+// extractShapeLabel strips the shape delimiters from a matched node string to return
+// the inner display label, e.g. "API[Auth API]" → "Auth API".
 func extractShapeLabel(nodeStr, id string) string {
 	shape := nodeStr[len(id):]
 	for _, delims := range [][2]string{

@@ -1,20 +1,17 @@
 title: "How ariel works"
 
 sections:
-  - title: "The four commands"
+  - title: "The six commands"
     mermaid_diagram: |
       graph LR
-        User([User / LLM]) --> G[guide]
-        User --> V[verify]
+        User([User / LLM]) --> V[verify]
         User --> Ge[generate]
         User --> W[watch]
+        User --> G[guide]
+        User --> SE[single-diagram-example]
+        User --> ME[multiple-diagram-example]
     steps:
-      - narration: "ariel has four commands. This walkthrough covers how they fit together and what happens under the hood when you run them."
-
-      - label: "guide"
-        narration: "The guide command prints the full DSL reference to stdout. It exists specifically so an LLM can load the schema into context before authoring a walkthrough file."
-        active_nodes: [G]
-        animate_edges: [User-G]
+      - narration: "ariel has six commands. This walkthrough covers how they fit together and what happens under the hood when you run them."
 
       - label: "verify"
         narration: "verify lints a walkthrough file. It runs three checks in sequence: YAML syntax, semantic node/edge validation, and Mermaid syntax via an embedded JS runtime. Fast feedback is the goal — under one second."
@@ -30,6 +27,21 @@ sections:
         narration: "watch starts a local HTTP server with live reload. It opens a browser, watches the file for changes, and pushes a freshly-rendered page over a WebSocket on every save."
         active_nodes: [W]
         animate_edges: [User-W]
+
+      - label: "guide"
+        narration: "The guide command prints the full DSL reference to stdout. It exists specifically so an LLM can load the schema into context before authoring a walkthrough file."
+        active_nodes: [G]
+        animate_edges: [User-G]
+
+      - label: "single-diagram-example"
+        narration: "Prints a complete, valid single-section walkthrough to stdout. Pipe to a file to use as a starting point. The content explains the cognitive science behind why walkthroughs aid comprehension."
+        active_nodes: [SE]
+        animate_edges: [User-SE]
+
+      - label: "multiple-diagram-example"
+        narration: "Same as single-diagram-example but for multi-section walkthroughs. Both examples are self-describing — they use ariel to explain ariel."
+        active_nodes: [ME]
+        animate_edges: [User-ME]
 
   - title: "The pipeline"
     mermaid_diagram: |
@@ -94,4 +106,3 @@ sections:
         highlight_nodes: [FSWatch, Parse, Server, Browser]
         active_nodes: [FSWatch]
         animate_edges: [FSWatch-Parse, Server-Browser]
-

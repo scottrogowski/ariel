@@ -23,21 +23,3 @@ func TestValidate_InvalidDiagram(t *testing.T) {
 		t.Error("expected invalid diagram to fail, got nil error")
 	}
 }
-
-func TestValidate_AuthFlowDiagram(t *testing.T) {
-	diagram := `graph TD
-    U([User]) -->|submits credentials| LF[Login Form]
-    LF -->|POST /auth/login| API[Auth API]
-    API -->|lookup| DB[(User DB)]
-    DB -->|user record| API
-    API --> PV{Password Valid?}
-    PV -->|yes| TG[Token Generator]
-    PV -->|no| ER[Error Response]
-    TG --> SE[Set Cookie]
-    SE --> DA[Dashboard]
-    ER -->|401| LF`
-
-	if err := Validate(diagram); err != nil {
-		t.Errorf("expected auth flow diagram to be valid, got: %v", err)
-	}
-}

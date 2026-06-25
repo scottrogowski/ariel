@@ -5,13 +5,13 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/scottmrogowski/ariel/dsl"
+	"github.com/scottmrogowski/ariel/internal/dsl"
 	"github.com/scottmrogowski/ariel/internal/mermaidjs"
 	"github.com/spf13/cobra"
 )
 
 var verifyCmd = &cobra.Command{
-	Use:   "verify <file>",
+	Use:   "verify <file.ariel.yaml>",
 	Short: "Lint a walkthrough file for syntax and semantic errors",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -27,8 +27,9 @@ func init() {
 	rootCmd.AddCommand(verifyCmd)
 }
 
-// runVerify executes all verify checks and returns an exit code.
-// printResult controls whether output is printed (false when called as a sub-step of generate/watch).
+// runVerify parses, fully verifies, and optionally prints a ✓ success line.
+// printResult should be false when called as a pre-flight step inside generate/watch.
+// Returns 0 (valid), 1 (errors), or 2 (IO error / file not found).
 func runVerify(path, displayName string, printResult bool) int {
 	w, issues, err := dsl.ParseFile(path)
 	if err != nil {
@@ -40,32 +41,7 @@ func runVerify(path, displayName string, printResult bool) int {
 		return 1
 	}
 
-	sections := w.ToSections()
-	var totalNodes, totalEdges, totalSteps int
-	multi := len(sections) > 1
-
-	for i, sec := range sections {
-		nodes, edges := dsl.ExtractGraph(sec.MermaidDiagram)
-		totalNodes += len(nodes)
-		totalEdges += len(edges)
-		totalSteps += len(sec.Steps)
-
-		if err := mermaidjs.Validate(sec.MermaidDiagram); err != nil {
-			msg := fmt.Sprintf("mermaid_diagram: %v", err)
-			if multi {
-				msg = fmt.Sprintf("section %d %s", i+1, msg)
-			}
-			issues = append(issues, dsl.Issue{Severity: dsl.SeverityError, Message: msg})
-		}
-
-		for _, issue := range dsl.Verify(sec.Steps, nodes, edges) {
-			if multi {
-				issue.Message = fmt.Sprintf("section %d: %s", i+1, issue.Message)
-			}
-			issues = append(issues, issue)
-		}
-	}
-
+	issues = verifyWalkthrough(w)
 	if len(issues) > 0 {
 		printIssues(displayName, issues)
 		if hasErrors(issues) {
@@ -75,7 +51,15 @@ func runVerify(path, displayName string, printResult bool) int {
 	}
 
 	if printResult {
-		if multi {
+		sections := w.ToSections()
+		var totalNodes, totalEdges, totalSteps int
+		for _, sec := range sections {
+			nodes, edges := dsl.ExtractGraph(sec.MermaidDiagram)
+			totalNodes += len(nodes)
+			totalEdges += len(edges)
+			totalSteps += len(sec.Steps)
+		}
+		if len(sections) > 1 {
 			fmt.Printf("✓ %s is valid (%d sections, %d steps, %d nodes, %d edges)\n",
 				displayName, len(sections), totalSteps, totalNodes, totalEdges)
 		} else {
@@ -86,6 +70,33 @@ func runVerify(path, displayName string, printResult bool) int {
 	return 0
 }
 
+// verifyWalkthrough runs full semantic verification on a parsed walkthrough:
+// mermaid syntax per section and step/node/edge validity.
+// Assumes the walkthrough has already been parsed cleanly (ParseFile returned no issues).
+func verifyWalkthrough(w *dsl.Walkthrough) []dsl.Issue {
+	sections := w.ToSections()
+	multi := len(sections) > 1
+	var issues []dsl.Issue
+	for i, sec := range sections {
+		nodes, edges := dsl.ExtractGraph(sec.MermaidDiagram)
+		if err := mermaidjs.Validate(sec.MermaidDiagram); err != nil {
+			msg := fmt.Sprintf("mermaid_diagram: %v", err)
+			if multi {
+				msg = fmt.Sprintf("section %d %s", i+1, msg)
+			}
+			issues = append(issues, dsl.Issue{Severity: dsl.SeverityError, Message: msg})
+		}
+		for _, issue := range dsl.Verify(sec.Steps, nodes, edges) {
+			if multi {
+				issue.Message = fmt.Sprintf("section %d: %s", i+1, issue.Message)
+			}
+			issues = append(issues, issue)
+		}
+	}
+	return issues
+}
+
+// printIssues writes issues to stdout in "file:line: severity: message" format.
 func printIssues(name string, issues []dsl.Issue) {
 	for _, issue := range issues {
 		if issue.Line > 0 {
@@ -96,6 +107,7 @@ func printIssues(name string, issues []dsl.Issue) {
 	}
 }
 
+// hasErrors reports whether any issue in the slice has error severity.
 func hasErrors(issues []dsl.Issue) bool {
 	for _, i := range issues {
 		if i.Severity == dsl.SeverityError {

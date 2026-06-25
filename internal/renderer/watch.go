@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
-	"github.com/scottmrogowski/ariel/dsl"
+	"github.com/scottmrogowski/ariel/internal/dsl"
 )
 
 // wsMessage is the JSON structure sent to browser clients.
@@ -33,7 +33,7 @@ type WatchServer struct {
 	upgrader websocket.Upgrader
 }
 
-// NewWatchServer creates a WatchServer for the given file and port.
+// NewWatchServer creates a WatchServer ready to serve the given file on the given port.
 func NewWatchServer(filePath string, port int, initialHTML string) *WatchServer {
 	return &WatchServer{
 		port:     port,
@@ -46,7 +46,7 @@ func NewWatchServer(filePath string, port int, initialHTML string) *WatchServer 
 	}
 }
 
-// UpdateContent re-renders and broadcasts an update to all connected clients.
+// UpdateContent re-renders the walkthrough and broadcasts the new HTML to all connected clients.
 func (s *WatchServer) UpdateContent(w *dsl.Walkthrough) {
 	html, err := render(w, s.wsSnippet())
 	if err != nil {
@@ -62,16 +62,18 @@ func (s *WatchServer) UpdateContent(w *dsl.Walkthrough) {
 	s.broadcast(msg)
 }
 
-// BroadcastError sends an error message to all connected clients.
+// BroadcastError sends an error overlay message to all connected clients.
 func (s *WatchServer) BroadcastError(text string) {
 	s.broadcastError(text)
 }
 
+// broadcastError serializes and broadcasts a JSON error message to all connected clients.
 func (s *WatchServer) broadcastError(text string) {
 	msg, _ := json.Marshal(wsMessage{Type: "error", Message: text})
 	s.broadcast(msg)
 }
 
+// broadcast sends msg to all connected WebSocket clients; logs write errors but does not disconnect.
 func (s *WatchServer) broadcast(msg []byte) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -82,7 +84,8 @@ func (s *WatchServer) broadcast(msg []byte) {
 	}
 }
 
-// Start starts the HTTP server and blocks until ctx is cancelled.
+// Start binds the port, starts the HTTP server, and blocks until ctx is cancelled.
+// Returns an error if the port is already in use.
 func (s *WatchServer) Start(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", s.handleWS)
@@ -106,6 +109,7 @@ func (s *WatchServer) Start(ctx context.Context) error {
 	return srv.Serve(ln)
 }
 
+// handlePage serves the current rendered HTML to HTTP clients.
 func (s *WatchServer) handlePage(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	html := s.html
@@ -116,6 +120,8 @@ func (s *WatchServer) handlePage(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(html))
 }
 
+// handleWS upgrades the connection to WebSocket, registers the client, and runs
+// a read loop to handle ping/close frames until the client disconnects.
 func (s *WatchServer) handleWS(w http.ResponseWriter, r *http.Request) {
 	conn, err := s.upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -142,7 +148,8 @@ func (s *WatchServer) handleWS(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// wsSnippet returns the websocket client JS to inject before </body>.
+// wsSnippet returns the WebSocket client JS injected into watch-mode HTML.
+// On update it replaces the full page; on error it shows a dismissible overlay.
 func (s *WatchServer) wsSnippet() string {
 	return strings.ReplaceAll(`<script>
 (function() {

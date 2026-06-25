@@ -3,13 +3,17 @@ package guide
 const Reference = `ariel DSL reference — read this before authoring a walkthrough file.
 
 FILE STRUCTURE — single diagram
-  title: "My Walkthrough"          # required; shown in browser header
+  title: "My Walkthrough"          # optional; default: "Ariel Walkthrough"
   mermaid_diagram: |               # required; valid Mermaid syntax
     graph TD
       A[Node A] --> B[Node B]
   steps:                           # required; at least one entry
     - label: "Step label"          # optional; 2–4 words shown above narration
       narration: "What happens."   # optional; 1–2 plain-English sentences
+      # NOTE: the first step of each section is the overview. It may only use
+      # "label" and "narration" — highlight_nodes, active_nodes, and animate_edges
+      # are not allowed. All subsequent steps may use any combination.
+    - label: "Step 2"
       highlight_nodes: [A, B]      # optional; node IDs to emphasize (context)
       active_nodes: [A]            # optional; node IDs for primary actor (stronger emphasis)
       animate_edges: [A-B]         # optional; edges to animate (SOURCE_ID-TARGET_ID)
@@ -91,8 +95,8 @@ COMMON ERRORS
   Unknown field in step or section
     → Remove it; the DSL does not support extra fields
 
-  Missing title, mermaid_diagram, or steps
-    → All three are required (in either the flat or sections format)
+  Missing mermaid_diagram or steps
+    → Both are required (in either the flat or sections format)
 
   Mixing "sections" with "mermaid_diagram"/"steps"
     → Use one format per file, not both
@@ -100,6 +104,16 @@ COMMON ERRORS
   Steps with no content
     → Every step needs at least one of: narration, label, highlight_nodes,
        active_nodes, animate_edges
+
+  Warning: not all highlighted components are connected
+    → The nodes referenced across highlight_nodes, active_nodes, and
+       animate_edges for this step don't form a single connected subgraph.
+       Often means you're combining unrelated diagram regions in one step —
+       consider splitting into two steps, or add animate_edges that bridge them
+
+  First step has highlight_nodes, active_nodes, or animate_edges
+    → The first step of each section is the overview. Remove visual fields
+       from step 1 — it may only use "label" and "narration"
 
 Run "ariel verify <file>" after writing — it catches all the above.
 `

@@ -1,12 +1,10 @@
 # ariel
 
-Animated diagram walkthroughs. Give ariel a Mermaid diagram and a list of steps; it renders a self-contained HTML presentation with highlighted nodes, animated edges, and narration — one idea at a time.
+Step-by-step Mermaid diagram walkthroughs from a YAML DSL. Each walkthrough pairs a diagram with a sequence of steps that highlight nodes, animate edges, and narrate what is happening — rendered as interactive HTML or as an MP4 for embedding in GitHub READMEs.
 
-Designed to be authored by an LLM. Run `ariel guide` at the start of a session to load the DSL into context.
+Designed to be authored by an LLM. Run `ariel guide` at the start of a session to load the full DSL into context.
 
 ## Install
-
-**Homebrew** (coming soon)
 
 **Go install**
 ```sh
@@ -15,40 +13,51 @@ go install github.com/scottmrogowski/ariel@latest
 
 **Pre-built binaries** — download from [Releases](https://github.com/scottmrogowski/ariel/releases) and put the binary on your `PATH`.
 
+MP4 output requires [`ffmpeg`](https://ffmpeg.org/download.html) on your `PATH`.
+
 ## Usage
 
 ```sh
-# 1. Load the DSL into LLM context
+# Load the DSL reference into LLM context (run this first when using an agent)
 ariel guide
 
-# 2. Author or generate a walkthrough file, then lint it
+# Get a working example to start from
+ariel single-diagram-example > walkthrough.ariel.yaml
+ariel multiple-diagram-example > walkthrough.ariel.yaml
+
+# Lint a walkthrough file
 ariel verify my-system.ariel.yaml
 
-# 3. Preview with live reload while editing
+# Live-reloading browser preview while editing
 ariel watch my-system.ariel.yaml
 
-# 4. Render to a shareable, self-contained HTML file
+# Render to a self-contained HTML file
 ariel generate my-system.ariel.yaml
+
+# Render to MP4 (for GitHub README embedding)
+ariel generate --format mp4 my-system.ariel.yaml
 ```
 
-### `ariel watch` options
+### `ariel generate` flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--format` | `html` | Output format: `html` or `mp4` |
+| `--output` | input filename with format extension | Output path |
+| `--step-duration` | `2` | Seconds each step is held (mp4 only) |
+
+### `ariel watch` flags
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--port` | `2313` | Port to bind the preview server |
-
-### `ariel generate` options
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--output` | `<input>.html` | Output path for the generated HTML |
 
 ## Walkthrough file format
 
 Files use the `.ariel.yaml` extension by convention.
 
 ```yaml
-title: "User Authentication Flow"
+title: "User Authentication Flow"   # optional; default: "Ariel Walkthrough"
 
 mermaid_diagram: |
   graph TD
@@ -61,6 +70,9 @@ mermaid_diagram: |
     ER -->|401| LF
 
 steps:
+  # The first step of each section is the overview. It may only use
+  # label and narration — no visual fields. The full diagram is shown
+  # without dimming so the viewer can orient before the walkthrough begins.
   - label: "Overview"
     narration: "The full authentication flow — a login form, an API, and a decision point."
 
@@ -75,9 +87,11 @@ steps:
     animate_edges: [PV-ER, ER-LF]
 ```
 
-**Node IDs** are the identifiers from the diagram (`API`, `PV`), not the display labels (`Auth API`, `Password Valid?`). Run `ariel verify` to catch mismatches.
+**Node IDs** are the identifiers from the diagram (`API`, `PV`), not display labels (`Auth API`, `Password Valid?`). `ariel verify` catches all mismatches.
 
-Run `ariel guide` for the full DSL reference including authoring tips for LLMs.
+For multi-diagram walkthroughs use `sections` instead of top-level `mermaid_diagram`/`steps`. See `ariel multiple-diagram-example` for a complete example.
+
+Run `ariel guide` for the full DSL reference.
 
 ## Building from source
 
@@ -88,6 +102,15 @@ make build
 ```
 
 Requires Go 1.23+.
+
+## Testing
+
+```sh
+make test   # unit tests
+make example  # generates examples/ariel-walkthrough-output.html and .mp4
+```
+
+Automated tests cover parsing, verification, and CLI behavior. Visual output correctness — node highlighting, edge animation, layout, and MP4 playback — cannot be tested automatically. After any change to the renderer or template, open the generated HTML in a browser and play the MP4 to verify.
 
 ## License
 

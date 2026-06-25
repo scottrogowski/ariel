@@ -12,7 +12,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// errorf is a shorthand for constructing a top-level structural Issue.
+// errorf constructs a top-level (line 1) error Issue with a formatted message.
 func errorf(msg string, args ...any) *Issue {
 	return &Issue{Line: 1, Severity: SeverityError, Message: fmt.Sprintf(msg, args...)}
 }
@@ -31,7 +31,8 @@ func ParseFile(path string) (*Walkthrough, []Issue, error) {
 	return Parse(data)
 }
 
-// Parse parses walkthrough YAML from a byte slice.
+// Parse parses walkthrough YAML from bytes, applying strict unknown-field checking
+// and default title injection. Same return semantics as ParseFile.
 func Parse(data []byte) (*Walkthrough, []Issue, error) {
 	dec := yaml.NewDecoder(bytes.NewReader(data))
 	dec.KnownFields(true)
@@ -39,6 +40,9 @@ func Parse(data []byte) (*Walkthrough, []Issue, error) {
 	var w Walkthrough
 	if err := dec.Decode(&w); err != nil {
 		return nil, yamlErrorsToIssues(err), nil
+	}
+	if w.Title == "" {
+		w.Title = "Ariel Walkthrough"
 	}
 
 	var issues []Issue
@@ -52,12 +56,9 @@ func Parse(data []byte) (*Walkthrough, []Issue, error) {
 	return &w, nil, nil
 }
 
-// requireTopLevelFields checks that the walkthrough uses exactly one valid format.
+// requireTopLevelFields validates that the walkthrough uses exactly one valid format
+// (flat mermaid_diagram+steps, or sections) with all required fields present.
 func requireTopLevelFields(w *Walkthrough) *Issue {
-	if w.Title == "" {
-		return errorf(`missing required field "title"`)
-	}
-
 	hasSections := len(w.Sections) > 0
 	hasFlat := w.MermaidDiagram != "" || len(w.Steps) > 0
 
@@ -89,7 +90,8 @@ func requireTopLevelFields(w *Walkthrough) *Issue {
 	return nil
 }
 
-// yamlErrorsToIssues converts a yaml decode error into a slice of Issues with line numbers.
+// yamlErrorsToIssues converts a yaml decode error to a slice of Issues,
+// extracting line numbers where available.
 func yamlErrorsToIssues(err error) []Issue {
 	var typeErr *yaml.TypeError
 	if errors.As(err, &typeErr) {
@@ -103,7 +105,8 @@ func yamlErrorsToIssues(err error) []Issue {
 	return []Issue{parseYAMLErrorMsg(err.Error())}
 }
 
-// parseYAMLErrorMsg extracts line number and message from a yaml error string.
+// parseYAMLErrorMsg parses a yaml error string into a line-numbered Issue,
+// rephrasing low-readability messages into user-friendly form.
 func parseYAMLErrorMsg(msg string) Issue {
 	msg = strings.TrimPrefix(msg, "yaml: ")
 
@@ -121,6 +124,8 @@ func parseYAMLErrorMsg(msg string) Issue {
 
 var unknownFieldRe = regexp.MustCompile(`field (\w+) not found in type \S+`)
 
+// rephraseUnknownField converts gopkg.in/yaml.v3's verbose "field X not found in type Y"
+// into the user-facing "unknown field "X"".
 func rephraseUnknownField(msg string) string {
 	if m := unknownFieldRe.FindStringSubmatch(msg); m != nil {
 		return fmt.Sprintf("unknown field %q", m[1])

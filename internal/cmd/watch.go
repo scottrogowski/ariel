@@ -12,15 +12,15 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/scottmrogowski/ariel/dsl"
-	"github.com/scottmrogowski/ariel/renderer"
+	"github.com/scottmrogowski/ariel/internal/dsl"
+	"github.com/scottmrogowski/ariel/internal/renderer"
 	"github.com/spf13/cobra"
 )
 
 var watchPort int
 
 var watchCmd = &cobra.Command{
-	Use:   "watch <file>",
+	Use:   "watch <file.ariel.yaml>",
 	Short: "Serve a live-reloading browser preview of a walkthrough file",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -56,7 +56,7 @@ var watchCmd = &cobra.Command{
 			cancel()
 		}()
 
-		go watchLoop(ctx, watcher, path, name, watchPort, srv)
+		go watchLoop(ctx, watcher, path, name, srv)
 
 		url := fmt.Sprintf("http://localhost:%d", watchPort)
 		fmt.Printf("watching %s\nserving at %s\n", name, url)
@@ -80,8 +80,9 @@ func init() {
 	rootCmd.AddCommand(watchCmd)
 }
 
-// watchLoop processes file events and broadcasts updates to connected clients.
-func watchLoop(ctx context.Context, watcher *fsnotify.Watcher, path, name string, port int, srv *renderer.WatchServer) {
+// watchLoop debounces filesystem write/create events and calls handleFileChange
+// on each stable save. Exits when ctx is cancelled or the watcher closes.
+func watchLoop(ctx context.Context, watcher *fsnotify.Watcher, path, name string, srv *renderer.WatchServer) {
 	var debounce <-chan time.Time
 	for {
 		select {
@@ -94,7 +95,7 @@ func watchLoop(ctx context.Context, watcher *fsnotify.Watcher, path, name string
 			}
 		case <-debounce:
 			debounce = nil
-			handleFileChange(path, name, port, srv)
+			handleFileChange(path, name, srv)
 		case err := <-watcher.Errors:
 			fmt.Fprintf(os.Stderr, "watch error: %v\n", err)
 		case <-ctx.Done():
@@ -103,8 +104,9 @@ func watchLoop(ctx context.Context, watcher *fsnotify.Watcher, path, name string
 	}
 }
 
-// handleFileChange re-parses the file and broadcasts the result to clients.
-func handleFileChange(path, name string, port int, srv *renderer.WatchServer) {
+// handleFileChange re-parses and fully verifies the file on each save, broadcasting
+// the updated HTML to connected clients or an error overlay on failure.
+func handleFileChange(path, name string, srv *renderer.WatchServer) {
 	w, issues, err := dsl.ParseFile(path)
 	if err != nil {
 		msg := fmt.Sprintf("%s: %v", name, err)
@@ -112,15 +114,20 @@ func handleFileChange(path, name string, port int, srv *renderer.WatchServer) {
 		srv.BroadcastError(msg)
 		return
 	}
-
-	if hasErrors(issues) {
+	if len(issues) > 0 {
 		printIssues(name, issues)
 		srv.BroadcastError(issueSummary(name, issues))
 		return
 	}
 
+	issues = verifyWalkthrough(w)
+	if hasErrors(issues) {
+		printIssues(name, issues)
+		srv.BroadcastError(issueSummary(name, issues))
+		return
+	}
 	if len(issues) > 0 {
-		printIssues(name, issues) // warnings only
+		printIssues(name, issues)
 	}
 
 	srv.UpdateContent(w)
@@ -135,6 +142,12 @@ func loadForWatch(path, name string, port int) string {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", name, err)
 		return errorHTML(fmt.Sprintf("%s: %v", name, err))
 	}
+	if len(issues) > 0 {
+		printIssues(name, issues)
+		return errorHTML(issueSummary(name, issues))
+	}
+
+	issues = verifyWalkthrough(w)
 	if hasErrors(issues) {
 		printIssues(name, issues)
 		return errorHTML(issueSummary(name, issues))
@@ -151,6 +164,7 @@ func loadForWatch(path, name string, port int) string {
 	return html
 }
 
+// issueSummary formats a concise error count message for display in the browser error overlay.
 func issueSummary(name string, issues []dsl.Issue) string {
 	errCount := 0
 	for _, i := range issues {
@@ -161,13 +175,15 @@ func issueSummary(name string, issues []dsl.Issue) string {
 	return fmt.Sprintf("%s: %d error(s) — fix the file and save to reload", name, errCount)
 }
 
-// errorHTML returns a minimal dark-themed error page.
+// errorHTML returns a minimal dark-themed HTML page for display when the file fails
+// to parse or render during watch mode.
 func errorHTML(msg string) string {
 	return fmt.Sprintf(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ariel error</title>
 <style>body{background:#0f1117;color:#fca5a5;font-family:monospace;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}pre{padding:24px;background:#1a1d27;border:1px solid #7f1d1d;border-radius:8px;max-width:80%%}</style>
 </head><body><pre>%s</pre></body></html>`, msg)
 }
 
+// openBrowser opens url in the default browser; silently does nothing on unsupported platforms.
 func openBrowser(url string) {
 	var browserCmd string
 	switch runtime.GOOS {
