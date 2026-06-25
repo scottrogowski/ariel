@@ -38,15 +38,13 @@ sections:
         narration: "Sequential narration maps to serial human cognition. One idea per step, paired with a matching visual — Paivio's Dual Coding Theory — keeps working memory within its limits and builds understanding incrementally."
 
 
-  - title: "The six commands"
+  - title: "The four commands"
     mermaid_diagram: |
       graph LR
-        User([User / LLM]) --> V[verify]
+        User[User/LLM] --> G[guide]
+        User --> V[verify]
         User --> Ge[generate]
         User --> W[watch]
-        User --> G[guide]
-        User --> SE[single-diagram-example]
-        User --> ME[multiple-diagram-example]
     steps:
       - narration: "ariel has four primary commands. This walkthrough covers how they fit together and what happens under the hood when you run them."
 

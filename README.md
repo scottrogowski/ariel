@@ -1,5 +1,7 @@
 # ariel
 
+<video src="examples/ariel-walkthrough-output.mp4" autoplay loop muted playsinline width="100%"></video>
+
 Step-by-step Mermaid diagram walkthroughs. Each walkthrough pairs a diagram with a sequence of steps that highlight nodes, animate edges, and narrate what is happening. Outputs HTML (for interactive walkthroughs) and MP4s (for embedding in Github READMEs and PR descriptions)
 
 Designed for LLMs to share their . Run `ariel guide` at the start of a session to load the full DSL into context.

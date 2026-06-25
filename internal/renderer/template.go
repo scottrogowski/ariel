@@ -49,6 +49,18 @@ const htmlTemplate = `<!DOCTYPE html>
     text-align: center;
   }
 
+  .page-title-sep {
+    margin: 0 10px;
+    color: var(--muted);
+    font-weight: 300;
+  }
+
+  .page-section-title {
+    font-size: 22px;
+    font-weight: 400;
+    color: var(--muted);
+  }
+
   .ariel-link {
     position: absolute;
     right: 32px;
@@ -314,7 +326,7 @@ const htmlTemplate = `<!DOCTYPE html>
 <body>
 
 <header>
-  <h1 class="page-title">[[.Title]]</h1>
+  <h1 class="page-title">[[.Title]]<span id="section-title-sep" class="page-title-sep" style="display:none">|</span><span id="section-title" class="page-section-title"></span></h1>
   <a class="ariel-link" href="[[.GitHubURL]]" target="_blank" rel="noopener"><img src="[[.LogoDataURI]]" alt="Ariel"></a>
 </header>
 
@@ -384,6 +396,7 @@ async function initSection(idx) {
 initSection(0).then(() => {
   buildSectionDots();
   buildProgressDots();
+  updateHeaderSectionTitle();
   renderStep();
   initialized = true;
 });
@@ -499,6 +512,15 @@ function goToStep(index) {
   renderStep();
 }
 
+function updateHeaderSectionTitle() {
+  const sep = document.getElementById('section-title-sep');
+  const el = document.getElementById('section-title');
+  if (sections.length <= 1) { sep.style.display = 'none'; el.textContent = ''; return; }
+  const title = sections[currentSection].title || ('Section ' + (currentSection + 1));
+  sep.style.display = '';
+  el.textContent = title;
+}
+
 async function goToSection(idx, stepIdx) {
   const container = document.getElementById('mermaid-container');
   container.style.opacity = '0';
@@ -509,6 +531,7 @@ async function goToSection(idx, stepIdx) {
   await initSection(idx);
   buildProgressDots();
   updateSectionDots();
+  updateHeaderSectionTitle();
   renderStep();
   container.style.opacity = '1';
 }
