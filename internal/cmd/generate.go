@@ -17,7 +17,7 @@ var generateStepDuration int
 
 var generateCmd = &cobra.Command{
 	Use:   "generate <file.ariel.yaml>",
-	Short: "Render a walkthrough file to HTML or MP4",
+	Short: generateShort,
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		path := args[0]
@@ -72,9 +72,9 @@ var generateCmd = &cobra.Command{
 }
 
 func init() {
-	generateCmd.Flags().StringVarP(&generateOutput, "output", "o", "", "output path (default: input path with format extension)")
-	generateCmd.Flags().StringVar(&generateFormat, "format", "html", "output format: html or mp4")
-	generateCmd.Flags().IntVar(&generateStepDuration, "step-duration", renderer.DefaultStepDuration, "seconds per step (mp4 only)")
+	generateCmd.Flags().StringVarP(&generateOutput, "output", "o", "", generateFlagOutputHelp)
+	generateCmd.Flags().StringVar(&generateFormat, "format", "html", generateFlagFormatHelp)
+	generateCmd.Flags().IntVar(&generateStepDuration, "step-duration", renderer.DefaultStepDuration, generateFlagStepDurationHelp)
 	rootCmd.AddCommand(generateCmd)
 }
 

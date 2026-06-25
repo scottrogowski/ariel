@@ -21,7 +21,7 @@ var watchPort int
 
 var watchCmd = &cobra.Command{
 	Use:   "watch <file.ariel.yaml>",
-	Short: "Serve a live-reloading browser preview of a walkthrough file",
+	Short: watchShort,
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		path := args[0]
@@ -76,7 +76,7 @@ var watchCmd = &cobra.Command{
 }
 
 func init() {
-	watchCmd.Flags().IntVarP(&watchPort, "port", "p", 2313, "port to bind")
+	watchCmd.Flags().IntVarP(&watchPort, "port", "p", 2313, watchFlagPortHelp)
 	rootCmd.AddCommand(watchCmd)
 }
 

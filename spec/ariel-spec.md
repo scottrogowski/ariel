@@ -181,75 +181,15 @@ The watch HTML is identical to the generate HTML except it includes a ~20-line W
 
 ## DSL — The Walkthrough File Format
 
-Files use the `.ariel.yaml` extension by convention (not enforced).
+The authoritative DSL reference is `internal/guide/reference.txt`. Run `ariel guide` to print it. What follows covers only the structural constraints needed to understand the rest of this spec.
 
-Two top-level formats are supported and cannot be combined.
-
-### Single-diagram format
-
-```yaml
-title: "User Authentication Flow"   # optional; default: "Ariel Walkthrough"
-mermaid_diagram: |                  # required
-  graph TD
-    ...
-steps:                              # required; at least one step
-  - ...
-```
-
-### Multi-diagram (sections) format
-
-```yaml
-title: "My Walkthrough"
-sections:                           # required; at least one section
-  - title: "Overview"               # optional section title
-    mermaid_diagram: |
-      graph LR
-        A --> B
-    steps:
-      - narration: "Section one."
-  - title: "Detail"
-    mermaid_diagram: |
-      graph TD
-        ...
-    steps:
-      - narration: "Section two."
-```
+Files use the `.ariel.yaml` extension by convention (not enforced). Two top-level formats are supported and cannot be combined: single-diagram (`mermaid_diagram` + `steps`) and multi-diagram (`sections`). See `internal/guide/reference.txt` for full field definitions, node ID rules, edge format, authoring tips, and common errors.
 
 Clicking Next at the last step of a section advances to the first step of the next section and re-renders the diagram.
 
-### Step structure
+**The first step of each section is the overview.** It may only use `label` and `narration`. Using `highlight_nodes`, `active_nodes`, or `animate_edges` on step 1 is an error.
 
-Every step must have at least one of: `narration`, `label`, `highlight_nodes`, `active_nodes`, `animate_edges`.
-
-**The first step of each section is the overview.** It may only use `label` and `narration`. Using `highlight_nodes`, `active_nodes`, or `animate_edges` on step 1 is an error. The overview step shows the full diagram with no dimming, letting the viewer orient before the walkthrough begins.
-
-```yaml
-steps:
-  - label: "Overview"          # step 1: overview only — no visual fields allowed
-    narration: "Full system."
-
-  - label: "Entry point"       # step 2+: all fields allowed
-    narration: "It starts here."
-    highlight_nodes: [A, B]    # node IDs to emphasize (context)
-    active_nodes: [A]          # node IDs for primary actor (stronger emphasis)
-    animate_edges: [A-B]       # edges to animate (SOURCE_ID-TARGET_ID format)
-```
-
-### Node IDs
-
-Node IDs come from the Mermaid diagram definition, not the display label.
-
-```
-API[Auth API]   →   node ID is "API", display label is "Auth API"
-```
-
-Always reference the ID in steps. IDs are case-sensitive.
-
-Edge format: `SOURCE_ID-TARGET_ID`. Both must exist as valid node IDs with a direct edge between them.
-
-### Complete example
-
-See `examples/auth-flow.ariel.yaml`. Also available via `ariel single-diagram-example` and `ariel multiple-diagram-example`.
+Complete examples: `internal/guide/single-diagram-example.ariel.yaml` and `internal/guide/multiple-diagram-example.ariel.yaml` (also printed by `ariel single-diagram-example` / `ariel multiple-diagram-example`).
 
 ---
 

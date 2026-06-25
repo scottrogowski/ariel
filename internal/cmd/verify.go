@@ -12,7 +12,7 @@ import (
 
 var verifyCmd = &cobra.Command{
 	Use:   "verify <file.ariel.yaml>",
-	Short: "Lint a walkthrough file for syntax and semantic errors",
+	Short: verifyShort,
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		path := args[0]

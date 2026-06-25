@@ -9,7 +9,7 @@ import (
 
 var guideCmd = &cobra.Command{
 	Use:   "guide",
-	Short: "Print the DSL reference and authoring tips (Agents: run this first)",
+	Short: guideShort,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Print(guide.Reference)
 		return nil
@@ -18,7 +18,7 @@ var guideCmd = &cobra.Command{
 
 var singleDiagramExampleCmd = &cobra.Command{
 	Use:   "single-diagram-example",
-	Short: "Print a complete single-diagram walkthrough example",
+	Short: singleDiagramExampleShort,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Print(guide.SingleDiagramExample)
 		return nil
@@ -27,7 +27,7 @@ var singleDiagramExampleCmd = &cobra.Command{
 
 var multipleDiagramExampleCmd = &cobra.Command{
 	Use:   "multiple-diagram-example",
-	Short: "Print a complete multi-section walkthrough example",
+	Short: multipleDiagramExampleShort,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Print(guide.MultipleDiagramExample)
 		return nil

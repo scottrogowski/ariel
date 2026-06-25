@@ -1,8 +1,12 @@
 # ariel
 
-Step-by-step Mermaid diagram walkthroughs from a YAML DSL. Each walkthrough pairs a diagram with a sequence of steps that highlight nodes, animate edges, and narrate what is happening — rendered as interactive HTML or as an MP4 for embedding in GitHub READMEs.
+Step-by-step Mermaid diagram walkthroughs. Each walkthrough pairs a diagram with a sequence of steps that highlight nodes, animate edges, and narrate what is happening. Outputs HTML (for interactive walkthroughs) and MP4s (for embedding in Github READMEs and PR descriptions)
 
-Designed to be authored by an LLM. Run `ariel guide` at the start of a session to load the full DSL into context.
+Designed for LLMs to share their . Run `ariel guide` at the start of a session to load the full DSL into context.
+
+## Why?
+
+LLMs are generating the majority of our code and it is getting harder and harder to understand the systems they are creating. Humans are single-threaded. We process information best when presented in narrative format with ample visual aids.
 
 ## Install
 

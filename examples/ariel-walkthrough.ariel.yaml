@@ -1,6 +1,43 @@
 title: "How ariel works"
 
 sections:
+  - title: "The comprehension gap"
+    mermaid_diagram: |
+      flowchart TD
+        LLM[LLM] --> Code[Code Volume]
+        Code --> Review[Code Review]
+        Review --> WM[Working Memory]
+        WM -->|overloaded| Stamp[Rubber Stamp]
+        WM -->|within limits| Model[Mental Model]
+        Model --> Decision[Good Decision]
+        Ariel[ariel] --> WM
+    steps:
+      - label: "The problem"
+        narration: "LLMs generate code faster than humans can understand it. The bottleneck has shifted from writing to comprehension — and the gap is widening."
+
+      - label: "LLM velocity"
+        highlight_nodes: [LLM, Code]
+        animate_edges: [LLM-Code]
+        narration: "An LLM produces a complete implementation in seconds. A human reading it cold faces the same cognitive load as if they had written nothing — every line must still be read, understood, and held in mind."
+
+      - label: "The review bottleneck"
+        active_nodes: [WM]
+        highlight_nodes: [Code, Review]
+        animate_edges: [Code-Review, Review-WM]
+        narration: "Code review happens at the pace of generation, not comprehension. Working memory holds roughly four chunks (Cowan, 2001). A PR that took 30 seconds to generate may take 30 minutes to truly understand."
+
+      - label: "Two outcomes"
+        highlight_nodes: [WM, Stamp, Model, Decision]
+        animate_edges: [WM-Stamp, WM-Model, Model-Decision]
+        narration: "Overloaded reviewers rubber-stamp. Comprehending reviewers build mental models and catch what the LLM missed — security assumptions, edge cases, architectural drift. Endsley's situational awareness research (1988) identifies this projection of future state as the critical level humans lose first under load."
+
+      - label: "ariel's role"
+        active_nodes: [Ariel]
+        highlight_nodes: [WM, Model]
+        animate_edges: [Ariel-WM]
+        narration: "Sequential narration maps to serial human cognition. One idea per step, paired with a matching visual — Paivio's Dual Coding Theory — keeps working memory within its limits and builds understanding incrementally."
+
+
   - title: "The six commands"
     mermaid_diagram: |
       graph LR
@@ -11,7 +48,12 @@ sections:
         User --> SE[single-diagram-example]
         User --> ME[multiple-diagram-example]
     steps:
-      - narration: "ariel has six commands. This walkthrough covers how they fit together and what happens under the hood when you run them."
+      - narration: "ariel has four primary commands. This walkthrough covers how they fit together and what happens under the hood when you run them."
+
+      - label: "guide"
+        narration: "The guide command prints the full DSL reference to stdout. It exists specifically so an LLM can load the schema into context before authoring a walkthrough file."
+        active_nodes: [G]
+        animate_edges: [User-G]
 
       - label: "verify"
         narration: "verify lints a walkthrough file. It runs three checks in sequence: YAML syntax, semantic node/edge validation, and Mermaid syntax via an embedded JS runtime. Fast feedback is the goal — under one second."
@@ -27,21 +69,6 @@ sections:
         narration: "watch starts a local HTTP server with live reload. It opens a browser, watches the file for changes, and pushes a freshly-rendered page over a WebSocket on every save."
         active_nodes: [W]
         animate_edges: [User-W]
-
-      - label: "guide"
-        narration: "The guide command prints the full DSL reference to stdout. It exists specifically so an LLM can load the schema into context before authoring a walkthrough file."
-        active_nodes: [G]
-        animate_edges: [User-G]
-
-      - label: "single-diagram-example"
-        narration: "Prints a complete, valid single-section walkthrough to stdout. Pipe to a file to use as a starting point. The content explains the cognitive science behind why walkthroughs aid comprehension."
-        active_nodes: [SE]
-        animate_edges: [User-SE]
-
-      - label: "multiple-diagram-example"
-        narration: "Same as single-diagram-example but for multi-section walkthroughs. Both examples are self-describing — they use ariel to explain ariel."
-        active_nodes: [ME]
-        animate_edges: [User-ME]
 
   - title: "The pipeline"
     mermaid_diagram: |
@@ -106,3 +133,4 @@ sections:
         highlight_nodes: [FSWatch, Parse, Server, Browser]
         active_nodes: [FSWatch]
         animate_edges: [FSWatch-Parse, Server-Browser]
+
