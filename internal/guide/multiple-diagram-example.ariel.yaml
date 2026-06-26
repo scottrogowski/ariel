@@ -15,17 +15,14 @@ sections:
 
       - label: The information dump
         highlight_nodes: [System, Dump]
-        animate_edges: [System-Dump]
         narration: Documentation is often written from the author's perspective — someone who already understands the system. The result is an undifferentiated wall of information with no clear entry point.
 
       - label: Working memory is the bottleneck
         highlight_nodes: [Dump, WM]
-        animate_edges: [Dump-WM]
-        narration: Humans have a single cognitive thread. Working memory holds roughly four chunks at a time (Cowan, 2001). When new information arrives faster than it can be encoded into a mental model, the chunks simply fall out.
+        narration: Humans have a single cognitive thread. [Working memory holds roughly four chunks at a time (Cowan, 2001)](https://pubmed.ncbi.nlm.nih.gov/11515286/). When new information arrives faster than it can be encoded into a mental model, the chunks simply fall out.
 
       - label: The outcome
-        active_nodes: [Overload, Lost]
-        animate_edges: [WM-Overload, Overload-Lost]
+        focus_nodes: [Overload, Lost]
         narration: Cognitive overload does not announce itself as confusion — it feels like the material is too advanced, too dense, or not worth the effort. The reader disengages. The knowledge transfer fails.
 
   - title: The Solution
@@ -41,15 +38,12 @@ sections:
 
       - label: The author's job
         highlight_nodes: [Author, YAML]
-        animate_edges: [Author-YAML]
-        narration: The author writes a YAML file pairing a Mermaid diagram with a sequence of steps. Each step specifies which nodes to highlight, which edges to animate, and one or two sentences of narration. The diagram does not change — only what is foregrounded does.
+        narration: The author writes a YAML file pairing a Mermaid diagram with a sequence of steps. Each step specifies which nodes to highlight or focus, and one or two sentences of narration. The diagram does not change — only what is foregrounded does.
 
       - label: ariel generates the output
         highlight_nodes: [YAML, Generate]
-        animate_edges: [YAML-Generate]
-        narration: ariel verify catches unknown node IDs, missing edges, and structural errors before generation. ariel generate produces either an interactive HTML page (keyboard navigable, with progress tracking) or an MP4 suitable for embedding directly in a GitHub README.
+        narration: ariel verify catches unknown node IDs and structural errors before generation. ariel generate produces either an interactive HTML page (keyboard navigable, with progress tracking) or an MP4 suitable for embedding directly in a GitHub README.
 
       - label: The reader's experience
-        active_nodes: [Output, Reader]
-        animate_edges: [Output-Reader]
+        focus_nodes: [Output, Reader]
         narration: The reader follows a single narrative thread through the diagram. Each step occupies one slot in working memory. By the end, they have a mental model built incrementally — never overloaded at any single moment. This is the same reason a good technical talk is more effective than a dense slide deck.

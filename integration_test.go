@@ -159,6 +159,45 @@ func TestCLI_GenerateHTML(t *testing.T) {
 	}
 }
 
+// TestCLI_GenerateHTML_MarkdownLinks confirms that markdown-style links in narration
+// are rendered as <a> tags in the generated HTML and not emitted as raw syntax.
+func TestCLI_GenerateHTML_MarkdownLinks(t *testing.T) {
+	yaml := `title: "Link Test"
+mermaid_diagram: |
+  graph TD
+    A --> B
+steps:
+  - label: "Overview"
+    narration: "Plain text."
+  - label: "Step"
+    highlight_nodes: [A, B]
+    narration: "[See the paper](https://example.com/paper) for details."
+`
+	f := writeTempYAML(t, yaml)
+	outPath := filepath.Join(t.TempDir(), "out.html")
+	_, _, exitCode := run("generate", "--output", outPath, f)
+	if exitCode != 0 {
+		t.Fatalf("generate: exit %d", exitCode)
+	}
+
+	data, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("read output: %v", err)
+	}
+	html := string(data)
+
+	// Inside the JSON blob, attribute quotes are backslash-escaped.
+	if !strings.Contains(html, `href=\"https://example.com/paper\"`) {
+		t.Error("generated HTML missing expected href")
+	}
+	if !strings.Contains(html, `>See the paper<`) {
+		t.Error("generated HTML missing expected link text")
+	}
+	if strings.Contains(html, "[See the paper]") {
+		t.Error("generated HTML contains raw markdown link syntax")
+	}
+}
+
 func writeTempYAML(t *testing.T, content string) string {
 	t.Helper()
 	f, err := os.CreateTemp(t.TempDir(), "*.ariel.yaml")

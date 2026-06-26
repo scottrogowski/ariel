@@ -1,7 +1,6 @@
-- Anchor links for different sections
+- Are edges enough? Weird to see edges highlighted and not nodes
 - Fix up logo as an SVG and embed in html
 - Spend a lot of time with the copy updating it
-- Are edges enough? Weird to see edges highlighted and not nodes
 - Try zoom around instead of sidebar
 - Links in narration (make it markdown?)
 - Instead of mermaid + our thing, extend the mermaid DSL?

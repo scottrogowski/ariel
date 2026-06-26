@@ -14,11 +14,9 @@ func TestVerify_ValidWalkthrough(t *testing.T) {
 			{
 				Label:          "Entry",
 				HighlightNodes: []string{"U", "LF"},
-				AnimateEdges:   []string{"U-LF"},
 			},
 			{
-				ActiveNodes:  []string{"API"},
-				AnimateEdges: []string{"API-DB", "DB-API"},
+				FocusNodes: []string{"API"},
 			},
 		},
 	}
@@ -47,51 +45,12 @@ func TestVerify_UnknownNodeInHighlight(t *testing.T) {
 	}
 }
 
-func TestVerify_UnknownNodeInActive(t *testing.T) {
+func TestVerify_UnknownNodeInFocus(t *testing.T) {
 	nodes, edges := ExtractGraph(authDiagram)
 	w := &Walkthrough{
 		Steps: []Step{
 			{Label: "Overview"},
-			{ActiveNodes: []string{"GHOST"}},
-		},
-	}
-
-	issues := Verify(w.Steps, nodes, edges)
-	if len(issues) != 1 || issues[0].Severity != SeverityError {
-		t.Errorf("expected 1 error, got %+v", issues)
-	}
-}
-
-func TestVerify_NonExistentEdge(t *testing.T) {
-	nodes, edges := ExtractGraph(authDiagram)
-	w := &Walkthrough{
-		Steps: []Step{
-			{Label: "Overview"},
-			{AnimateEdges: []string{"U-DA"}}, // U and DA exist, but no direct edge
-		},
-	}
-
-	// U-DA fires both an animate_edges error and a disconnected warning (U and DA
-	// are genuinely not connected in the diagram). Only the error matters here.
-	issues := Verify(w.Steps, nodes, edges)
-	var found bool
-	for _, iss := range issues {
-		if iss.Severity == SeverityError {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Errorf("expected an error for non-existent edge, got %+v", issues)
-	}
-}
-
-func TestVerify_InvalidEdgeFormat(t *testing.T) {
-	nodes, edges := ExtractGraph(authDiagram)
-	w := &Walkthrough{
-		Steps: []Step{
-			{Label: "Overview"},
-			{AnimateEdges: []string{"NODASH"}},
+			{FocusNodes: []string{"GHOST"}},
 		},
 	}
 
@@ -130,17 +89,14 @@ func TestVerify_DisconnectedHighlight(t *testing.T) {
 		t.Errorf("unexpected message: %q", issues[0].Message)
 	}
 
-	// Nodes connected via animate_edges chain should not warn.
+	// Directly connected nodes should not warn.
 	issues = Verify([]Step{
 		{Label: "Overview"},
-		{
-			HighlightNodes: []string{"TG", "DA"},
-			AnimateEdges:   []string{"TG-SE", "SE-DA"},
-		},
+		{HighlightNodes: []string{"TG", "SE"}},
 	}, nodes, edges)
 	for _, iss := range issues {
 		if iss.Severity == SeverityWarning {
-			t.Errorf("unexpected warning for nodes connected via animate chain: %q", iss.Message)
+			t.Errorf("unexpected warning for directly connected nodes: %q", iss.Message)
 		}
 	}
 }
@@ -149,8 +105,7 @@ func TestVerify_FirstStepNoVisuals(t *testing.T) {
 	nodes, edges := ExtractGraph(authDiagram)
 	for _, step := range []Step{
 		{HighlightNodes: []string{"U"}},
-		{ActiveNodes: []string{"U"}},
-		{AnimateEdges: []string{"U-LF"}},
+		{FocusNodes: []string{"U"}},
 	} {
 		issues := Verify([]Step{step}, nodes, edges)
 		var found bool
@@ -218,7 +173,7 @@ steps:
   - label: "Intro"
     narration: "This is a test."
     highlight_nodes: [A]
-    animate_edges: [A-B]
+    focus_nodes: [B]
 `
 	w, issues, err := Parse([]byte(yaml))
 	if err != nil {

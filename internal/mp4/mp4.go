@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"text/template"
 	"time"
@@ -23,6 +24,8 @@ const (
 	browserWidth        = 1280
 	browserHeight       = 800
 )
+
+var mdLinkRe = regexp.MustCompile(`\[([^\]]+)\]\(https?://[^)]+\)`)
 
 var sectionTmpl = template.Must(
 	template.New("section").Delims("[[", "]]").Parse(sectionHTMLTemplate),
@@ -121,9 +124,9 @@ func captureStep(ctx context.Context, sec dsl.Section, step dsl.Step, stepIdx, t
 	label := stepLabel(sec, step, stepIdx, totalSections)
 
 	hJSON, _ := json.Marshal(strSlice(step.HighlightNodes))
-	aJSON, _ := json.Marshal(strSlice(step.ActiveNodes))
-	eJSON, _ := json.Marshal(strSlice(step.AnimateEdges))
-	js := fmt.Sprintf(`applyStep(%s,%s,%s,%q,%q)`, hJSON, aJSON, eJSON, label, step.Narration)
+	fJSON, _ := json.Marshal(strSlice(step.FocusNodes))
+	narration := mdLinkRe.ReplaceAllString(step.Narration, "$1")
+	js := fmt.Sprintf(`applyStep(%s,%s,%q,%q)`, hJSON, fJSON, label, narration)
 
 	if err := chromedp.Run(ctx, chromedp.Evaluate(js, nil)); err != nil {
 		return frame{}, fmt.Errorf("step %d: apply: %w", stepIdx, err)

@@ -204,16 +204,22 @@ async function init() {
   document.getElementById('ready').style.display = 'block';
 }
 
-function applyStep(highlightNodes, activeNodes, animateEdges, label, narration) {
+function applyStep(highlightNodes, focusNodes, label, narration) {
   const svg = document.querySelector('#mermaid-container svg');
   svg.querySelectorAll('.node').forEach(n => n.classList.remove('highlighted', 'active'));
   svg.querySelectorAll('.flowchart-link').forEach(e => e.classList.remove('animated'));
   const container = document.getElementById('mermaid-container');
-  const hasHighlights = highlightNodes.length > 0 || activeNodes.length > 0;
+  const hasHighlights = highlightNodes.length > 0 || focusNodes.length > 0;
   container.classList.toggle('has-highlights', hasHighlights);
-  highlightNodes.forEach(id => { if (nodeMap[id]) nodeMap[id].classList.add('highlighted'); });
-  activeNodes.forEach(id => { if (nodeMap[id]) nodeMap[id].classList.add('active'); });
-  animateEdges.forEach(ref => { (edgeMap[ref] || []).forEach(el => el.classList.add('animated')); });
+  const focusSet = new Set(focusNodes);
+  highlightNodes.forEach(id => { if (nodeMap[id] && !focusSet.has(id)) nodeMap[id].classList.add('highlighted'); });
+  focusNodes.forEach(id => { if (nodeMap[id]) nodeMap[id].classList.add('active'); });
+  const allNodes = [...new Set([...highlightNodes, ...focusNodes])];
+  for (let i = 0; i < allNodes.length; i++) {
+    for (let j = 0; j < allNodes.length; j++) {
+      if (i !== j) (edgeMap[allNodes[i] + '-' + allNodes[j]] || []).forEach(el => el.classList.add('animated'));
+    }
+  }
   document.getElementById('step-label').textContent = label;
   document.getElementById('narration').textContent = narration;
 }

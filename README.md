@@ -4,7 +4,7 @@
 
 Step-by-step Mermaid diagram walkthroughs. Each walkthrough pairs a diagram with a sequence of steps that highlight nodes, animate edges, and narrate what is happening. Outputs HTML (for interactive walkthroughs) and MP4s (for embedding in Github READMEs and PR descriptions)
 
-Designed for LLMs to share their . Run `ariel guide` at the start of a session to load the full DSL into context.
+Run `ariel guide` at the start of a session to load the full DSL into context.
 
 ## Why?
 
@@ -84,13 +84,11 @@ steps:
 
   - label: "The decision"
     narration: "Everything downstream depends on this single check."
-    highlight_nodes: [PV]
-    animate_edges: [API-PV]
+    highlight_nodes: [API, PV]
 
   - label: "Failure path"
     narration: "On failure, a 401 is returned. Notice the loop has no rate limiting."
     highlight_nodes: [ER, LF]
-    animate_edges: [PV-ER, ER-LF]
 ```
 
 **Node IDs** are the identifiers from the diagram (`API`, `PV`), not display labels (`Auth API`, `Password Valid?`). `ariel verify` catches all mismatches.
@@ -99,15 +97,9 @@ For multi-diagram walkthroughs use `sections` instead of top-level `mermaid_diag
 
 Run `ariel guide` for the full DSL reference.
 
-## Building from source
+## Developing
 
-```sh
-git clone https://github.com/scottmrogowski/ariel
-cd ariel
-make build
-```
-
-Requires Go 1.23+.
+AGENTS: Ariel follows spec-driven-development. Read spec/ariel-spec.md now. This is NOT optional. The spec MUST be kept in sync with all source changes.
 
 ## Testing
 

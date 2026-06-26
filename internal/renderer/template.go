@@ -58,7 +58,7 @@ const htmlTemplate = `<!DOCTYPE html>
   .page-section-title {
     font-size: 22px;
     font-weight: 400;
-    color: var(--muted);
+    color: var(--text);
   }
 
   .ariel-link {
@@ -135,6 +135,14 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   .narration-text.fade { opacity: 0; }
+
+  .narration-text a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .narration-text a:hover { color: #7aaaf5; }
 
   .progress-track {
     display: flex;
@@ -381,6 +389,7 @@ mermaid.initialize({
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+
 async function initSection(idx) {
   const sec = sections[idx];
   const container = document.getElementById('mermaid-container');
@@ -393,11 +402,23 @@ async function initSection(idx) {
   buildNodeSteps();
 }
 
-initSection(0).then(() => {
+function sectionIndexFromHash() {
+  const slug = window.location.hash.slice(1);
+  if (!slug) return 0;
+  for (let i = 0; i < sections.length; i++) {
+    if (sectionSlug(i) === slug) return i;
+  }
+  return 0;
+}
+
+const startSection = sectionIndexFromHash();
+currentSection = startSection;
+initSection(startSection).then(() => {
   buildSectionDots();
   buildProgressDots();
   updateHeaderSectionTitle();
   renderStep();
+  updateHash(startSection);
   initialized = true;
 });
 
@@ -426,7 +447,7 @@ function buildNodeMap() {
 function buildNodeSteps() {
   const steps = sections[currentSection].steps;
   steps.forEach((step, i) => {
-    [...step.highlight_nodes, ...step.active_nodes].forEach(id => {
+    [...step.highlight_nodes, ...step.focus_nodes].forEach(id => {
       if (!nodeSteps[id]) nodeSteps[id] = [];
       if (!nodeSteps[id].includes(i)) nodeSteps[id].push(i);
     });
@@ -456,13 +477,17 @@ function clearAllHighlights() {
 
 function applyStep(step) {
   clearAllHighlights();
-  const hasHighlights = step.highlight_nodes.length > 0 || step.active_nodes.length > 0;
+  const hasHighlights = step.highlight_nodes.length > 0 || step.focus_nodes.length > 0;
   document.getElementById('mermaid-container').classList.toggle('has-highlights', hasHighlights);
-  step.highlight_nodes.forEach(id => { if (nodeMap[id]) nodeMap[id].classList.add('highlighted'); });
-  step.active_nodes.forEach(id => { if (nodeMap[id]) nodeMap[id].classList.add('active'); });
-  step.animate_edges.forEach(ref => {
-    (edgeMap[ref] || []).forEach(el => el.classList.add('animated'));
-  });
+  const focusSet = new Set(step.focus_nodes);
+  step.highlight_nodes.forEach(id => { if (nodeMap[id] && !focusSet.has(id)) nodeMap[id].classList.add('highlighted'); });
+  step.focus_nodes.forEach(id => { if (nodeMap[id]) nodeMap[id].classList.add('active'); });
+  const allNodes = [...new Set([...step.highlight_nodes, ...step.focus_nodes])];
+  for (let i = 0; i < allNodes.length; i++) {
+    for (let j = 0; j < allNodes.length; j++) {
+      if (i !== j) (edgeMap[allNodes[i] + '-' + allNodes[j]] || []).forEach(el => el.classList.add('animated'));
+    }
+  }
 }
 
 function buildProgressDots() {
@@ -507,6 +532,17 @@ function updateSectionDots() {
   });
 }
 
+function sectionSlug(idx) {
+  const title = sections[idx].title;
+  if (title) return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return 'section-' + idx;
+}
+
+function updateHash(idx) {
+  const hash = '#' + sectionSlug(idx);
+  history.replaceState(null, '', hash);
+}
+
 function goToStep(index) {
   currentStep = index;
   renderStep();
@@ -533,6 +569,7 @@ async function goToSection(idx, stepIdx) {
   updateSectionDots();
   updateHeaderSectionTitle();
   renderStep();
+  updateHash(idx);
   container.style.opacity = '1';
 }
 
@@ -544,7 +581,7 @@ function renderStep() {
 
   narrationEl.classList.add('fade');
   setTimeout(() => {
-    narrationEl.textContent = step.narration || '';
+    narrationEl.innerHTML = step.narration || '';
     let label;
     if (currentStep === 0) {
       label = (sections.length > 1 && sec.title) ? sec.title : (step.label || '');

@@ -13,9 +13,8 @@ FILE STRUCTURE — single diagram
       narration: "What happens."   # required for first step; 1–3 plain-English sentences
     - label: "Step 2"              # optional; 2–4 words shown above narration
       narration: "Next this."      # optional; 1–3 plain-English sentences
-      highlight_nodes: [A, B]      # optional; node IDs to emphasize (context)
-      active_nodes: [A]            # optional; node IDs for primary actor (stronger emphasis)
-      animate_edges: [A-B]         # optional; edges to animate (SOURCE_ID-TARGET_ID)
+      highlight_nodes: [A]         # optional; node IDs to dim everything else (context)
+      focus_nodes: [B]             # optional; node IDs for primary actor (stronger emphasis)
 
 FILE STRUCTURE — multiple diagrams
   title: "My Walkthrough"
@@ -37,7 +36,7 @@ FILE STRUCTURE — multiple diagrams
   for single-diagram. The two formats cannot be combined in one file.
 
   Each step must have at least one of: narration, label, highlight_nodes,
-  active_nodes, or animate_edges. Unknown fields at any level are errors.
+  focus_nodes. Unknown fields at any level are errors.
 
 NODE IDs
   From "A[Display Label]", the node ID is "A". Always reference the ID, never
@@ -51,9 +50,13 @@ NODE IDs
     A[(text)]     cylinder
     A((text))     circle
 
-EDGE FORMAT
-  animate_edges entries use "SOURCE_ID-TARGET_ID". Both must be valid node IDs
-  with a direct edge between them in mermaid_diagram. Example: "API-PV".
+VISUAL EMPHASIS
+  highlight_nodes — dims all other nodes; highlighted nodes show a blue tint.
+  focus_nodes     — same dimming; focused nodes show a stronger teal emphasis.
+  If a node appears in both, focus takes precedence.
+
+  Edges between any combination of highlighted and focused nodes are animated
+  automatically — no manual edge specification required.
 
 AUTHORING TIPS
   Step sequencing:
@@ -85,11 +88,8 @@ AUTHORING TIPS
     - The last step should identify what is worth scrutinizing in a review
 
 COMMON ERRORS
-  highlight_nodes/active_nodes reference unknown ID
+  highlight_nodes/focus_nodes reference unknown ID
     → Check mermaid_diagram for the exact node ID (case-sensitive)
-
-  animate_edges references a non-existent edge
-    → Both node IDs must exist AND there must be a direct edge between them
 
   Unknown field in step or section
     → Remove it; the DSL does not support extra fields
@@ -102,15 +102,14 @@ COMMON ERRORS
 
   Steps with no content
     → Every step needs at least one of: narration, label, highlight_nodes,
-       active_nodes, animate_edges
+       focus_nodes
 
   Warning: not all highlighted components are connected
-    → The nodes referenced across highlight_nodes, active_nodes, and
-       animate_edges for this step don't form a single connected subgraph.
-       Often means you're combining unrelated diagram regions in one step —
-       consider splitting into two steps, or add animate_edges that bridge them
+    → The nodes referenced across highlight_nodes and focus_nodes for this step
+       don't form a single connected subgraph. Often means you're combining
+       unrelated diagram regions in one step — consider splitting into two steps
 
-  First step has highlight_nodes, active_nodes, or animate_edges
+  First step has highlight_nodes or focus_nodes
     → The first step of each section is the overview. Remove visual fields
        from step 1 — it may only use "label" and "narration"
 

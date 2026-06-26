@@ -2,8 +2,8 @@ package guide
 
 import _ "embed"
 
-//go:embed reference.txt
-var Reference string
+//go:embed guide.txt
+var Guide string
 
 //go:embed single-diagram-example.ariel.yaml
 var SingleDiagramExample string

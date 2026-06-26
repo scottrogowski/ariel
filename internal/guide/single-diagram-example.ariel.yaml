@@ -14,21 +14,17 @@ steps:
 
   - label: The bottleneck
     highlight_nodes: [Reader, WM]
-    animate_edges: [Reader-WM]
-    narration: Working memory holds roughly four chunks at a time (Cowan, 2001). Every new node, edge, and label a reader encounters competes for those same limited slots.
+    narration: "[Working memory holds roughly four chunks at a time (Cowan, 2001)](https://pubmed.ncbi.nlm.nih.gov/11515286/). Every new node, edge, and label a reader encounters competes for those same limited slots."
 
   - label: Overload
     highlight_nodes: [WM, Overload]
-    animate_edges: [WM-Overload]
     narration: When a complex system is presented all at once, working memory fills and the reader loses the thread. The response is confusion or abandonment — not understanding.
 
   - label: The guided path
     highlight_nodes: [WM, Model]
-    animate_edges: [WM-Model]
     narration: A walkthrough sequences the same information into steps. Each step adds one idea. The reader builds a mental model incrementally, never hitting the capacity limit at any single moment. This is Progressive Disclosure.
 
   - label: Dual coding
-    active_nodes: [Walkthrough]
+    focus_nodes: [Walkthrough]
     highlight_nodes: [WM]
-    animate_edges: [Walkthrough-WM]
-    narration: When narration and a matching visual are delivered together, they engage two separate cognitive channels — verbal and pictorial — which the brain integrates into a richer representation. Paivio's Dual Coding Theory (1986) explains why this produces deeper and more durable understanding than either channel alone.
+    narration: When narration and a matching visual are delivered together, they engage two separate cognitive channels — verbal and pictorial — which the brain integrates into a richer representation. [Paivio's Dual Coding Theory (1986)](https://archive.org/details/mentalrepresenta0000paiv) explains why this produces deeper and more durable understanding than either channel alone.

@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"html"
 	"os"
+	"regexp"
 	"strings"
 	"text/template"
 
@@ -12,12 +14,34 @@ import (
 	"github.com/scottmrogowski/ariel/internal/dsl"
 )
 
+var mdLinkRe = regexp.MustCompile(`\[([^\]]+)\]\((https?://[^)]+)\)`)
+
+// renderNarration converts [text](url) markdown links to HTML <a> tags.
+// All non-link text is HTML-escaped.
+func renderNarration(text string) string {
+	matches := mdLinkRe.FindAllStringSubmatchIndex(text, -1)
+	if len(matches) == 0 {
+		return html.EscapeString(text)
+	}
+	var out strings.Builder
+	last := 0
+	for _, m := range matches {
+		out.WriteString(html.EscapeString(text[last:m[0]]))
+		fmt.Fprintf(&out, `<a href="%s" target="_blank" rel="noopener">%s</a>`,
+			html.EscapeString(text[m[4]:m[5]]),
+			html.EscapeString(text[m[2]:m[3]]),
+		)
+		last = m[1]
+	}
+	out.WriteString(html.EscapeString(text[last:]))
+	return out.String()
+}
+
 type jsStep struct {
 	Label          string   `json:"label"`
 	Narration      string   `json:"narration"`
 	HighlightNodes []string `json:"highlight_nodes"`
-	ActiveNodes    []string `json:"active_nodes"`
-	AnimateEdges   []string `json:"animate_edges"`
+	FocusNodes     []string `json:"focus_nodes"`
 }
 
 type jsSection struct {
@@ -60,10 +84,9 @@ func render(w *dsl.Walkthrough, wsSnippet string) (string, error) {
 		for j, s := range sec.Steps {
 			steps[j] = jsStep{
 				Label:          s.Label,
-				Narration:      s.Narration,
+				Narration:      renderNarration(s.Narration),
 				HighlightNodes: nonNil(s.HighlightNodes),
-				ActiveNodes:    nonNil(s.ActiveNodes),
-				AnimateEdges:   nonNil(s.AnimateEdges),
+				FocusNodes:     nonNil(s.FocusNodes),
 			}
 		}
 
@@ -74,8 +97,10 @@ func render(w *dsl.Walkthrough, wsSnippet string) (string, error) {
 		}
 	}
 
-	sectionsJSON, err := json.Marshal(jsSections)
-	if err != nil {
+	var jsonBuf bytes.Buffer
+	enc := json.NewEncoder(&jsonBuf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(jsSections); err != nil {
 		return "", fmt.Errorf("failed to marshal sections: %w", err)
 	}
 
@@ -83,7 +108,7 @@ func render(w *dsl.Walkthrough, wsSnippet string) (string, error) {
 		Title:        w.Title,
 		GitHubURL:    "https://github.com/scottmrogowski/ariel",
 		LogoDataURI:  assets.ArielLogoDataURI,
-		SectionsJSON: string(sectionsJSON),
+		SectionsJSON: strings.TrimRight(jsonBuf.String(), "\n"),
 		WSSnippet:    wsSnippet,
 	}
 

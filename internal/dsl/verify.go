@@ -1,9 +1,6 @@
 package dsl
 
-import (
-	"fmt"
-	"strings"
-)
+import "fmt"
 
 // Verify runs semantic checks against the extracted graph.
 // The caller supplies nodes and edges — this does not re-parse the diagram.
@@ -14,7 +11,7 @@ func Verify(steps []Step, nodes map[string]string, edges [][2]string) []Issue {
 	for i, step := range steps {
 		stepNum := i + 1
 
-		if i == 0 && (len(step.HighlightNodes) > 0 || len(step.ActiveNodes) > 0 || len(step.AnimateEdges) > 0) {
+		if i == 0 && (len(step.HighlightNodes) > 0 || len(step.FocusNodes) > 0) {
 			issues = append(issues, Issue{
 				Severity: SeverityError,
 				Message:  `step 1: the first step of each section is the overview — it may only use "label" and "narration"`,
@@ -22,8 +19,7 @@ func Verify(steps []Step, nodes map[string]string, edges [][2]string) []Issue {
 		}
 
 		issues = append(issues, verifyNodeRefs("highlight_nodes", step.HighlightNodes, stepNum, nodes)...)
-		issues = append(issues, verifyNodeRefs("active_nodes", step.ActiveNodes, stepNum, nodes)...)
-		issues = append(issues, verifyAnimateEdges(step, stepNum, nodes, edgeSet)...)
+		issues = append(issues, verifyNodeRefs("focus_nodes", step.FocusNodes, stepNum, nodes)...)
 		issues = append(issues, disconnectedHighlightWarning(step, stepNum, nodes, edgeSet)...)
 
 		if isEmpty(step) {
@@ -51,46 +47,9 @@ func verifyNodeRefs(field string, ids []string, stepNum int, nodes map[string]st
 	return issues
 }
 
-// verifyAnimateEdges validates each animate_edges entry: correct SOURCE-TARGET format,
-// both node IDs exist in the diagram, and a direct edge between them exists.
-func verifyAnimateEdges(step Step, stepNum int, nodes map[string]string, edgeSet map[[2]string]bool) []Issue {
-	var issues []Issue
-	for _, edgeRef := range step.AnimateEdges {
-		src, dst, ok := splitEdgeRef(edgeRef)
-		if !ok {
-			issues = append(issues, Issue{
-				Severity: SeverityError,
-				Message:  fmt.Sprintf("step %d: animate_edges entry %q is not in SOURCE_ID-TARGET_ID format", stepNum, edgeRef),
-			})
-			continue
-		}
-		if _, ok := nodes[src]; !ok {
-			issues = append(issues, Issue{
-				Severity: SeverityError,
-				Message:  fmt.Sprintf("step %d: animate_edges references unknown node ID %q", stepNum, src),
-			})
-			continue
-		}
-		if _, ok := nodes[dst]; !ok {
-			issues = append(issues, Issue{
-				Severity: SeverityError,
-				Message:  fmt.Sprintf("step %d: animate_edges references unknown node ID %q", stepNum, dst),
-			})
-			continue
-		}
-		if !edgeSet[[2]string{src, dst}] {
-			issues = append(issues, Issue{
-				Severity: SeverityError,
-				Message:  fmt.Sprintf(`step %d: animate_edges references edge %q which does not exist in mermaid_diagram`, stepNum, edgeRef),
-			})
-		}
-	}
-	return issues
-}
-
 // disconnectedHighlightWarning returns a single warning if the nodes referenced by a
-// step's visual fields (highlight_nodes, active_nodes, animate_edges) do not form a
-// single connected component when traversing direct diagram edges in either direction.
+// step's highlight_nodes and focus_nodes do not form a single connected component when
+// traversing direct diagram edges in either direction.
 // Skips unknown node IDs (already reported as errors by other checks).
 func disconnectedHighlightWarning(step Step, stepNum int, nodes map[string]string, edgeSet map[[2]string]bool) []Issue {
 	seen := make(map[string]bool)
@@ -105,14 +64,8 @@ func disconnectedHighlightWarning(step Step, stepNum int, nodes map[string]strin
 	for _, id := range step.HighlightNodes {
 		add(id)
 	}
-	for _, id := range step.ActiveNodes {
+	for _, id := range step.FocusNodes {
 		add(id)
-	}
-	for _, ref := range step.AnimateEdges {
-		if src, dst, ok := splitEdgeRef(ref); ok {
-			add(src)
-			add(dst)
-		}
 	}
 
 	if len(refs) < 2 {
@@ -152,21 +105,10 @@ func buildEdgeSet(edges [][2]string) map[[2]string]bool {
 	return set
 }
 
-// splitEdgeRef splits "SRC-DST" into ("SRC", "DST", true).
-// Splits on the first hyphen; node IDs must not contain hyphens (per Mermaid spec).
-func splitEdgeRef(ref string) (src, dst string, ok bool) {
-	idx := strings.Index(ref, "-")
-	if idx <= 0 || idx == len(ref)-1 {
-		return "", "", false
-	}
-	return ref[:idx], ref[idx+1:], true
-}
-
 // isEmpty reports true when a step has no content — no label, narration, or visual changes.
 func isEmpty(s Step) bool {
 	return s.Narration == "" &&
 		s.Label == "" &&
 		len(s.HighlightNodes) == 0 &&
-		len(s.ActiveNodes) == 0 &&
-		len(s.AnimateEdges) == 0
+		len(s.FocusNodes) == 0
 }

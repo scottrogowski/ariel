@@ -11,7 +11,7 @@ var guideCmd = &cobra.Command{
 	Use:   "guide",
 	Short: guideShort,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Print(guide.Reference)
+		fmt.Print(guide.Guide)
 		return nil
 	},
 }

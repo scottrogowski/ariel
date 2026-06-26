@@ -98,14 +98,13 @@ Lint a walkthrough file. Runs automatically as part of `generate` and `watch`.
 - Valid Mermaid syntax (via embedded goja + Mermaid 10.6.1 parser)
 
 *Semantic:*
-- All node IDs in `highlight_nodes`, `active_nodes` exist in the diagram
-- All edge references in `animate_edges` are valid `SOURCE_ID-TARGET_ID` pairs with a direct edge in the diagram
+- All node IDs in `highlight_nodes`, `focus_nodes` exist in the diagram
 - At least one step per section
-- The first step of each section may only use `label` and `narration` — `highlight_nodes`, `active_nodes`, and `animate_edges` on step 1 are errors (see DSL section)
+- The first step of each section may only use `label` and `narration` — `highlight_nodes` and `focus_nodes` on step 1 are errors (see DSL section)
 - Steps with no content are warnings
 
 *Warnings (non-blocking):*
-- The nodes referenced by a step's `highlight_nodes`, `active_nodes`, and `animate_edges` do not form a single connected component when traversing direct diagram edges — often signals unrelated nodes grouped in one step
+- The nodes referenced by a step's `highlight_nodes` and `focus_nodes` do not form a single connected component when traversing direct diagram edges — often signals unrelated nodes grouped in one step
 
 **Output format:**
 
@@ -145,7 +144,7 @@ Render a walkthrough to HTML or MP4.
 MP4 generation uses headless Chrome (via chromedp) to screenshot each step, then assembles the frames with ffmpeg.
 
 Per-section static HTML rendering:
-1. For each section, ariel generates a minimal static HTML page containing the section's Mermaid diagram. CSS transitions and animations are disabled (`transition: none !important`). The page exposes a synchronous `applyStep(highlightNodes, activeNodes, animateEdges, label, narration)` function and signals readiness via a `#ready` element once Mermaid finishes rendering.
+1. For each section, ariel generates a minimal static HTML page containing the section's Mermaid diagram. CSS transitions and animations are disabled (`transition: none !important`). The page exposes a synchronous `applyStep(highlightNodes, focusNodes, label, narration)` function and signals readiness via a `#ready` element once Mermaid finishes rendering.
 2. Chrome navigates to the section HTML (`file://` URL), then waits for `#ready` to be visible.
 3. For each step in the section, ariel calls `applyStep()` via CDP and immediately captures a screenshot. No sleeps or polling — the state change is synchronous because transitions are disabled.
 4. Frames are named `frame0000.png`, `frame0001.png`, … in a temporary directory.
@@ -181,13 +180,13 @@ The watch HTML is identical to the generate HTML except it includes a ~20-line W
 
 ## DSL — The Walkthrough File Format
 
-The authoritative DSL reference is `internal/guide/reference.txt`. Run `ariel guide` to print it. What follows covers only the structural constraints needed to understand the rest of this spec.
+The authoritative DSL guide is `internal/guide/guide.txt`. Run `ariel guide` to print it. What follows covers only the structural constraints needed to understand the rest of this spec.
 
-Files use the `.ariel.yaml` extension by convention (not enforced). Two top-level formats are supported and cannot be combined: single-diagram (`mermaid_diagram` + `steps`) and multi-diagram (`sections`). See `internal/guide/reference.txt` for full field definitions, node ID rules, edge format, authoring tips, and common errors.
+Files use the `.ariel.yaml` extension by convention (not enforced). Two top-level formats are supported and cannot be combined: single-diagram (`mermaid_diagram` + `steps`) and multi-diagram (`sections`). See `internal/guide/guide.txt` for full field definitions, node ID rules, edge format, authoring tips, and common errors.
 
 Clicking Next at the last step of a section advances to the first step of the next section and re-renders the diagram.
 
-**The first step of each section is the overview.** It may only use `label` and `narration`. Using `highlight_nodes`, `active_nodes`, or `animate_edges` on step 1 is an error.
+**The first step of each section is the overview.** It may only use `label` and `narration`. Using `highlight_nodes` or `focus_nodes` on step 1 is an error.
 
 Complete examples: `internal/guide/single-diagram-example.ariel.yaml` and `internal/guide/multiple-diagram-example.ariel.yaml` (also printed by `ariel single-diagram-example` / `ariel multiple-diagram-example`).
 
@@ -207,16 +206,16 @@ After rendering, the frontend scans `.node` SVG group elements. Mermaid 10.6.1 g
 
 ### Node highlighting
 
-When a step has any `highlight_nodes` or `active_nodes`, the container receives `.has-highlights` and all unreferenced nodes are dimmed to 25% opacity. Referenced nodes are restored to full opacity with visual emphasis:
+When a step has any `highlight_nodes` or `focus_nodes`, the container receives `.has-highlights` and all unreferenced nodes are dimmed to 25% opacity. Referenced nodes are restored to full opacity with visual emphasis:
 
-- `.highlighted` — distinct fill and border color (blue tint)
-- `.active` — stronger emphasis (teal border, glow)
+- `.highlighted` — distinct fill and border color (blue tint); applied to `highlight_nodes` not also in `focus_nodes`
+- `.active` — stronger emphasis (teal border, glow); applied to all `focus_nodes`; takes precedence if a node appears in both lists
 
 CSS transitions (`0.35s ease`) handle state changes in the interactive HTML. In MP4 screenshots, all transitions are disabled.
 
 ### Edge animation
 
-Animated edges use CSS `stroke-dashoffset`:
+Edges between any two nodes in the combined set of `highlight_nodes` and `focus_nodes` are animated automatically — no manual specification. The frontend checks `edgeMap[src + '-' + dst]` for every ordered pair and adds `.animated` to matching SVG paths.
 
 ```css
 @keyframes flowEdge { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
@@ -236,7 +235,7 @@ In MP4 screenshots, animations are disabled — animated edges appear as static 
 
 ### Click-to-navigate
 
-Nodes appearing in any step's `highlight_nodes` or `active_nodes` are navigable. Clicking advances to the next step referencing that node (cycling). Scoped to the current section.
+Nodes appearing in any step's `highlight_nodes` or `focus_nodes` are navigable. Clicking advances to the next step referencing that node (cycling). Scoped to the current section.
 
 ### Layout
 
