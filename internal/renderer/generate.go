@@ -10,7 +10,6 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/scottmrogowski/ariel/internal/assets"
 	"github.com/scottmrogowski/ariel/internal/dsl"
 )
 
@@ -53,7 +52,6 @@ type jsSection struct {
 type templateData struct {
 	Title        string
 	GitHubURL    string
-	LogoDataURI  string
 	SectionsJSON string
 	WSSnippet    string // empty for generate, populated for watch
 }
@@ -107,7 +105,6 @@ func render(w *dsl.Walkthrough, wsSnippet string) (string, error) {
 	data := templateData{
 		Title:        w.Title,
 		GitHubURL:    "https://github.com/scottmrogowski/ariel",
-		LogoDataURI:  assets.ArielLogoDataURI,
 		SectionsJSON: strings.TrimRight(jsonBuf.String(), "\n"),
 		WSSnippet:    wsSnippet,
 	}

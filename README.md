@@ -1,5 +1,7 @@
 # ariel
 
+<p align="center"><img src="logo.png" width="128" alt="Ariel logo"></p>
+
 <video src="examples/ariel-walkthrough-output.mp4" autoplay loop muted playsinline width="100%"></video>
 
 Step-by-step Mermaid diagram walkthroughs. Each walkthrough pairs a diagram with a sequence of steps that highlight nodes, animate edges, and narrate what is happening. Outputs HTML (for interactive walkthroughs) and MP4s (for embedding in Github READMEs and PR descriptions)

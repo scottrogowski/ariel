@@ -64,19 +64,37 @@ const htmlTemplate = `<!DOCTYPE html>
   .ariel-link {
     position: absolute;
     right: 32px;
-    display: flex;
-    align-items: center;
-    opacity: 0.8;
+    opacity: 0.7;
     transition: opacity 0.15s ease;
     text-decoration: none;
+    color: var(--muted);
   }
 
   .ariel-link:hover { opacity: 1; }
 
-  .ariel-link img {
-    height: 40px;
-    width: 40px;
-    border-radius: 50%;
+  .ariel-logo {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    display: block;
+  }
+
+  .ariel-emoji {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 20px;
+    line-height: 1;
+    z-index: 1;
+  }
+
+  .ariel-flowchart {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 36px;
+    height: 36px;
   }
 
   .main {
@@ -335,7 +353,16 @@ const htmlTemplate = `<!DOCTYPE html>
 
 <header>
   <h1 class="page-title">[[.Title]]<span id="section-title-sep" class="page-title-sep" style="display:none">|</span><span id="section-title" class="page-section-title"></span></h1>
-  <a class="ariel-link" href="[[.GitHubURL]]" target="_blank" rel="noopener"><img src="[[.LogoDataURI]]" alt="Ariel"></a>
+  <a class="ariel-link" href="[[.GitHubURL]]" target="_blank" rel="noopener">
+    <span class="ariel-logo">
+    <span class="ariel-emoji">🧜🏻‍♀️</span>
+    <svg class="ariel-flowchart" viewBox="0 0 44 44" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="22" cy="22" r="20" stroke-width="1.2"/>
+      <rect x="7.86" y="7.86" width="28.28" height="28.28" stroke-width="1.2"/>
+      <polygon points="22,2 42,22 22,42 2,22" stroke-width="1.2"/>
+    </svg>
+    </span>
+  </a>
 </header>
 
 <div class="main">
@@ -607,7 +634,7 @@ function renderStep() {
     nextBtn.textContent = 'Done';
     nextBtn.disabled = true;
   } else {
-    nextBtn.textContent = isFirst ? 'Begin walkthrough →' : 'Next →';
+    nextBtn.textContent = 'Next →';
     nextBtn.disabled = false;
   }
 
