@@ -44,9 +44,10 @@ type jsStep struct {
 }
 
 type jsSection struct {
-	Title          string   `json:"title"`
-	MermaidDiagram string   `json:"mermaid_diagram"`
-	Steps          []jsStep `json:"steps"`
+	Title          string            `json:"title"`
+	MermaidDiagram string            `json:"mermaid_diagram"`
+	NodeLabels     map[string]string `json:"node_labels"`
+	Steps          []jsStep          `json:"steps"`
 }
 
 type templateData struct {
@@ -88,9 +89,11 @@ func render(w *dsl.Walkthrough, wsSnippet string) (string, error) {
 			}
 		}
 
+		nodeLabels, _ := dsl.ExtractGraph(sec.MermaidDiagram)
 		jsSections[i] = jsSection{
 			Title:          sec.Title,
 			MermaidDiagram: strings.TrimRight(sec.MermaidDiagram, "\n"),
+			NodeLabels:     nodeLabels,
 			Steps:          steps,
 		}
 	}

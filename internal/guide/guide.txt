@@ -50,13 +50,26 @@ NODE IDs
     A[(text)]     cylinder
     A((text))     circle
 
+  For sequenceDiagram, participant IDs are the short IDs, not the aliases:
+    participant HP as Human Prompter  →  node ID is "HP"
+
 VISUAL EMPHASIS
+  highlight_nodes and focus_nodes are supported for two diagram types only:
+    - flowchart / graph (e.g. "graph TD", "flowchart LR")
+    - sequenceDiagram
+  Using these fields with any other Mermaid diagram type is a verify error.
+
   highlight_nodes — dims all other nodes; highlighted nodes show a blue tint.
   focus_nodes     — same dimming; focused nodes show a stronger teal emphasis.
   If a node appears in both, focus takes precedence.
 
-  Edges between any combination of highlighted and focused nodes are animated
-  automatically — no manual edge specification required.
+  Edges between highlighted and focused nodes are animated automatically for
+  flowchart diagrams. Edge animation is not supported for sequenceDiagram.
+
+OUTPUT FORMATS
+  html  — self-contained interactive HTML file (default)
+  mp4   — video; requires ffmpeg on PATH
+  gif   — animated GIF; requires ffmpeg on PATH; scaled to 960px wide
 
 AUTHORING TIPS
   Step sequencing:

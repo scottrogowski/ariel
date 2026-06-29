@@ -1,6 +1,7 @@
 package dsl
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -118,6 +119,39 @@ func TestVerify_FirstStepNoVisuals(t *testing.T) {
 		if !found {
 			t.Errorf("expected error for step 0 with visual fields, got %+v", issues)
 		}
+	}
+}
+
+func TestVerifyHighlightSupport_UnsupportedType(t *testing.T) {
+	steps := []Step{
+		{Label: "Overview"},
+		{HighlightNodes: []string{"Foo"}},
+	}
+
+	// Supported types must return no issues.
+	for _, dtype := range []string{"flowchart", "sequence"} {
+		if issues := VerifyHighlightSupport(dtype, steps); len(issues) != 0 {
+			t.Errorf("type %q: expected no issues, got %+v", dtype, issues)
+		}
+	}
+
+	// Unsupported type must return an error on the first offending step,
+	// not a confusing "unknown node ID" message.
+	issues := VerifyHighlightSupport("unsupported", steps)
+	if len(issues) != 1 {
+		t.Fatalf("unsupported type: expected 1 issue, got %d: %+v", len(issues), issues)
+	}
+	if issues[0].Severity != SeverityError {
+		t.Errorf("expected error severity, got %q", issues[0].Severity)
+	}
+	// Must mention the restriction clearly, not say "unknown node ID".
+	if msg := issues[0].Message; msg == "" || strings.Contains(msg, "unknown node") {
+		t.Errorf("unexpected message: %q", msg)
+	}
+
+	// Steps with no visual fields must not trigger the error.
+	if issues := VerifyHighlightSupport("unsupported", []Step{{Narration: "ok"}}); len(issues) != 0 {
+		t.Errorf("no-visual steps: expected no issues, got %+v", issues)
 	}
 }
 

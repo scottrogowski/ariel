@@ -277,8 +277,10 @@ const htmlTemplate = `<!DOCTYPE html>
   #mermaid-container .node circle,
   #mermaid-container .node polygon,
   #mermaid-container .node ellipse,
-  #mermaid-container .node path {
-    transition: fill 0.35s ease, stroke 0.35s ease, filter 0.35s ease, opacity 0.35s ease;
+  #mermaid-container .node path,
+  #mermaid-container g.actor rect,
+  #mermaid-container g.actor path {
+    transition: fill 0.35s ease, stroke 0.35s ease, filter 0.35s ease;
   }
 
   #mermaid-container .node.navigable { cursor: pointer; }
@@ -291,42 +293,39 @@ const htmlTemplate = `<!DOCTYPE html>
     opacity: 0.75;
   }
 
-  /* Dimming: applied when any highlight or active nodes exist on the current step */
-  #mermaid-container.has-highlights .node {
+  /* Dimming: applied per-element when any highlighted/active nodes exist on the current step */
+  #mermaid-container .dimmed {
     opacity: 0.25;
     transition: opacity 0.35s ease;
   }
 
-  #mermaid-container.has-highlights .node.highlighted,
-  #mermaid-container.has-highlights .node.active {
-    opacity: 1;
-  }
-
-  #mermaid-container .node.highlighted rect,
-  #mermaid-container .node.highlighted circle,
-  #mermaid-container .node.highlighted polygon,
-  #mermaid-container .node.highlighted ellipse,
-  #mermaid-container .node.highlighted path {
+  #mermaid-container .highlighted rect,
+  #mermaid-container .highlighted circle,
+  #mermaid-container .highlighted polygon,
+  #mermaid-container .highlighted ellipse,
+  #mermaid-container .highlighted path {
     fill: #1e3a6e !important;
     stroke: var(--accent) !important;
     stroke-width: 2px !important;
     filter: drop-shadow(0 0 8px var(--accent-glow));
   }
 
-  #mermaid-container .node.active rect,
-  #mermaid-container .node.active circle,
-  #mermaid-container .node.active polygon,
-  #mermaid-container .node.active ellipse,
-  #mermaid-container .node.active path {
+  #mermaid-container .active rect,
+  #mermaid-container .active circle,
+  #mermaid-container .active polygon,
+  #mermaid-container .active ellipse,
+  #mermaid-container .active path {
     fill: #1a4a7a !important;
     stroke: var(--success) !important;
     stroke-width: 2.5px !important;
     filter: drop-shadow(0 0 12px rgba(78, 205, 196, 0.4));
   }
 
-  #mermaid-container .flowchart-link.animated {
+  #mermaid-container .flowchart-link.animated,
+  #mermaid-container .messageLine0.animated,
+  #mermaid-container .messageLine1.animated {
     stroke: var(--accent) !important;
-    stroke-width: 2.5px !important;
+    stroke-width: 2px !important;
     stroke-dasharray: 8 4;
     animation: flowEdge 0.8s linear infinite;
   }
@@ -387,7 +386,7 @@ const htmlTemplate = `<!DOCTYPE html>
 <script>
 const sections = [[.SectionsJSON]];
 
-let nodeMap = {};
+let nodeMap = {};   // id → [SVGElement, ...] — all SVG groups for this node (seq has top+bottom)
 let edgeMap = {};
 let nodeSteps = {}; // node ID → sorted list of step indices that reference it
 let currentSection = 0;
@@ -453,13 +452,49 @@ function buildNodeMap() {
   const svg = document.querySelector('#mermaid-container svg');
   if (!svg) return;
 
-  // Mermaid 10.6.1 gives every node group an id of "flowchart-{nodeId}-{n}".
-  // Using the element ID avoids label-text collisions when two nodes share the same display label.
+  const labels = sections[currentSection].node_labels || {};
+  // Invert: display label → node ID. First occurrence wins (labels should be unique).
+  const labelToId = {};
+  for (const [id, label] of Object.entries(labels)) {
+    const key = (label && label.trim()) ? label.trim() : id;
+    if (!(key in labelToId)) labelToId[key] = id;
+  }
+
+  function addGroup(id, group) {
+    if (!nodeMap[id]) nodeMap[id] = [];
+    nodeMap[id].push(group);
+  }
+
+  // normalize collapses runs of whitespace (handles multi-tspan SVG text and foreignObject HTML).
+  function normalize(text) { return text.replace(/\s+/g, ' ').trim(); }
+
+  // Strategy 1: flowchart — Mermaid 10.6.1 sets id="flowchart-{nodeId}-{n}" on .node groups.
   svg.querySelectorAll('.node').forEach(group => {
     const m = group.id.match(/^flowchart-(\w+)-\d+$/);
-    if (m) nodeMap[m[1]] = group;
+    if (m) addGroup(m[1], group);
   });
 
+  // Strategy 2: sequence diagram — match all g.actor groups (top AND bottom mirrors) by text.
+  // Uses textContent to cover both SVG <text> elements and HTML inside <foreignObject>.
+  svg.querySelectorAll('g.actor').forEach(group => {
+    const label = normalize(group.textContent);
+    const id = labelToId[label];
+    if (id) addGroup(id, group);
+  });
+
+  // Strategy 3: generic fallback — for any diagram type not covered above.
+  // Only runs if some expected IDs remain unmapped after strategies 1 and 2.
+  if (Object.keys(labels).some(id => !nodeMap[id])) {
+    const alreadyMapped = new Set(Object.values(nodeMap).flat());
+    svg.querySelectorAll('g').forEach(group => {
+      if (alreadyMapped.has(group)) return;
+      const label = normalize(group.textContent);
+      const id = labelToId[label];
+      if (id) { addGroup(id, group); alreadyMapped.add(group); }
+    });
+  }
+
+  // Flowchart edge map — Mermaid labels edges with LS-{src} and LE-{dst} classes.
   svg.querySelectorAll('.flowchart-link').forEach(el => {
     const cls = Array.from(el.classList);
     const srcCls = cls.find(c => c.startsWith('LS-'));
@@ -469,6 +504,50 @@ function buildNodeMap() {
     if (!edgeMap[key]) edgeMap[key] = [];
     edgeMap[key].push(el);
   });
+
+  // Sequence edge map — message lines have no participant-based selectors, so infer
+  // source/target by matching each line's endpoint x-coordinates to actor x-centers.
+  const actorX = {};
+  Object.entries(nodeMap).forEach(([id, els]) => {
+    try {
+      const b = els[0].getBBox();
+      actorX[id] = b.x + b.width / 2;
+    } catch (_) {}
+  });
+  const actorEntries = Object.entries(actorX);
+  if (actorEntries.length > 0) {
+    function closestActor(x) {
+      let best = actorEntries[0][0], bestDist = Infinity;
+      for (const [id, cx] of actorEntries) {
+        const d = Math.abs(cx - x);
+        if (d < bestDist) { bestDist = d; best = id; }
+      }
+      return best;
+    }
+    function lineEndpointX(el) {
+      const tag = el.tagName.toLowerCase();
+      if (tag === 'line') {
+        return [parseFloat(el.getAttribute('x1')), parseFloat(el.getAttribute('x2'))];
+      }
+      if (tag === 'polyline') {
+        const pts = (el.getAttribute('points') || '').trim().split(/[\s,]+/).map(Number);
+        return pts.length >= 4 ? [pts[0], pts[pts.length - 2]] : null;
+      }
+      // path — extract all numbers from d, take first x and last x (second-to-last number).
+      const nums = (el.getAttribute('d') || '').match(/-?[\d.]+/g);
+      return nums && nums.length >= 4 ? [parseFloat(nums[0]), parseFloat(nums[nums.length - 2])] : null;
+    }
+    svg.querySelectorAll('.messageLine0, .messageLine1').forEach(el => {
+      const xs = lineEndpointX(el);
+      if (!xs) return;
+      const src = closestActor(xs[0]);
+      const dst = closestActor(xs[1]);
+      if (src === dst) return; // skip self-messages
+      const key = src + '-' + dst;
+      if (!edgeMap[key]) edgeMap[key] = [];
+      edgeMap[key].push(el);
+    });
+  }
 }
 
 function buildNodeSteps() {
@@ -480,8 +559,9 @@ function buildNodeSteps() {
     });
   });
   Object.keys(nodeMap).forEach(id => {
-    const el = nodeMap[id];
     if (nodeSteps[id]) {
+      // Add navigable only to the first (top) group to avoid duplicate click areas.
+      const el = nodeMap[id][0];
       el.classList.add('navigable');
       el.onclick = () => handleNodeClick(id);
     }
@@ -498,18 +578,26 @@ function handleNodeClick(id) {
 function clearAllHighlights() {
   const svg = document.querySelector('#mermaid-container svg');
   if (!svg) return;
-  svg.querySelectorAll('.node').forEach(n => n.classList.remove('highlighted', 'active'));
-  svg.querySelectorAll('.flowchart-link').forEach(e => e.classList.remove('animated'));
+  svg.querySelectorAll('.highlighted, .active, .dimmed').forEach(el => {
+    el.classList.remove('highlighted', 'active', 'dimmed');
+  });
+  svg.querySelectorAll('.flowchart-link, .messageLine0, .messageLine1').forEach(e => e.classList.remove('animated'));
 }
 
 function applyStep(step) {
   clearAllHighlights();
-  const hasHighlights = step.highlight_nodes.length > 0 || step.focus_nodes.length > 0;
-  document.getElementById('mermaid-container').classList.toggle('has-highlights', hasHighlights);
+  const activeSet = new Set([...step.highlight_nodes, ...step.focus_nodes]);
+  if (activeSet.size === 0) return;
+
   const focusSet = new Set(step.focus_nodes);
-  step.highlight_nodes.forEach(id => { if (nodeMap[id] && !focusSet.has(id)) nodeMap[id].classList.add('highlighted'); });
-  step.focus_nodes.forEach(id => { if (nodeMap[id]) nodeMap[id].classList.add('active'); });
-  const allNodes = [...new Set([...step.highlight_nodes, ...step.focus_nodes])];
+
+  // Apply dimmed/highlighted/active to every SVG group for each node (top + bottom for sequence).
+  Object.entries(nodeMap).forEach(([id, els]) => {
+    const cls = !activeSet.has(id) ? 'dimmed' : focusSet.has(id) ? 'active' : 'highlighted';
+    els.forEach(el => el.classList.add(cls));
+  });
+
+  const allNodes = [...activeSet];
   for (let i = 0; i < allNodes.length; i++) {
     for (let j = 0; j < allNodes.length; j++) {
       if (i !== j) (edgeMap[allNodes[i] + '-' + allNodes[j]] || []).forEach(el => el.classList.add('animated'));

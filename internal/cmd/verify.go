@@ -78,7 +78,7 @@ func verifyWalkthrough(w *dsl.Walkthrough) []dsl.Issue {
 	multi := len(sections) > 1
 	var issues []dsl.Issue
 	for i, sec := range sections {
-		nodes, edges := dsl.ExtractGraph(sec.MermaidDiagram)
+		diagramType := dsl.DiagramType(sec.MermaidDiagram)
 		if err := mermaidjs.Validate(sec.MermaidDiagram); err != nil {
 			msg := fmt.Sprintf("mermaid_diagram: %v", err)
 			if multi {
@@ -86,6 +86,18 @@ func verifyWalkthrough(w *dsl.Walkthrough) []dsl.Issue {
 			}
 			issues = append(issues, dsl.Issue{Severity: dsl.SeverityError, Message: msg})
 		}
+		// If the diagram type doesn't support visual fields, report that and skip
+		// node/edge verification — node extraction is not defined for this type.
+		if typeIssues := dsl.VerifyHighlightSupport(diagramType, sec.Steps); len(typeIssues) > 0 {
+			for _, issue := range typeIssues {
+				if multi {
+					issue.Message = fmt.Sprintf("section %d: %s", i+1, issue.Message)
+				}
+				issues = append(issues, issue)
+			}
+			continue
+		}
+		nodes, edges := dsl.ExtractGraph(sec.MermaidDiagram)
 		for _, issue := range dsl.Verify(sec.Steps, nodes, edges) {
 			if multi {
 				issue.Message = fmt.Sprintf("section %d: %s", i+1, issue.Message)

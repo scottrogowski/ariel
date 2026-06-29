@@ -2,9 +2,11 @@
 
 <p align="center"><img src="logo.png" width="128" alt="Ariel logo"></p>
 
-<video src="examples/ariel-walkthrough-output.mp4" autoplay loop muted playsinline width="100%"></video>
+![ariel-why walkthrough](examples/ariel-why-output.gif)
 
-Step-by-step Mermaid diagram walkthroughs. Each walkthrough pairs a diagram with a sequence of steps that highlight nodes, animate edges, and narrate what is happening. Outputs HTML (for interactive walkthroughs) and MP4s (for embedding in Github READMEs and PR descriptions)
+![ariel-what walkthrough](examples/ariel-what-output.gif)
+
+Step-by-step Mermaid diagram walkthroughs. Each walkthrough pairs a diagram with a sequence of steps that highlight nodes, animate edges, and narrate what is happening. Outputs HTML (interactive), MP4, and GIF (for embedding in GitHub READMEs and PR descriptions).
 
 Run `ariel guide` at the start of a session to load the full DSL into context.
 
@@ -50,9 +52,9 @@ ariel generate --format mp4 my-system.ariel.yaml
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--format` | `html` | Output format: `html` or `mp4` |
+| `--format` | `html` | Output format: `html`, `mp4`, or `gif` |
 | `--output` | input filename with format extension | Output path |
-| `--step-duration` | `2` | Seconds each step is held (mp4 only) |
+| `--step-duration` | `2` | Seconds each step is held (mp4 and gif only) |
 
 ### `ariel watch` flags
 
@@ -95,6 +97,8 @@ steps:
 
 **Node IDs** are the identifiers from the diagram (`API`, `PV`), not display labels (`Auth API`, `Password Valid?`). `ariel verify` catches all mismatches.
 
+`highlight_nodes` and `focus_nodes` are supported for `flowchart`/`graph` and `sequenceDiagram` only. Using them with other Mermaid diagram types is a verify error.
+
 For multi-diagram walkthroughs use `sections` instead of top-level `mermaid_diagram`/`steps`. See `ariel multiple-diagram-example` for a complete example.
 
 Run `ariel guide` for the full DSL reference.
@@ -106,11 +110,11 @@ AGENTS: Ariel follows spec-driven-development. Read spec/ariel-spec.md now. This
 ## Testing
 
 ```sh
-make test   # unit tests
-make example  # generates examples/ariel-walkthrough-output.html and .mp4
+make test     # unit tests
+make example  # generates HTML, MP4, and GIF outputs under examples/
 ```
 
-Automated tests cover parsing, verification, and CLI behavior. Visual output correctness — node highlighting, edge animation, layout, and MP4 playback — cannot be tested automatically. After any change to the renderer or template, open the generated HTML in a browser and play the MP4 to verify.
+Automated tests cover parsing, verification, and CLI behavior. Visual output correctness — node highlighting, edge animation, layout, and video/GIF playback — cannot be tested automatically. After any change to the renderer or template, open the generated HTML in a browser and inspect the GIF to verify.
 
 ## License
 

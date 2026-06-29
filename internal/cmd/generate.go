@@ -46,6 +46,17 @@ var generateCmd = &cobra.Command{
 			}
 			fmt.Printf("wrote %s\n", outPath)
 
+		case "gif":
+			outPath := generateOutput
+			if outPath == "" {
+				outPath = replaceExt(path, ".gif")
+			}
+			if err := renderer.GenerateGIF(w, outPath, generateStepDuration); err != nil {
+				fmt.Fprintf(os.Stderr, "generate: %v\n", err)
+				os.Exit(1)
+			}
+			fmt.Printf("wrote %s\n", outPath)
+
 		case "html", "":
 			outPath := generateOutput
 			if outPath == "" {
@@ -63,7 +74,7 @@ var generateCmd = &cobra.Command{
 			fmt.Printf("wrote %s\n", outPath)
 
 		default:
-			fmt.Fprintf(os.Stderr, "generate: unknown format %q (valid: html, mp4)\n", generateFormat)
+			fmt.Fprintf(os.Stderr, "generate: unknown format %q (valid: html, mp4, gif)\n", generateFormat)
 			os.Exit(1)
 		}
 

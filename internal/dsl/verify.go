@@ -96,6 +96,27 @@ func disconnectedHighlightWarning(step Step, stepNum int, nodes map[string]strin
 	return nil
 }
 
+// VerifyHighlightSupport returns an error if any step uses visual fields (highlight_nodes
+// or focus_nodes) on an unsupported diagram type.
+// Only "flowchart" and "sequence" diagrams support highlighting.
+func VerifyHighlightSupport(diagramType string, steps []Step) []Issue {
+	if diagramType != "unsupported" {
+		return nil
+	}
+	for i, step := range steps {
+		if len(step.HighlightNodes) > 0 || len(step.FocusNodes) > 0 {
+			return []Issue{{
+				Severity: SeverityError,
+				Message: fmt.Sprintf(
+					"step %d: highlight_nodes and focus_nodes are only supported for flowchart and sequenceDiagram",
+					i+1,
+				),
+			}}
+		}
+	}
+	return nil
+}
+
 // buildEdgeSet converts an edge list to a map for O(1) lookup.
 func buildEdgeSet(edges [][2]string) map[[2]string]bool {
 	set := make(map[[2]string]bool, len(edges))
