@@ -1,8 +1,8 @@
 # ariel
 
-![ariel-why walkthrough](logo.png)
+<p align="center"><img src="logo.png" width="128" alt="ariel logo"></p>
 
-Tool to generate step-by-step Mermaid diagram walkthroughs. Each walkthrough pairs a diagram with a sequence of steps that highlight nodes, animate edges, and narrate what is happening. Outputs HTML (interactive), MP4, and GIF (for embedding in GitHub READMEs and PR descriptions). Primarily designed as a tool for LLMs.
+CLI tool to generate step-by-step Mermaid diagram walkthroughs. Each walkthrough pairs a diagram with a sequence of steps that highlight nodes, animate edges, and narrate what is happening. Outputs HTML (interactive), MP4, and GIF (for embedding in GitHub READMEs and PR descriptions). Primarily designed as a tool for LLMs.
 
 ![ariel-why walkthrough](examples/ariel-why-output.gif)
 
