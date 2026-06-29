@@ -1,0 +1,144 @@
+title: "What ariel does"
+
+sections:
+  - title: "The workflow"
+    mermaid_diagram: |
+      sequenceDiagram
+        participant HP as Human Prompter
+        participant C as Claude
+        participant CLI as ariel CLI
+        participant HR as Human Reviewer
+
+        HP->>C: Prompt
+        C->>C: Write code
+        C->>CLI: ariel guide
+        CLI-->>C: DSL reference
+        C->>C: Author walkthrough YAML
+        C->>CLI: ariel verify / generate
+        CLI-->>HP: ariel walkthrough
+        CLI-->>HR: ariel walkthrough
+        HR->>HR: Steps through diagram
+    steps:
+      - narration: "The typical ariel session — from a human request to a verified understanding of what Claude built."
+
+      - label: "Human kicks things off"
+        highlight_nodes: [HP, C]
+        focus_nodes: [HP]
+        narration: "The human gives Claude a task. Claude reads the relevant code and begins."
+
+      - label: "Claude writes code"
+        highlight_nodes: [C]
+        focus_nodes: [C]
+        narration: "Claude implements the task. This is fast. The bottleneck is the review that follows."
+
+      - label: "Loading the DSL"
+        highlight_nodes: [C, CLI]
+        focus_nodes: [CLI]
+        narration: "Before writing the walkthrough, Claude runs `ariel guide` to load the full schema into context. This ensures the YAML it writes is valid on the first attempt."
+
+      - label: "Authoring the walkthrough"
+        highlight_nodes: [C]
+        focus_nodes: [C]
+        narration: "Claude authors the walkthrough YAML — identifying decision points, non-obvious design choices, and failure paths worth explaining."
+
+      - label: "Verify and generate"
+        highlight_nodes: [C, CLI]
+        focus_nodes: [CLI]
+        narration: "`ariel verify` catches any errors. `ariel generate` produces a self-contained HTML file."
+
+      - label: "Handoff"
+        highlight_nodes: [C, CLI, HP, HR]
+        focus_nodes: [CLI]
+        narration: "ariel CLI delivers the walkthrough directly to both the human prompter and the reviewer."
+
+      - label: "Human reviews"
+        highlight_nodes: [HR]
+        focus_nodes: [HR]
+        narration: "The reviewer steps through the walkthrough. One idea per step, one visual per idea. No context-switching."
+
+  - title: "The four commands"
+    mermaid_diagram: |
+      graph LR
+        User[User/LLM] --> G[guide]
+        User --> V[verify]
+        User --> Ge[generate]
+        User --> W[watch]
+    steps:
+      - narration: "ariel has four commands. Each exists for a specific moment in the authoring workflow."
+
+      - label: "guide"
+        focus_nodes: [G]
+        highlight_nodes: [User]
+        narration: "guide prints the full DSL reference to stdout — designed to be piped into an LLM's context before authoring a walkthrough file."
+
+      - label: "verify"
+        focus_nodes: [V]
+        highlight_nodes: [User]
+        narration: "verify lints a walkthrough file: YAML syntax, semantic node validation, and Mermaid syntax via an embedded JS runtime. Fast feedback — under one second."
+
+      - label: "generate"
+        focus_nodes: [Ge]
+        highlight_nodes: [User]
+        narration: "generate produces a self-contained HTML file — all CSS and JS inlined, Mermaid loaded from a pinned CDN. Opens by double-clicking. No server, no dependencies."
+
+      - label: "watch"
+        focus_nodes: [W]
+        highlight_nodes: [User]
+        narration: "watch starts a local HTTP server with live reload. Changes to the YAML push a freshly-rendered page over WebSocket — no manual refresh."
+
+  - title: "The pipeline"
+    mermaid_diagram: |
+      graph TD
+        User([User / LLM]) -->|ariel verify FILE| Parse[Parse YAML]
+        User -->|ariel generate FILE| Parse
+        User -->|ariel watch FILE| Parse
+        Parse -->|error| ParseErr[Print errors · exit 1]
+        Parse -->|valid| Verify[Semantic Verify]
+        Verify -->|error| SemErr[Print errors · exit 1]
+        Verify -->|ok| MermJS[Mermaid JS Validator]
+        MermJS -->|error| MermErr[Print errors · exit 1]
+        MermJS -->|ok| Router{Command?}
+        Router -->|verify| Done[✓ valid — exit 0]
+        Router -->|generate| Render[Render HTML Template]
+        Router -->|watch| Server[HTTP + WebSocket Server]
+        Render --> HTMLFile[.html file]
+        Server --> Browser[Browser]
+        FSWatch[fsnotify watcher] -->|file change| Parse
+        Server -.->|ws update| Browser
+    steps:
+      - narration: "All three non-guide commands share the same parse pipeline before branching."
+
+      - label: "Parsing"
+        highlight_nodes: [Parse, ParseErr]
+        focus_nodes: [Parse]
+        narration: "The first gate is YAML parsing. Strict mode — unknown fields are errors, not warnings. Failure prints the YAML line number and exits."
+
+      - label: "Semantic verification"
+        highlight_nodes: [Verify, SemErr]
+        focus_nodes: [Verify]
+        narration: "Semantic verification checks that every node ID referenced in steps actually exists in the mermaid_diagram block."
+
+      - label: "Mermaid validation"
+        highlight_nodes: [MermJS, MermErr]
+        focus_nodes: [MermJS]
+        narration: "The third gate validates Mermaid syntax. ariel embeds the full Mermaid JS bundle and runs it via goja — a pure-Go JS runtime. No Node required."
+
+      - label: "The router"
+        highlight_nodes: [Router, Done]
+        focus_nodes: [Router]
+        narration: "After all three checks pass, the command branches. verify exits with a success message. generate and watch continue to their output paths."
+
+      - label: "generate"
+        highlight_nodes: [Render, HTMLFile]
+        focus_nodes: [Render]
+        narration: "generate renders a self-contained HTML file — all CSS and JS inlined, step data baked in as a JS object, Mermaid from a pinned CDN. Double-click to open."
+
+      - label: "watch"
+        highlight_nodes: [Server, Browser]
+        focus_nodes: [Server]
+        narration: "watch starts an HTTP server serving the same HTML with a WebSocket snippet injected. It opens a browser and watches the file with fsnotify."
+
+      - label: "Live reload loop"
+        highlight_nodes: [FSWatch, Parse]
+        focus_nodes: [FSWatch]
+        narration: "When the file changes, fsnotify fires and re-runs the full pipeline. The server broadcasts the new HTML over WebSocket and the browser replaces the page."

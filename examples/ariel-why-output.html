@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The problem ariel solves | Ariel</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2a2d3a;
+    --accent: #5b8dee;
+    --accent-glow: rgba(91, 141, 238, 0.3);
+    --success: #4ecdc4;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --narration-bg: #141720;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .page-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+    text-align: center;
+  }
+
+  .page-title-sep {
+    margin: 0 10px;
+    color: var(--muted);
+    font-weight: 300;
+  }
+
+  .page-section-title {
+    font-size: 22px;
+    font-weight: 400;
+    color: var(--text);
+  }
+
+  .ariel-link {
+    position: absolute;
+    right: 32px;
+    opacity: 0.7;
+    transition: opacity 0.15s ease;
+    text-decoration: none;
+    color: var(--muted);
+  }
+
+  .ariel-link:hover { opacity: 1; }
+
+  .ariel-logo {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    display: block;
+  }
+
+  .ariel-emoji {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 20px;
+    line-height: 1;
+    z-index: 1;
+  }
+
+  .ariel-flowchart {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 36px;
+    height: 36px;
+  }
+
+  .main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 340px;
+  }
+
+  .diagram-pane {
+    padding: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid var(--border);
+  }
+
+  #mermaid-container {
+    width: 100%;
+    max-width: 600px;
+    transition: opacity 0.2s ease;
+  }
+
+  #mermaid-container svg {
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  .side-pane {
+    display: flex;
+    flex-direction: column;
+    background: var(--narration-bg);
+  }
+
+  .narration-area {
+    flex: 1;
+    padding: 40px 32px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .step-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .narration-text {
+    font-size: 17px;
+    line-height: 1.65;
+    color: var(--text);
+    min-height: 120px;
+    transition: opacity 0.25s ease;
+  }
+
+  .narration-text.fade { opacity: 0; }
+
+  .narration-text a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .narration-text a:hover { color: #7aaaf5; }
+
+  .progress-track {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .progress-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+    transition: all 0.3s ease;
+    cursor: pointer;
+  }
+
+  .progress-dot.active {
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+    width: 20px;
+    border-radius: 3px;
+  }
+
+  .progress-dot.visited { background: var(--muted); }
+
+  /* Intro dot (first step of each section) stays circular, uses accent color */
+  .progress-dot.intro-dot {
+    background: var(--accent);
+    opacity: 0.3;
+  }
+
+  .progress-dot.intro-dot.active {
+    opacity: 1;
+    width: 6px;
+    border-radius: 50%;
+  }
+
+  .progress-dot.intro-dot.visited {
+    background: var(--muted);
+    opacity: 1;
+  }
+
+  .section-track {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding-bottom: 8px;
+  }
+
+  .section-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+    transition: all 0.3s ease;
+    cursor: pointer;
+  }
+
+  .section-dot.active {
+    background: var(--success);
+    box-shadow: 0 0 8px rgba(78, 205, 196, 0.3);
+    width: 24px;
+    border-radius: 3px;
+  }
+
+  .section-dot.visited { background: var(--muted); }
+
+  .controls {
+    padding: 24px 32px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  button {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s ease;
+  }
+
+  .btn-prev {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  .btn-prev:hover:not(:disabled) {
+    color: var(--text);
+    border-color: var(--muted);
+  }
+
+  .btn-next {
+    background: var(--accent);
+    color: white;
+    flex: 1;
+  }
+
+  .btn-next:hover:not(:disabled) {
+    background: #4a7de0;
+    box-shadow: 0 0 16px var(--accent-glow);
+  }
+
+  button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  #mermaid-container .node rect,
+  #mermaid-container .node circle,
+  #mermaid-container .node polygon,
+  #mermaid-container .node ellipse,
+  #mermaid-container .node path,
+  #mermaid-container g.actor rect,
+  #mermaid-container g.actor path {
+    transition: fill 0.35s ease, stroke 0.35s ease, filter 0.35s ease;
+  }
+
+  #mermaid-container .node.navigable { cursor: pointer; }
+
+  #mermaid-container .node.navigable:hover rect,
+  #mermaid-container .node.navigable:hover circle,
+  #mermaid-container .node.navigable:hover polygon,
+  #mermaid-container .node.navigable:hover ellipse,
+  #mermaid-container .node.navigable:hover path {
+    opacity: 0.75;
+  }
+
+  /* Dimming: applied per-element when any highlighted/active nodes exist on the current step */
+  #mermaid-container .dimmed {
+    opacity: 0.25;
+    transition: opacity 0.35s ease;
+  }
+
+  #mermaid-container .highlighted rect,
+  #mermaid-container .highlighted circle,
+  #mermaid-container .highlighted polygon,
+  #mermaid-container .highlighted ellipse,
+  #mermaid-container .highlighted path {
+    fill: #1e3a6e !important;
+    stroke: var(--accent) !important;
+    stroke-width: 2px !important;
+    filter: drop-shadow(0 0 8px var(--accent-glow));
+  }
+
+  #mermaid-container .active rect,
+  #mermaid-container .active circle,
+  #mermaid-container .active polygon,
+  #mermaid-container .active ellipse,
+  #mermaid-container .active path {
+    fill: #1a4a7a !important;
+    stroke: var(--success) !important;
+    stroke-width: 2.5px !important;
+    filter: drop-shadow(0 0 12px rgba(78, 205, 196, 0.4));
+  }
+
+  #mermaid-container .flowchart-link.animated,
+  #mermaid-container .messageLine0.animated,
+  #mermaid-container .messageLine1.animated {
+    stroke: var(--accent) !important;
+    stroke-width: 2px !important;
+    stroke-dasharray: 8 4;
+    animation: flowEdge 0.8s linear infinite;
+  }
+
+  @keyframes flowEdge {
+    from { stroke-dashoffset: 24; }
+    to   { stroke-dashoffset: 0;  }
+  }
+
+  @media (max-width: 768px) {
+    .main {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr;
+    }
+    .diagram-pane {
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      padding: 24px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 class="page-title">The problem ariel solves<span id="section-title-sep" class="page-title-sep" style="display:none">|</span><span id="section-title" class="page-section-title"></span></h1>
+  <a class="ariel-link" href="https://github.com/scottmrogowski/ariel" target="_blank" rel="noopener">
+    <span class="ariel-logo">
+    <span class="ariel-emoji">🧜🏻‍♀️</span>
+    <svg class="ariel-flowchart" viewBox="0 0 44 44" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="22" cy="22" r="20" stroke-width="1.2"/>
+      <rect x="7.86" y="7.86" width="28.28" height="28.28" stroke-width="1.2"/>
+      <polygon points="22,2 42,22 22,42 2,22" stroke-width="1.2"/>
+    </svg>
+    </span>
+  </a>
+</header>
+
+<div class="main">
+  <div class="diagram-pane">
+    <div id="mermaid-container"></div>
+  </div>
+
+  <div class="side-pane">
+    <div class="narration-area">
+      <div class="step-label" id="step-label"></div>
+      <div class="narration-text" id="narration"></div>
+      <div class="section-track" id="section-track"></div>
+      <div class="progress-track" id="progress-track"></div>
+    </div>
+    <div class="controls">
+      <button class="btn-prev" id="btn-prev" onclick="prevStep()" disabled>← Back</button>
+      <button class="btn-next" id="btn-next" onclick="nextStep()"></button>
+    </div>
+  </div>
+</div>
+
+<script>
+const sections = [{"title":"","mermaid_diagram":"flowchart TD\n  LLM[LLM] --> Code[Lots of code]\n  Code --> Review[Code Review]\n  Review --> WM{Comprehend?}\n  WM -->|no| Stamp[\"Rubber Stamp (most likely)\"]\n  WM -->|yes| Model[Mental Model]\n  Model --> Decision[Good Decision]","node_labels":{"Code":"Lots of code","Decision":"Good Decision","LLM":"LLM","Model":"Mental Model","Review":"Code Review","Stamp":"\"Rubber Stamp (most likely)\"","WM":"Comprehend?"},"steps":[{"label":"The problem ariel solves","narration":"Ariel generates step-by-step diagram walkthroughs to help humans understand complex systems. It is most useful in READMEs and pull request summaries","highlight_nodes":[],"focus_nodes":[]},{"label":"The problem","narration":"LLMs generate code much faster than engineers. Once upon a time, our bottleneck was how fast we could write code. Now, the bottleneck is reviewing AI-generated code","highlight_nodes":["LLM","Code"],"focus_nodes":[]},{"label":"LLM velocity","narration":"While the code AIs generate is usually valid on a low-level, is still useful (perhaps critical) for human engineers to comprehend and evaluate the architecture.","highlight_nodes":["LLM","Code"],"focus_nodes":[]},{"label":"Architectural diagrams","narration":"Automatically generating diagrams helps. Now, instead of building a mental model from scratch, the reviewer has a map to cross-reference against the code.","highlight_nodes":["Code","Review"],"focus_nodes":[]},{"label":"The review bottleneck","narration":"However, diagrams without narrative still leave reviewers context-switching — toggling between diagram and code, with no prescribed reading order.","highlight_nodes":["Code","Review"],"focus_nodes":["WM"]},{"label":"Two outcomes","narration":"Working memory has a hard ceiling. Overloaded reviewers rubber-stamp. Comprehending reviewers make better decisions.","highlight_nodes":["WM","Stamp","Model","Decision"],"focus_nodes":[]},{"label":"ariel's role","narration":"ariel sequences the narrative — one idea per step, one visual change per idea. Working memory stays within its limits. Understanding builds incrementally.","highlight_nodes":["WM","Model","Decision"],"focus_nodes":[]}]}];
+
+let nodeMap = {};   // id → [SVGElement, ...] — all SVG groups for this node (seq has top+bottom)
+let edgeMap = {};
+let nodeSteps = {}; // node ID → sorted list of step indices that reference it
+let currentSection = 0;
+let currentStep = 0;
+let initialized = false;
+
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'dark',
+  themeVariables: {
+    primaryColor: '#1a2744',
+    primaryTextColor: '#e8eaf0',
+    primaryBorderColor: '#2a3a5a',
+    lineColor: '#4a5568',
+    secondaryColor: '#1a1d27',
+    tertiaryColor: '#1a1d27',
+    background: '#0f1117',
+    mainBkg: '#1a2744',
+    nodeBorder: '#2a3a5a',
+    clusterBkg: '#1a1d27',
+    titleColor: '#e8eaf0',
+    edgeLabelBackground: '#1a1d27',
+    fontFamily: 'Inter, system-ui, sans-serif'
+  }
+});
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+
+async function initSection(idx) {
+  const sec = sections[idx];
+  const container = document.getElementById('mermaid-container');
+  container.innerHTML = '<div class="mermaid">' + sec.mermaid_diagram + '</div>';
+  await mermaid.run({ nodes: [container.querySelector('.mermaid')] });
+  nodeMap = {};
+  edgeMap = {};
+  nodeSteps = {};
+  buildNodeMap();
+  buildNodeSteps();
+}
+
+function sectionIndexFromHash() {
+  const slug = window.location.hash.slice(1);
+  if (!slug) return 0;
+  for (let i = 0; i < sections.length; i++) {
+    if (sectionSlug(i) === slug) return i;
+  }
+  return 0;
+}
+
+const startSection = sectionIndexFromHash();
+currentSection = startSection;
+initSection(startSection).then(() => {
+  buildSectionDots();
+  buildProgressDots();
+  updateHeaderSectionTitle();
+  renderStep();
+  updateHash(startSection);
+  initialized = true;
+});
+
+function buildNodeMap() {
+  const svg = document.querySelector('#mermaid-container svg');
+  if (!svg) return;
+
+  const labels = sections[currentSection].node_labels || {};
+  // Invert: display label → node ID. First occurrence wins (labels should be unique).
+  const labelToId = {};
+  for (const [id, label] of Object.entries(labels)) {
+    const key = (label && label.trim()) ? label.trim() : id;
+    if (!(key in labelToId)) labelToId[key] = id;
+  }
+
+  function addGroup(id, group) {
+    if (!nodeMap[id]) nodeMap[id] = [];
+    nodeMap[id].push(group);
+  }
+
+  // normalize collapses runs of whitespace (handles multi-tspan SVG text and foreignObject HTML).
+  function normalize(text) { return text.replace(/\s+/g, ' ').trim(); }
+
+  // Strategy 1: flowchart — Mermaid 10.6.1 sets id="flowchart-{nodeId}-{n}" on .node groups.
+  svg.querySelectorAll('.node').forEach(group => {
+    const m = group.id.match(/^flowchart-(\w+)-\d+$/);
+    if (m) addGroup(m[1], group);
+  });
+
+  // Strategy 2: sequence diagram — match all g.actor groups (top AND bottom mirrors) by text.
+  // Uses textContent to cover both SVG <text> elements and HTML inside <foreignObject>.
+  svg.querySelectorAll('g.actor').forEach(group => {
+    const label = normalize(group.textContent);
+    const id = labelToId[label];
+    if (id) addGroup(id, group);
+  });
+
+  // Strategy 3: generic fallback — for any diagram type not covered above.
+  // Only runs if some expected IDs remain unmapped after strategies 1 and 2.
+  if (Object.keys(labels).some(id => !nodeMap[id])) {
+    const alreadyMapped = new Set(Object.values(nodeMap).flat());
+    svg.querySelectorAll('g').forEach(group => {
+      if (alreadyMapped.has(group)) return;
+      const label = normalize(group.textContent);
+      const id = labelToId[label];
+      if (id) { addGroup(id, group); alreadyMapped.add(group); }
+    });
+  }
+
+  // Flowchart edge map — Mermaid labels edges with LS-{src} and LE-{dst} classes.
+  svg.querySelectorAll('.flowchart-link').forEach(el => {
+    const cls = Array.from(el.classList);
+    const srcCls = cls.find(c => c.startsWith('LS-'));
+    const dstCls = cls.find(c => c.startsWith('LE-'));
+    if (!srcCls || !dstCls) return;
+    const key = srcCls.slice(3) + '-' + dstCls.slice(3);
+    if (!edgeMap[key]) edgeMap[key] = [];
+    edgeMap[key].push(el);
+  });
+
+  // Sequence edge map — message lines have no participant-based selectors, so infer
+  // source/target by matching each line's endpoint x-coordinates to actor x-centers.
+  const actorX = {};
+  Object.entries(nodeMap).forEach(([id, els]) => {
+    try {
+      const b = els[0].getBBox();
+      actorX[id] = b.x + b.width / 2;
+    } catch (_) {}
+  });
+  const actorEntries = Object.entries(actorX);
+  if (actorEntries.length > 0) {
+    function closestActor(x) {
+      let best = actorEntries[0][0], bestDist = Infinity;
+      for (const [id, cx] of actorEntries) {
+        const d = Math.abs(cx - x);
+        if (d < bestDist) { bestDist = d; best = id; }
+      }
+      return best;
+    }
+    function lineEndpointX(el) {
+      const tag = el.tagName.toLowerCase();
+      if (tag === 'line') {
+        return [parseFloat(el.getAttribute('x1')), parseFloat(el.getAttribute('x2'))];
+      }
+      if (tag === 'polyline') {
+        const pts = (el.getAttribute('points') || '').trim().split(/[\s,]+/).map(Number);
+        return pts.length >= 4 ? [pts[0], pts[pts.length - 2]] : null;
+      }
+      // path — extract all numbers from d, take first x and last x (second-to-last number).
+      const nums = (el.getAttribute('d') || '').match(/-?[\d.]+/g);
+      return nums && nums.length >= 4 ? [parseFloat(nums[0]), parseFloat(nums[nums.length - 2])] : null;
+    }
+    svg.querySelectorAll('.messageLine0, .messageLine1').forEach(el => {
+      const xs = lineEndpointX(el);
+      if (!xs) return;
+      const src = closestActor(xs[0]);
+      const dst = closestActor(xs[1]);
+      if (src === dst) return; // skip self-messages
+      const key = src + '-' + dst;
+      if (!edgeMap[key]) edgeMap[key] = [];
+      edgeMap[key].push(el);
+    });
+  }
+}
+
+function buildNodeSteps() {
+  const steps = sections[currentSection].steps;
+  steps.forEach((step, i) => {
+    [...step.highlight_nodes, ...step.focus_nodes].forEach(id => {
+      if (!nodeSteps[id]) nodeSteps[id] = [];
+      if (!nodeSteps[id].includes(i)) nodeSteps[id].push(i);
+    });
+  });
+  Object.keys(nodeMap).forEach(id => {
+    if (nodeSteps[id]) {
+      // Add navigable only to the first (top) group to avoid duplicate click areas.
+      const el = nodeMap[id][0];
+      el.classList.add('navigable');
+      el.onclick = () => handleNodeClick(id);
+    }
+  });
+}
+
+function handleNodeClick(id) {
+  const stepList = nodeSteps[id];
+  if (!stepList) return;
+  const next = stepList.find(i => i > currentStep);
+  goToStep(next !== undefined ? next : stepList[0]);
+}
+
+function clearAllHighlights() {
+  const svg = document.querySelector('#mermaid-container svg');
+  if (!svg) return;
+  svg.querySelectorAll('.highlighted, .active, .dimmed').forEach(el => {
+    el.classList.remove('highlighted', 'active', 'dimmed');
+  });
+  svg.querySelectorAll('.flowchart-link, .messageLine0, .messageLine1').forEach(e => e.classList.remove('animated'));
+}
+
+function applyStep(step) {
+  clearAllHighlights();
+  const activeSet = new Set([...step.highlight_nodes, ...step.focus_nodes]);
+  if (activeSet.size === 0) return;
+
+  const focusSet = new Set(step.focus_nodes);
+
+  // Apply dimmed/highlighted/active to every SVG group for each node (top + bottom for sequence).
+  Object.entries(nodeMap).forEach(([id, els]) => {
+    const cls = !activeSet.has(id) ? 'dimmed' : focusSet.has(id) ? 'active' : 'highlighted';
+    els.forEach(el => el.classList.add(cls));
+  });
+
+  const allNodes = [...activeSet];
+  for (let i = 0; i < allNodes.length; i++) {
+    for (let j = 0; j < allNodes.length; j++) {
+      if (i !== j) (edgeMap[allNodes[i] + '-' + allNodes[j]] || []).forEach(el => el.classList.add('animated'));
+    }
+  }
+}
+
+function buildProgressDots() {
+  const track = document.getElementById('progress-track');
+  track.innerHTML = '';
+  sections[currentSection].steps.forEach((_, i) => {
+    const dot = document.createElement('div');
+    dot.className = i === 0 ? 'progress-dot intro-dot' : 'progress-dot';
+    dot.onclick = () => goToStep(i);
+    track.appendChild(dot);
+  });
+}
+
+function updateProgressDots() {
+  document.querySelectorAll('.progress-dot').forEach((dot, i) => {
+    dot.className = i === 0 ? 'progress-dot intro-dot' : 'progress-dot';
+    if (i < currentStep) dot.classList.add('visited');
+    if (i === currentStep) dot.classList.add('active');
+  });
+}
+
+function buildSectionDots() {
+  const track = document.getElementById('section-track');
+  if (!track) return;
+  track.innerHTML = '';
+  if (sections.length <= 1) { track.style.display = 'none'; return; }
+  track.style.display = 'flex';
+  sections.forEach((sec, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'section-dot';
+    dot.title = sec.title || ('Section ' + (i + 1));
+    dot.onclick = () => goToSection(i);
+    track.appendChild(dot);
+  });
+}
+
+function updateSectionDots() {
+  document.querySelectorAll('.section-dot').forEach((dot, i) => {
+    dot.className = 'section-dot';
+    if (i < currentSection) dot.classList.add('visited');
+    if (i === currentSection) dot.classList.add('active');
+  });
+}
+
+function sectionSlug(idx) {
+  const title = sections[idx].title;
+  if (title) return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return 'section-' + idx;
+}
+
+function updateHash(idx) {
+  const hash = '#' + sectionSlug(idx);
+  history.replaceState(null, '', hash);
+}
+
+function goToStep(index) {
+  currentStep = index;
+  renderStep();
+}
+
+function updateHeaderSectionTitle() {
+  const sep = document.getElementById('section-title-sep');
+  const el = document.getElementById('section-title');
+  if (sections.length <= 1) { sep.style.display = 'none'; el.textContent = ''; return; }
+  const title = sections[currentSection].title || ('Section ' + (currentSection + 1));
+  sep.style.display = '';
+  el.textContent = title;
+}
+
+async function goToSection(idx, stepIdx) {
+  const container = document.getElementById('mermaid-container');
+  container.style.opacity = '0';
+  document.getElementById('narration').classList.add('fade');
+  await sleep(200);
+  currentSection = idx;
+  currentStep = stepIdx !== undefined ? stepIdx : 0;
+  await initSection(idx);
+  buildProgressDots();
+  updateSectionDots();
+  updateHeaderSectionTitle();
+  renderStep();
+  updateHash(idx);
+  container.style.opacity = '1';
+}
+
+function renderStep() {
+  const sec = sections[currentSection];
+  const step = sec.steps[currentStep];
+  const narrationEl = document.getElementById('narration');
+  const labelEl = document.getElementById('step-label');
+
+  narrationEl.classList.add('fade');
+  setTimeout(() => {
+    narrationEl.innerHTML = step.narration || '';
+    let label;
+    if (currentStep === 0) {
+      label = (sections.length > 1 && sec.title) ? sec.title : (step.label || '');
+    } else {
+      label = currentStep + ' of ' + (sec.steps.length - 1);
+      if (step.label) label += ' — ' + step.label;
+      if (sections.length > 1 && sec.title) label = sec.title + ' · ' + label;
+    }
+    labelEl.textContent = label;
+    narrationEl.classList.remove('fade');
+  }, 200);
+
+  if (initialized) applyStep(step);
+
+  const isFirst = currentSection === 0 && currentStep === 0;
+  const isLastStep = currentStep === sec.steps.length - 1;
+  const isLastSection = currentSection === sections.length - 1;
+
+  document.getElementById('btn-prev').disabled = isFirst;
+
+  const nextBtn = document.getElementById('btn-next');
+  if (isLastStep && isLastSection) {
+    nextBtn.textContent = 'Done';
+    nextBtn.disabled = true;
+  } else {
+    nextBtn.textContent = 'Next →';
+    nextBtn.disabled = false;
+  }
+
+  updateProgressDots();
+  updateSectionDots();
+}
+
+function nextStep() {
+  const sec = sections[currentSection];
+  if (currentStep < sec.steps.length - 1) {
+    currentStep++;
+    renderStep();
+  } else if (currentSection < sections.length - 1) {
+    goToSection(currentSection + 1);
+  }
+}
+
+function prevStep() {
+  if (currentStep > 0) {
+    currentStep--;
+    renderStep();
+  } else if (currentSection > 0) {
+    const prevIdx = currentSection - 1;
+    goToSection(prevIdx, sections[prevIdx].steps.length - 1);
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextStep(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); prevStep(); }
+});
+</script>
+</body>
+</html>
