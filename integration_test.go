@@ -12,6 +12,7 @@
 package main_test
 
 import (
+	"encoding/xml"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -229,6 +230,12 @@ func TestCLI_GenerateSVG(t *testing.T) {
 
 	if strings.Count(svg, `type="radio"`) < 2 {
 		t.Error("expected at least 2 radio inputs (one per step)")
+	}
+
+	// The SVG must be valid XML. Mermaid generates HTML void elements (e.g. <br>)
+	// inside foreignObject; if they aren't made self-closing the file is broken.
+	if err := xml.Unmarshal(data, new(interface{})); err != nil {
+		t.Errorf("generated SVG is not valid XML: %v", err)
 	}
 }
 
