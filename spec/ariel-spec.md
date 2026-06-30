@@ -322,16 +322,6 @@ ariel/
 │   └── guide/
 │       ├── guide.go          # DSL reference text
 │       └── examples.go       # single/multiple diagram example YAML
-├── examples/
-│   ├── ariel-why.ariel.yaml              # single-section example
-│   ├── ariel-why-output.html             # generated: make example
-│   ├── ariel-why-output.svg              # generated: make example
-│   ├── ariel-why-output.mp4              # generated: make example
-│   ├── ariel-why-output.gif              # generated: make example
-│   ├── ariel-what.ariel.yaml             # multi-section example (SVG not generated)
-│   ├── ariel-what-output.html            # generated: make example
-│   ├── ariel-what-output.mp4             # generated: make example
-│   └── ariel-what-output.gif             # generated: make example
 ├── testdata/
 │   └── auth-flow.ariel.yaml
 ├── spec/
