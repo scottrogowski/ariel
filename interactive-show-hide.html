@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Interactive diagram — show/hide demo</title>
+  <style>
+    body { margin: 40px; font-family: monospace; background: #fafafa; }
+    h2 { font-size: 14px; color: #555; margin-bottom: 16px; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      width: 130px;
+      height: 64px;
+      background: #2980b9;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: monospace;
+      font-size: 13px;
+      user-select: none;
+      vertical-align: middle;
+    }
+    .panel {
+      display: none;
+      width: 322px;
+      height: 80px;
+      background: #eaf4fb;
+      border-left: 4px solid #2980b9;
+      border-radius: 0 4px 4px 0;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: #333;
+      vertical-align: middle;
+      margin-left: 28px;
+    }
+    .panel-title { font-size: 13px; color: #2980b9; font-weight: bold; margin-bottom: 5px; }
+    #t { display: none; }
+    .btn .show-label { display: block; }
+    .btn .hide-label { display: none; }
+    #t:checked ~ .row .btn .show-label { display: none; }
+    #t:checked ~ .row .btn .hide-label { display: block; }
+    #t:checked ~ .row .panel { display: inline-block; }
+    .row { display: flex; align-items: center; }
+  </style>
+</head>
+<body>
+  <h2>CSS :checked show/hide — fully interactive HTML version</h2>
+  <input type="checkbox" id="t"/>
+  <div class="row">
+    <label class="btn" for="t">
+      <span class="show-label">▶ Show note</span>
+      <span class="hide-label">▼ Hide note</span>
+    </label>
+    <div class="panel">
+      <div class="panel-title">Step 1: Initialization</div>
+      Loads config from environment variables and validates
+      all required keys before starting the service.
+    </div>
+  </div>
+</body>
+</html>
