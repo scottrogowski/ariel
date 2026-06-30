@@ -219,7 +219,7 @@ func TestCLI_GenerateSVG(t *testing.T) {
 		`<svg`,
 		`<foreignObject`,
 		`type="radio"`,
-		`class="cta"`,
+		`class="cta-overlay"`,
 		`class="col-title"`,
 		`class="diagrams"`,
 		`class="narrations"`,

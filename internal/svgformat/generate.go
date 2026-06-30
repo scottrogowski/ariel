@@ -164,6 +164,9 @@ func buildOutputSVG(width, totalHeight, diagW, colHeaderH, diagH, navH int,
 		b.WriteString("\n</div>\n")
 	}
 	b.WriteString("</div>\n") // end .diagrams
+	if n > 1 {
+		b.WriteString(`<label class="cta-overlay" for="s1"><div class="cta-btn">&#x25B6; Click for walkthrough</div></label>` + "\n")
+	}
 	b.WriteString("</div>\n") // end .diagram-col
 
 	// Narration column: per-step header + text, panel always visible.
@@ -179,11 +182,8 @@ func buildOutputSVG(width, totalHeight, diagW, colHeaderH, diagH, navH int,
 
 	b.WriteString("</div>\n") // end .content
 
-	// Bottom bar: CTA label on step 0 (navigates to step 1), nav controls on step 1+.
+	// Bottom bar: empty on step 0, nav controls on step 1+.
 	b.WriteString(`<div class="bottom">` + "\n")
-	if n > 1 {
-		b.WriteString(`<label class="cta" for="s1">&#x25B6; Click for walkthrough</label>` + "\n")
-	}
 	b.WriteString(`<div class="nav-controls">` + "\n")
 	b.WriteString(`<div class="nav-prev">` + "\n")
 	for i := 1; i < n; i++ {
@@ -222,7 +222,8 @@ func buildNavCSS(n int) string {
 	b.WriteString(`.content{flex:1;display:flex;flex-direction:row;overflow:hidden;}` + "\n")
 
 	// Diagram column: flex column, title bar + diagram area.
-	b.WriteString(`.diagram-col{display:flex;flex-direction:column;}` + "\n")
+	// position:relative is required so the cta-overlay can be positioned absolutely within it.
+	b.WriteString(`.diagram-col{position:relative;display:flex;flex-direction:column;}` + "\n")
 	b.WriteString(`.col-title{flex-shrink:0;height:44px;line-height:44px;padding:0 20px;font-size:13px;font-weight:600;color:#e8eaf0;border-bottom:1px solid #1e2130;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;}` + "\n")
 	b.WriteString(`.diagrams{flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;}` + "\n")
 	b.WriteString(`.step{display:none;}` + "\n")
@@ -240,15 +241,17 @@ func buildNavCSS(n int) string {
 	b.WriteString(`.narr-header{flex-shrink:0;height:44px;line-height:44px;padding:0 20px;font-size:11px;font-weight:600;color:#5b8dee;letter-spacing:0.05em;text-transform:uppercase;border-bottom:1px solid #1e2130;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;}` + "\n")
 	b.WriteString(`.narr-text{flex:1;padding:20px;font-size:13px;line-height:1.65;color:#c0c4d0;overflow-y:auto;}` + "\n")
 
+	// CTA overlay: large button floating over the diagram, shown on step 0 only.
+	// top:44px clears the col-title header; covers the full diagram area below it.
+	b.WriteString(`.cta-overlay{position:absolute;top:44px;left:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;cursor:pointer;background:rgba(15,17,23,0.45);}` + "\n")
+	if n > 1 {
+		b.WriteString(`#s0:checked~.content .cta-overlay{display:flex;}` + "\n")
+	}
+	b.WriteString(`.cta-btn{background:#0f1117;border:2px solid #5b8dee;border-radius:12px;padding:22px 52px;font-size:19px;font-weight:700;color:#5b8dee;letter-spacing:0.03em;}` + "\n")
+	b.WriteString(`.cta-overlay:hover .cta-btn{background:#1a2744;border-color:#7da9f0;color:#7da9f0;}` + "\n")
+
 	// Bottom bar.
 	b.WriteString(`.bottom{height:60px;flex-shrink:0;background:#0f1117;border-top:1px solid #1e2130;display:flex;align-items:center;justify-content:center;}` + "\n")
-
-	// CTA: shown on step 0 only.
-	b.WriteString(`.cta{display:none;font-size:13px;font-weight:600;color:#5b8dee;cursor:pointer;letter-spacing:0.04em;padding:10px 28px;border:1px solid #2a3a5a;border-radius:8px;align-items:center;gap:8px;}` + "\n")
-	b.WriteString(`.cta:hover{color:#7da9f0;border-color:#5b8dee;}` + "\n")
-	if n > 1 {
-		b.WriteString(`#s0:checked~.bottom .cta{display:flex;}` + "\n")
-	}
 
 	// Nav controls: shown on step 1+.
 	b.WriteString(`.nav-controls{display:none;width:100%;height:100%;align-items:center;justify-content:center;gap:12px;}` + "\n")
