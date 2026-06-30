@@ -29,7 +29,7 @@ const extractionHTMLTemplate = `<!DOCTYPE html>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #0f1117; }
-  #mermaid-container { width: 960px; }
+  #mermaid-container { width: 900px; }
   #mermaid-container svg { display: block; }
 </style>
 </head>
@@ -92,9 +92,6 @@ function applyStep(highlightNodes, focusNodes) {
   const svg = document.querySelector('#mermaid-container svg');
 
   svg.querySelectorAll('.node').forEach(group => {
-    // Never dim the narration node; it should always be fully visible.
-    if (group.id.includes('_narration_')) return;
-
     const m = group.id.match(/^flowchart-(\w+)-\d+$/);
     const nodeId = m ? m[1] : null;
 

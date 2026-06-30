@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,12 +15,13 @@ import (
 )
 
 const (
-	outputWidth  = 960
-	ctaHeight    = 40
-	navHeight    = 60
-	svgTimeout   = 5 * time.Minute
-	browserWidth = 980 // slightly wider than outputWidth to avoid triggering a scrollbar
-	browserHeight = 2000
+	outputWidth    = 1200
+	narrationWidth = 300
+	diagramWidth   = outputWidth - narrationWidth // 900
+	navHeight      = 60
+	svgTimeout     = 5 * time.Minute
+	browserWidth   = diagramWidth + 20 // slightly wider than diagramWidth to avoid triggering a scrollbar
+	browserHeight  = 2000
 )
 
 // Generate renders a single-section Walkthrough as an interactive SVG file at outPath.
@@ -41,15 +43,19 @@ func Generate(w *dsl.Walkthrough, outPath string) error {
 	ctx, cancel := newBrowserCtx()
 	defer cancel()
 
+	// The diagram source is identical across all steps (narration is rendered
+	// in the right panel, not as a Mermaid node), so write the extraction HTML once.
+	htmlPath := filepath.Join(tmpDir, "diagram.html")
+	if err := os.WriteFile(htmlPath, []byte(renderExtractionHTML(sec.MermaidDiagram)), 0644); err != nil {
+		return fmt.Errorf("write extraction HTML: %w", err)
+	}
+
 	stepSVGs := make([]string, len(sec.Steps))
+	narrations := make([]string, len(sec.Steps))
 	var maxDiagramHeight int
 
 	for i, step := range sec.Steps {
-		diagram := appendNarrationNode(sec.MermaidDiagram, step.Narration)
-		htmlPath := filepath.Join(tmpDir, fmt.Sprintf("step%d.html", i))
-		if err := os.WriteFile(htmlPath, []byte(renderExtractionHTML(diagram)), 0644); err != nil {
-			return fmt.Errorf("step %d: write extraction HTML: %w", i, err)
-		}
+		narrations[i] = step.Narration
 
 		if err := chromedp.Run(ctx,
 			chromedp.Navigate("file://"+htmlPath),
@@ -74,8 +80,7 @@ func Generate(w *dsl.Walkthrough, outPath string) error {
 			return fmt.Errorf("step %d: getSVG returned unexpected content (first 60 chars): %q", i, truncate(svgStr, 60))
 		}
 		// Mermaid renders HTML void elements (e.g. <br>) inside foreignObject
-		// without the closing slash, which is valid HTML but invalid XML. The
-		// output file is parsed as XML, so fix them up here.
+		// without the closing slash, which is valid HTML but invalid XML.
 		svgStr = strings.ReplaceAll(svgStr, "<br>", "<br/>")
 		stepSVGs[i] = svgStr
 
@@ -97,61 +102,20 @@ func Generate(w *dsl.Walkthrough, outPath string) error {
 		}
 	}
 
-	totalHeight := ctaHeight + maxDiagramHeight + navHeight
-	out := buildOutputSVG(outputWidth, totalHeight, ctaHeight, maxDiagramHeight, navHeight, stepSVGs)
+	totalHeight := maxDiagramHeight + navHeight
+	out := buildOutputSVG(outputWidth, totalHeight, diagramWidth, maxDiagramHeight, navHeight, stepSVGs, narrations)
 	return os.WriteFile(outPath, []byte(out), 0644)
 }
 
-// appendNarrationNode appends an unconnected Mermaid node carrying the narration
-// text to flowchart/graph diagrams. Mermaid's layout engine places unconnected
-// nodes in the emptiest available space. Other diagram types are returned unchanged.
-func appendNarrationNode(diagram, narration string) string {
-	if narration == "" {
-		return diagram
-	}
-	trimmed := strings.TrimLeft(diagram, " \t\n")
-	lower := strings.ToLower(trimmed)
-	if !strings.HasPrefix(lower, "flowchart") && !strings.HasPrefix(lower, "graph") {
-		return diagram
-	}
-	// Replace double quotes with single quotes so the label parses correctly,
-	// then wrap at word boundaries so the node doesn't render as one long line.
-	label := wrapNarration(strings.ReplaceAll(narration, `"`, `'`), 40)
-	return strings.TrimRight(diagram, "\n") +
-		"\n    _narration_[\"" + label + "\"]\n" +
-		"    style _narration_ fill:#1a2744,color:#e8eaf0,stroke:#5b8dee,stroke-width:2px"
-}
-
-// wrapNarration splits text at word boundaries, joining lines with Mermaid's
-// <br/> line-break syntax for use inside ["..."] node labels.
-func wrapNarration(text string, charsPerLine int) string {
-	words := strings.Fields(text)
-	var lines []string
-	var current strings.Builder
-	for _, word := range words {
-		if current.Len() > 0 && current.Len()+1+len(word) > charsPerLine {
-			lines = append(lines, current.String())
-			current.Reset()
-		}
-		if current.Len() > 0 {
-			current.WriteByte(' ')
-		}
-		current.WriteString(word)
-	}
-	if current.Len() > 0 {
-		lines = append(lines, current.String())
-	}
-	return strings.Join(lines, "<br/>")
-}
-
-func buildOutputSVG(width, totalHeight, ctaH, diagH, navH int, stepSVGs []string) string {
+func buildOutputSVG(width, totalHeight, diagW, diagH, navH int, stepSVGs, narrations []string) string {
 	n := len(stepSVGs)
+	narW := width - diagW
 	var b strings.Builder
 
 	fmt.Fprintf(&b, `<?xml version="1.0" encoding="UTF-8"?>`+"\n")
 	fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d">`+"\n", width, totalHeight)
 	fmt.Fprintf(&b, `<foreignObject width="%d" height="%d">`+"\n", width, totalHeight)
-	fmt.Fprintf(&b, `<div xmlns="http://www.w3.org/1999/xhtml" style="width:%dpx;height:%dpx;overflow:hidden;font-family:Inter,system-ui,sans-serif;background:#0f1117;">`+"\n",
+	fmt.Fprintf(&b, `<div xmlns="http://www.w3.org/1999/xhtml" style="width:%dpx;height:%dpx;display:flex;flex-direction:column;font-family:Inter,system-ui,sans-serif;background:#0f1117;">`+"\n",
 		width, totalHeight)
 
 	b.WriteString("<style>\n")
@@ -167,30 +131,50 @@ func buildOutputSVG(width, totalHeight, ctaH, diagH, navH int, stepSVGs []string
 		fmt.Fprintf(&b, `<input type="radio" name="s" id="s%d"%s/>`+"\n", i, checked)
 	}
 
-	// CTA bar — only shown on step 0.
-	b.WriteString(`<div class="cta">&#x25B6; Click for walkthrough</div>` + "\n")
+	// Content row: diagram column (left) + narration column (right).
+	b.WriteString(`<div class="content">` + "\n")
 
-	// Diagram area — one pre-rendered SVG per step; only the active one is shown.
-	fmt.Fprintf(&b, `<div class="diagrams" style="width:%dpx;height:%dpx;overflow:hidden;">`+"\n", width, diagH)
+	fmt.Fprintf(&b, `<div class="diagrams" style="width:%dpx;">`+"\n", diagW)
 	for i, svgStr := range stepSVGs {
-		fmt.Fprintf(&b, `<div class="step step-%d" style="width:%dpx;height:%dpx;overflow:hidden;">`+"\n", i, width, diagH)
+		fmt.Fprintf(&b, `<div class="step step-%d">`+"\n", i)
 		b.WriteString(svgStr)
 		b.WriteString("\n</div>\n")
 	}
 	b.WriteString("</div>\n")
 
-	// Nav bar — prev buttons, step dots, next buttons.
-	b.WriteString(`<div class="nav">` + "\n")
+	fmt.Fprintf(&b, `<div class="narrations" style="width:%dpx;">`+"\n", narW)
+	for i, text := range narrations {
+		escaped := html.EscapeString(text)
+		escaped = strings.ReplaceAll(escaped, "\n", "<br/>")
+		fmt.Fprintf(&b, `<div class="narration n-%d">%s</div>`+"\n", i, escaped)
+	}
+	b.WriteString("</div>\n")
+
+	b.WriteString("</div>\n") // end .content
+
+	// Bottom bar: CTA label on step 0 (navigates to step 1), nav controls on step 1+.
+	b.WriteString(`<div class="bottom">` + "\n")
+	if n > 1 {
+		b.WriteString(`<label class="cta" for="s1">&#x25B6; Click for walkthrough</label>` + "\n")
+	}
+	b.WriteString(`<div class="nav-controls">` + "\n")
+	b.WriteString(`<div class="nav-prev">` + "\n")
 	for i := 1; i < n; i++ {
 		fmt.Fprintf(&b, `<label class="prev prev-%d" for="s%d">&#x25C0;</label>`+"\n", i, i-1)
 	}
+	b.WriteString("</div>\n")
+	b.WriteString(`<div class="nav-dots">` + "\n")
 	for i := range stepSVGs {
 		fmt.Fprintf(&b, `<label class="dot dot-%d" for="s%d"></label>`+"\n", i, i)
 	}
+	b.WriteString("</div>\n")
+	b.WriteString(`<div class="nav-next">` + "\n")
 	for i := 0; i < n-1; i++ {
 		fmt.Fprintf(&b, `<label class="next next-%d" for="s%d">&#x25B6;</label>`+"\n", i, i+1)
 	}
 	b.WriteString("</div>\n")
+	b.WriteString("</div>\n") // end .nav-controls
+	b.WriteString("</div>\n") // end .bottom
 
 	b.WriteString("</div>\n")
 	b.WriteString("</foreignObject>\n")
@@ -199,7 +183,7 @@ func buildOutputSVG(width, totalHeight, ctaH, diagH, navH int, stepSVGs []string
 	return b.String()
 }
 
-// buildNavCSS generates the CSS that drives navigation state via :checked selectors.
+// buildNavCSS generates the CSS that drives step navigation via :checked selectors.
 // All rules are statically emitted for N steps.
 func buildNavCSS(n int) string {
 	var b strings.Builder
@@ -207,30 +191,51 @@ func buildNavCSS(n int) string {
 	b.WriteString(`*{box-sizing:border-box;margin:0;padding:0;}` + "\n")
 	b.WriteString(`input[type="radio"]{display:none;}` + "\n")
 
-	// CTA bar.
-	b.WriteString(`.cta{display:none;height:40px;line-height:40px;text-align:center;font-size:13px;font-weight:600;color:#5b8dee;background:#0f1117;border-bottom:1px solid #2a2d3a;cursor:pointer;letter-spacing:0.04em;}` + "\n")
-	b.WriteString(`.cta:hover{color:#7da9f0;}` + "\n")
-	b.WriteString(`#s0:checked~.cta{display:block;}` + "\n")
+	// Content row: diagram left, narration right, fills remaining height.
+	b.WriteString(`.content{flex:1;display:flex;flex-direction:row;overflow:hidden;}` + "\n")
 
-	// Step SVG visibility.
+	// Diagram column: one step SVG visible at a time.
 	b.WriteString(`.step{display:none;}` + "\n")
-	b.WriteString(`.step>svg{width:960px !important;display:block;}` + "\n")
+	b.WriteString(`.step>svg{display:block;}` + "\n")
 	for i := 0; i < n; i++ {
-		fmt.Fprintf(&b, `#s%d:checked~.diagrams .step-%d{display:block;}`+"\n", i, i)
+		fmt.Fprintf(&b, `#s%d:checked~.content .step-%d{display:block;}`+"\n", i, i)
 	}
 
-	// Nav bar base.
-	b.WriteString(`.nav{height:60px;background:#0f1117;border-top:1px solid #2a2d3a;display:flex;align-items:center;justify-content:center;gap:10px;}` + "\n")
+	// Narration column: always visible, one narration div shown at a time.
+	b.WriteString(`.narrations{border-left:1px solid #1e2130;overflow-y:auto;}` + "\n")
+	b.WriteString(`.narration{display:none;padding:32px 24px;font-size:14px;line-height:1.65;color:#c0c4d0;}` + "\n")
+	for i := 0; i < n; i++ {
+		fmt.Fprintf(&b, `#s%d:checked~.content .n-%d{display:block;}`+"\n", i, i)
+	}
 
-	// Prev/next buttons.
-	b.WriteString(`.prev,.next{display:none;width:32px;height:32px;background:#1a2744;border:1px solid #2a3a5a;border-radius:6px;color:#e8eaf0;font-size:13px;align-items:center;justify-content:center;cursor:pointer;}` + "\n")
+	// Bottom bar.
+	b.WriteString(`.bottom{height:60px;flex-shrink:0;background:#0f1117;border-top:1px solid #1e2130;display:flex;align-items:center;justify-content:center;}` + "\n")
+
+	// CTA: shown on step 0 only, hidden once navigation starts.
+	b.WriteString(`.cta{display:none;font-size:13px;font-weight:600;color:#5b8dee;cursor:pointer;letter-spacing:0.04em;padding:10px 28px;border:1px solid #2a3a5a;border-radius:8px;align-items:center;gap:8px;}` + "\n")
+	b.WriteString(`.cta:hover{color:#7da9f0;border-color:#5b8dee;}` + "\n")
+	if n > 1 {
+		b.WriteString(`#s0:checked~.bottom .cta{display:flex;}` + "\n")
+	}
+
+	// Nav controls: hidden on step 0, shown on step 1+.
+	b.WriteString(`.nav-controls{display:none;width:100%;height:100%;align-items:center;justify-content:center;gap:12px;}` + "\n")
+	for i := 1; i < n; i++ {
+		fmt.Fprintf(&b, `#s%d:checked~.bottom .nav-controls{display:flex;}`+"\n", i)
+	}
+
+	// 3-zone stable nav: prev zone | dots | next zone.
+	// Zones are always the same size so dots never shift position.
+	b.WriteString(`.nav-prev,.nav-next{position:relative;width:32px;height:32px;flex-shrink:0;}` + "\n")
+	b.WriteString(`.nav-dots{display:flex;align-items:center;gap:8px;}` + "\n")
+	b.WriteString(`.prev,.next{position:absolute;top:0;left:0;display:none;width:32px;height:32px;background:#1a2744;border:1px solid #2a3a5a;border-radius:6px;color:#e8eaf0;font-size:13px;align-items:center;justify-content:center;cursor:pointer;}` + "\n")
 	b.WriteString(`.prev:hover,.next:hover{background:#243a6e;border-color:#5b8dee;}` + "\n")
 	for i := 0; i < n; i++ {
 		if i > 0 {
-			fmt.Fprintf(&b, `#s%d:checked~.nav .prev-%d{display:inline-flex;}`+"\n", i, i)
+			fmt.Fprintf(&b, `#s%d:checked~.bottom .nav-controls .nav-prev .prev-%d{display:inline-flex;}`+"\n", i, i)
 		}
 		if i < n-1 {
-			fmt.Fprintf(&b, `#s%d:checked~.nav .next-%d{display:inline-flex;}`+"\n", i, i)
+			fmt.Fprintf(&b, `#s%d:checked~.bottom .nav-controls .nav-next .next-%d{display:inline-flex;}`+"\n", i, i)
 		}
 	}
 
@@ -238,7 +243,7 @@ func buildNavCSS(n int) string {
 	b.WriteString(`.dot{width:8px;height:8px;background:#2a2d3a;border-radius:50%;cursor:pointer;display:inline-block;}` + "\n")
 	b.WriteString(`.dot:hover{background:#4a5a7a;}` + "\n")
 	for i := 0; i < n; i++ {
-		fmt.Fprintf(&b, `#s%d:checked~.nav .dot-%d{background:#5b8dee;}`+"\n", i, i)
+		fmt.Fprintf(&b, `#s%d:checked~.bottom .nav-controls .nav-dots .dot-%d{background:#5b8dee;}`+"\n", i, i)
 	}
 
 	return b.String()
