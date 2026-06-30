@@ -139,7 +139,7 @@ Render a walkthrough to HTML, MP4, GIF, or SVG.
 
 **GIF output:** An animated `.gif` file. Requires `ffmpeg` on PATH.
 
-**SVG output:** An interactive `.svg` file for embedding in GitHub PRs and READMEs. Single-section walkthroughs only — multi-section files are rejected with a clear error. See SVG Architecture below.
+**SVG output:** An interactive `.svg` file for embedding in GitHub PRs and READMEs. Supports both single- and multi-section walkthroughs; sections are flattened into a single step sequence. See SVG Architecture below.
 
 **Exit codes:** `0` success, `1` verify failed or render error, `2` file not found, `3` output path not writable.
 
@@ -198,7 +198,7 @@ SVG generation uses headless Chrome (via chromedp) to render each step and extra
 </svg>
 ```
 
-**Constraints:** Single-section walkthroughs only (v1). Multi-section walkthroughs are rejected immediately.
+**Multi-section support:** Sections are flattened into a single global step sequence. Each step is rendered from its section's Mermaid diagram. The section title is prepended to step labels in the narration panel header (e.g. "Section Title — step label") so the reader knows which section they are in. The diagram area is sized to the tallest diagram across all sections.
 
 **Why HTML and SVG renderers are not abstracted into shared code:** The two renderers share layout concepts (diagram + narration + navigation) but not implementation. The HTML renderer drives everything with JavaScript — live DOM manipulation, CSS transitions, WebSocket hot-reload, click-to-navigate via event listeners. The SVG renderer uses CSS `:checked` + radio inputs with no JavaScript; visual state is baked into each pre-rendered step SVG as inline styles by chromedp. A shared abstraction would need to accommodate both paradigms, adding indirection without reducing meaningful duplication.
 

@@ -25,15 +25,13 @@ const (
 	browserHeight   = 2000
 )
 
-// Generate renders a single-section Walkthrough as an interactive SVG file at outPath.
+// Generate renders a Walkthrough as an interactive SVG file at outPath.
 // The output SVG uses foreignObject + CSS :checked for step navigation — interactive
 // when opened in GitHub's SVG viewer, static when embedded as <img>.
+// Multi-section walkthroughs are supported: sections are flattened into a single
+// step sequence, each step rendered from its section's diagram.
 func Generate(w *dsl.Walkthrough, outPath string) error {
 	sections := w.ToSections()
-	if len(sections) > 1 {
-		return fmt.Errorf("svg format does not support multi-section walkthroughs; flatten to a single section first")
-	}
-	sec := sections[0]
 
 	tmpDir, err := os.MkdirTemp("", "ariel-svg-*")
 	if err != nil {
@@ -44,65 +42,86 @@ func Generate(w *dsl.Walkthrough, outPath string) error {
 	ctx, cancel := newBrowserCtx()
 	defer cancel()
 
-	// The diagram source is identical across all steps (narration is rendered in the
-	// right panel, not as a Mermaid node), so write the extraction HTML once.
-	htmlPath := filepath.Join(tmpDir, "diagram.html")
-	if err := os.WriteFile(htmlPath, []byte(renderExtractionHTML(sec.MermaidDiagram)), 0644); err != nil {
-		return fmt.Errorf("write extraction HTML: %w", err)
+	multiSection := len(sections) > 1
+	totalSteps := 0
+	for _, sec := range sections {
+		totalSteps += len(sec.Steps)
 	}
 
-	n := len(sec.Steps)
-	stepSVGs := make([]string, n)
-	narrations := make([]string, n)
-	stepHeaders := make([]string, n)
+	stepSVGs := make([]string, totalSteps)
+	narrations := make([]string, totalSteps)
+	stepHeaders := make([]string, totalSteps)
 	var maxDiagramHeight int
 
-	for i, step := range sec.Steps {
-		narrations[i] = step.Narration
-		stepHeaders[i] = formatStepHeader(i, n, step.Label)
+	htmlPath := filepath.Join(tmpDir, "diagram.html")
+	globalIdx := 0
 
-		if err := chromedp.Run(ctx,
-			chromedp.Navigate("file://"+htmlPath),
-			chromedp.WaitVisible("#ready", chromedp.ByID),
-		); err != nil {
-			return fmt.Errorf("step %d: load: %w", i, err)
+	for _, sec := range sections {
+		// Each section has its own Mermaid diagram; write extraction HTML once per section.
+		if err := os.WriteFile(htmlPath, []byte(renderExtractionHTML(sec.MermaidDiagram)), 0644); err != nil {
+			return fmt.Errorf("write extraction HTML: %w", err)
 		}
 
-		hJSON, _ := json.Marshal(strSlice(step.HighlightNodes))
-		fJSON, _ := json.Marshal(strSlice(step.FocusNodes))
-		if err := chromedp.Run(ctx, chromedp.Evaluate(
-			fmt.Sprintf(`applyStep(%s,%s)`, hJSON, fJSON), nil,
-		)); err != nil {
-			return fmt.Errorf("step %d: applyStep: %w", i, err)
-		}
+		for _, step := range sec.Steps {
+			narrations[globalIdx] = step.Narration
 
-		var svgStr string
-		if err := chromedp.Run(ctx, chromedp.Evaluate(`getSVG()`, &svgStr)); err != nil {
-			return fmt.Errorf("step %d: getSVG: %w", i, err)
-		}
-		if !strings.HasPrefix(svgStr, "<svg") {
-			return fmt.Errorf("step %d: getSVG returned unexpected content (first 60 chars): %q", i, truncate(svgStr, 60))
-		}
-		// Mermaid renders HTML void elements (e.g. <br>) inside foreignObject
-		// without the closing slash, which is valid HTML but invalid XML.
-		svgStr = strings.ReplaceAll(svgStr, "<br>", "<br/>")
-		stepSVGs[i] = svgStr
+			// In multi-section files, prefix the step label with the section title so
+			// the narration panel shows which section the step belongs to.
+			label := step.Label
+			if multiSection && sec.Title != "" {
+				if label != "" {
+					label = sec.Title + " — " + label
+				} else {
+					label = sec.Title
+				}
+			}
+			stepHeaders[globalIdx] = formatStepHeader(globalIdx, totalSteps, label)
 
-		var dimsJSON string
-		if err := chromedp.Run(ctx, chromedp.Evaluate(`getDimensions()`, &dimsJSON)); err != nil {
-			return fmt.Errorf("step %d: getDimensions: %w", i, err)
-		}
-		var dims struct {
-			H int `json:"h"`
-		}
-		if err := json.Unmarshal([]byte(dimsJSON), &dims); err != nil {
-			return fmt.Errorf("step %d: parse dimensions: %w", i, err)
-		}
-		if dims.H <= 0 {
-			return fmt.Errorf("step %d: diagram rendered with zero height — Mermaid may have failed to parse the diagram", i)
-		}
-		if dims.H > maxDiagramHeight {
-			maxDiagramHeight = dims.H
+			if err := chromedp.Run(ctx,
+				chromedp.Navigate("file://"+htmlPath),
+				chromedp.WaitVisible("#ready", chromedp.ByID),
+			); err != nil {
+				return fmt.Errorf("step %d: load: %w", globalIdx, err)
+			}
+
+			hJSON, _ := json.Marshal(strSlice(step.HighlightNodes))
+			fJSON, _ := json.Marshal(strSlice(step.FocusNodes))
+			if err := chromedp.Run(ctx, chromedp.Evaluate(
+				fmt.Sprintf(`applyStep(%s,%s)`, hJSON, fJSON), nil,
+			)); err != nil {
+				return fmt.Errorf("step %d: applyStep: %w", globalIdx, err)
+			}
+
+			var svgStr string
+			if err := chromedp.Run(ctx, chromedp.Evaluate(`getSVG()`, &svgStr)); err != nil {
+				return fmt.Errorf("step %d: getSVG: %w", globalIdx, err)
+			}
+			if !strings.HasPrefix(svgStr, "<svg") {
+				return fmt.Errorf("step %d: getSVG returned unexpected content (first 60 chars): %q", globalIdx, truncate(svgStr, 60))
+			}
+			// Mermaid renders HTML void elements (e.g. <br>) inside foreignObject
+			// without the closing slash, which is valid HTML but invalid XML.
+			svgStr = strings.ReplaceAll(svgStr, "<br>", "<br/>")
+			stepSVGs[globalIdx] = svgStr
+
+			var dimsJSON string
+			if err := chromedp.Run(ctx, chromedp.Evaluate(`getDimensions()`, &dimsJSON)); err != nil {
+				return fmt.Errorf("step %d: getDimensions: %w", globalIdx, err)
+			}
+			var dims struct {
+				H int `json:"h"`
+			}
+			if err := json.Unmarshal([]byte(dimsJSON), &dims); err != nil {
+				return fmt.Errorf("step %d: parse dimensions: %w", globalIdx, err)
+			}
+			if dims.H <= 0 {
+				return fmt.Errorf("step %d: diagram rendered with zero height — Mermaid may have failed to parse the diagram", globalIdx)
+			}
+			if dims.H > maxDiagramHeight {
+				maxDiagramHeight = dims.H
+			}
+
+			globalIdx++
 		}
 	}
 

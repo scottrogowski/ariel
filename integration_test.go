@@ -230,7 +230,7 @@ func TestCLI_GenerateSVG(t *testing.T) {
 		}
 	}
 
-	if strings.Count(svg, `type="radio"`) < 2 {
+	if strings.Count(svg, `<input type="radio"`) < 2 {
 		t.Error("expected at least 2 radio inputs (one per step)")
 	}
 
@@ -241,9 +241,9 @@ func TestCLI_GenerateSVG(t *testing.T) {
 	}
 }
 
-// TestCLI_GenerateSVG_MultiSectionError confirms that multi-section walkthroughs
-// are rejected with a clear error.
-func TestCLI_GenerateSVG_MultiSectionError(t *testing.T) {
+// TestCLI_GenerateSVG_MultiSection confirms that multi-section walkthroughs
+// produce a valid SVG with steps from all sections.
+func TestCLI_GenerateSVG_MultiSection(t *testing.T) {
 	yaml := `title: "Multi"
 sections:
   - title: "Section A"
@@ -252,20 +252,43 @@ sections:
         A --> B
     steps:
       - label: "Overview"
+      - label: "Step 1"
+        highlight_nodes: [A]
   - title: "Section B"
     mermaid_diagram: |
       graph TD
         C --> D
     steps:
       - label: "Overview"
+      - label: "Step 1"
+        highlight_nodes: [C]
 `
 	f := writeTempYAML(t, yaml)
-	_, stderr, exitCode := run("generate", "--format", "svg", f)
-	if exitCode == 0 {
-		t.Fatal("expected non-zero exit for multi-section SVG")
+	outPath := filepath.Join(t.TempDir(), "out.svg")
+	stdout, stderr, exitCode := run("generate", "--format", "svg", "--output", outPath, f)
+	if exitCode != 0 {
+		t.Fatalf("generate svg multi-section: exit %d\nstdout: %s\nstderr: %s", exitCode, stdout, stderr)
 	}
-	if !strings.Contains(stderr, "multi-section") {
-		t.Errorf("expected 'multi-section' in stderr, got: %q", stderr)
+
+	data, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+	svg := string(data)
+
+	// 4 steps = 4 radio inputs (count opening tags, not CSS selectors)
+	if strings.Count(svg, `<input type="radio"`) != 4 {
+		t.Errorf("expected 4 radio inputs for 4 steps, got %d", strings.Count(svg, `<input type="radio"`))
+	}
+	// Section title should appear in the narration panel headers
+	if !strings.Contains(svg, "Section A") {
+		t.Error("expected Section A title in output")
+	}
+	if !strings.Contains(svg, "Section B") {
+		t.Error("expected Section B title in output")
+	}
+	if err := xml.Unmarshal(data, new(interface{})); err != nil {
+		t.Errorf("generated SVG is not valid XML: %v", err)
 	}
 }
 
