@@ -200,6 +200,8 @@ SVG generation uses headless Chrome (via chromedp) to render each step and extra
 
 **Constraints:** Single-section walkthroughs only (v1). Multi-section walkthroughs are rejected immediately.
 
+**Why HTML and SVG renderers are not abstracted into shared code:** The two renderers share layout concepts (diagram + narration + navigation) but not implementation. The HTML renderer drives everything with JavaScript — live DOM manipulation, CSS transitions, WebSocket hot-reload, click-to-navigate via event listeners. The SVG renderer uses CSS `:checked` + radio inputs with no JavaScript; visual state is baked into each pre-rendered step SVG as inline styles by chromedp. A shared abstraction would need to accommodate both paradigms, adding indirection without reducing meaningful duplication.
+
 ---
 
 ### `ariel watch <file.ariel.yaml> [--port <n>]`

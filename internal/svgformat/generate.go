@@ -223,7 +223,7 @@ func buildNavCSS(n int) string {
 
 	// Diagram column: flex column, title bar + diagram area.
 	b.WriteString(`.diagram-col{display:flex;flex-direction:column;}` + "\n")
-	b.WriteString(`.col-title{flex-shrink:0;height:44px;line-height:44px;padding:0 20px;font-size:13px;font-weight:600;color:#e8eaf0;border-bottom:1px solid #1e2130;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}` + "\n")
+	b.WriteString(`.col-title{flex-shrink:0;height:44px;line-height:44px;padding:0 20px;font-size:13px;font-weight:600;color:#e8eaf0;border-bottom:1px solid #1e2130;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;}` + "\n")
 	b.WriteString(`.diagrams{flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;}` + "\n")
 	b.WriteString(`.step{display:none;}` + "\n")
 	b.WriteString(`.step>svg{display:block;}` + "\n")
@@ -237,7 +237,7 @@ func buildNavCSS(n int) string {
 	for i := 0; i < n; i++ {
 		fmt.Fprintf(&b, `#s%d:checked~.content .n-%d{display:flex;}`+"\n", i, i)
 	}
-	b.WriteString(`.narr-header{flex-shrink:0;height:44px;line-height:44px;padding:0 20px;font-size:11px;font-weight:600;color:#5b8dee;letter-spacing:0.05em;text-transform:uppercase;border-bottom:1px solid #1e2130;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}` + "\n")
+	b.WriteString(`.narr-header{flex-shrink:0;height:44px;line-height:44px;padding:0 20px;font-size:11px;font-weight:600;color:#5b8dee;letter-spacing:0.05em;text-transform:uppercase;border-bottom:1px solid #1e2130;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;}` + "\n")
 	b.WriteString(`.narr-text{flex:1;padding:20px;font-size:13px;line-height:1.65;color:#c0c4d0;overflow-y:auto;}` + "\n")
 
 	// Bottom bar.
