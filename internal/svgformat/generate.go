@@ -73,6 +73,10 @@ func Generate(w *dsl.Walkthrough, outPath string) error {
 		if !strings.HasPrefix(svgStr, "<svg") {
 			return fmt.Errorf("step %d: getSVG returned unexpected content (first 60 chars): %q", i, truncate(svgStr, 60))
 		}
+		// Mermaid renders HTML void elements (e.g. <br>) inside foreignObject
+		// without the closing slash, which is valid HTML but invalid XML. The
+		// output file is parsed as XML, so fix them up here.
+		svgStr = strings.ReplaceAll(svgStr, "<br>", "<br/>")
 		stepSVGs[i] = svgStr
 
 		var dimsJSON string
