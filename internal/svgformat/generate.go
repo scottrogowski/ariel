@@ -135,7 +135,8 @@ func buildOutputSVG(width, totalHeight, diagW, colHeaderH, diagH, navH int,
 	fmt.Fprintf(&b, `<?xml version="1.0" encoding="UTF-8"?>`+"\n")
 	fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d">`+"\n", width, totalHeight)
 	fmt.Fprintf(&b, `<foreignObject width="%d" height="%d">`+"\n", width, totalHeight)
-	fmt.Fprintf(&b, `<div xmlns="http://www.w3.org/1999/xhtml" style="width:%dpx;height:%dpx;display:flex;flex-direction:column;font-family:Inter,system-ui,sans-serif;background:#0f1117;">`+"\n",
+	// position:relative is required so the cta-overlay label can be positioned absolutely over the full area.
+	fmt.Fprintf(&b, `<div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:%dpx;height:%dpx;display:flex;flex-direction:column;font-family:Inter,system-ui,sans-serif;background:#0f1117;">`+"\n",
 		width, totalHeight)
 
 	b.WriteString("<style>\n")
@@ -164,9 +165,6 @@ func buildOutputSVG(width, totalHeight, diagW, colHeaderH, diagH, navH int,
 		b.WriteString("\n</div>\n")
 	}
 	b.WriteString("</div>\n") // end .diagrams
-	if n > 1 {
-		b.WriteString(`<label class="cta-overlay" for="s1"><div class="cta-btn">&#x25B6; Click for walkthrough</div></label>` + "\n")
-	}
 	b.WriteString("</div>\n") // end .diagram-col
 
 	// Narration column: per-step header + text, panel always visible.
@@ -182,16 +180,23 @@ func buildOutputSVG(width, totalHeight, diagW, colHeaderH, diagH, navH int,
 
 	b.WriteString("</div>\n") // end .content
 
+	// CTA overlay: covers full width, shown on step 0 only.
+	if n > 1 {
+		b.WriteString(`<label class="cta-overlay" for="s1"><div class="cta-btn">&#x25B6; Click for walkthrough</div></label>` + "\n")
+	}
+
 	// Bottom bar: empty on step 0, nav controls on step 1+.
 	b.WriteString(`<div class="bottom">` + "\n")
 	b.WriteString(`<div class="nav-controls">` + "\n")
 	b.WriteString(`<div class="nav-prev">` + "\n")
-	for i := 1; i < n; i++ {
+	// Start at 2: step 1 has no back button since s0 is the CTA-only pre-step.
+	for i := 2; i < n; i++ {
 		fmt.Fprintf(&b, `<label class="prev prev-%d" for="s%d">&#x25C0;</label>`+"\n", i, i-1)
 	}
 	b.WriteString("</div>\n")
 	b.WriteString(`<div class="nav-dots">` + "\n")
-	for i := range stepSVGs {
+	// Start at 1: no dot for s0 (the CTA pre-step cannot be returned to).
+	for i := 1; i < n; i++ {
 		fmt.Fprintf(&b, `<label class="dot dot-%d" for="s%d"></label>`+"\n", i, i)
 	}
 	b.WriteString("</div>\n")
@@ -222,8 +227,7 @@ func buildNavCSS(n int) string {
 	b.WriteString(`.content{flex:1;display:flex;flex-direction:row;overflow:hidden;}` + "\n")
 
 	// Diagram column: flex column, title bar + diagram area.
-	// position:relative is required so the cta-overlay can be positioned absolutely within it.
-	b.WriteString(`.diagram-col{position:relative;display:flex;flex-direction:column;}` + "\n")
+	b.WriteString(`.diagram-col{display:flex;flex-direction:column;}` + "\n")
 	b.WriteString(`.col-title{flex-shrink:0;height:44px;line-height:44px;padding:0 20px;font-size:13px;font-weight:600;color:#e8eaf0;border-bottom:1px solid #1e2130;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;}` + "\n")
 	b.WriteString(`.diagrams{flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;}` + "\n")
 	b.WriteString(`.step{display:none;}` + "\n")
@@ -241,13 +245,13 @@ func buildNavCSS(n int) string {
 	b.WriteString(`.narr-header{flex-shrink:0;height:44px;line-height:44px;padding:0 20px;font-size:11px;font-weight:600;color:#5b8dee;letter-spacing:0.05em;text-transform:uppercase;border-bottom:1px solid #1e2130;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;}` + "\n")
 	b.WriteString(`.narr-text{flex:1;padding:20px;font-size:13px;line-height:1.65;color:#c0c4d0;overflow-y:auto;}` + "\n")
 
-	// CTA overlay: large button floating over the diagram, shown on step 0 only.
-	// top:44px clears the col-title header; covers the full diagram area below it.
-	b.WriteString(`.cta-overlay{position:absolute;top:44px;left:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;cursor:pointer;background:rgba(15,17,23,0.45);}` + "\n")
+	// CTA overlay: covers full output width/height, shown on step 0 only.
+	// Positioned relative to the root wrapper div (which has position:relative).
+	b.WriteString(`.cta-overlay{position:absolute;top:0;left:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;cursor:pointer;background:rgba(15,17,23,0.45);}` + "\n")
 	if n > 1 {
-		b.WriteString(`#s0:checked~.content .cta-overlay{display:flex;}` + "\n")
+		b.WriteString(`#s0:checked~.cta-overlay{display:flex;}` + "\n")
 	}
-	b.WriteString(`.cta-btn{background:#0f1117;border:2px solid #5b8dee;border-radius:12px;padding:22px 52px;font-size:19px;font-weight:700;color:#5b8dee;letter-spacing:0.03em;}` + "\n")
+	b.WriteString(`.cta-btn{background:#0f1117;border:2px solid #5b8dee;border-radius:12px;padding:32px 72px;font-size:24px;font-weight:700;color:#5b8dee;letter-spacing:0.03em;}` + "\n")
 	b.WriteString(`.cta-overlay:hover .cta-btn{background:#1a2744;border-color:#7da9f0;color:#7da9f0;}` + "\n")
 
 	// Bottom bar.

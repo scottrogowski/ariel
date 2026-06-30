@@ -126,6 +126,15 @@ function applyStep(highlightNodes, focusNodes) {
           targets.forEach(path => {
             path.style.setProperty('stroke', '#5b8dee', 'important');
             path.style.setProperty('stroke-width', '2.5px', 'important');
+            path.style.setProperty('stroke-dasharray', '10 5', 'important');
+            // SMIL animate survives GitHub's SVG sanitizer; CSS @keyframes do not.
+            const anim = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
+            anim.setAttribute('attributeName', 'stroke-dashoffset');
+            anim.setAttribute('from', '0');
+            anim.setAttribute('to', '-15');
+            anim.setAttribute('dur', '0.5s');
+            anim.setAttribute('repeatCount', 'indefinite');
+            path.appendChild(anim);
           });
         });
       }
