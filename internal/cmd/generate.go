@@ -57,6 +57,17 @@ var generateCmd = &cobra.Command{
 			}
 			fmt.Printf("wrote %s\n", outPath)
 
+		case "svg":
+			outPath := generateOutput
+			if outPath == "" {
+				outPath = replaceExt(path, ".svg")
+			}
+			if err := renderer.GenerateSVG(w, outPath); err != nil {
+				fmt.Fprintf(os.Stderr, "generate: %v\n", err)
+				os.Exit(1)
+			}
+			fmt.Printf("wrote %s\n", outPath)
+
 		case "html", "":
 			outPath := generateOutput
 			if outPath == "" {
@@ -74,7 +85,7 @@ var generateCmd = &cobra.Command{
 			fmt.Printf("wrote %s\n", outPath)
 
 		default:
-			fmt.Fprintf(os.Stderr, "generate: unknown format %q (valid: html, mp4, gif)\n", generateFormat)
+			fmt.Fprintf(os.Stderr, "generate: unknown format %q (valid: html, mp4, gif, svg)\n", generateFormat)
 			os.Exit(1)
 		}
 

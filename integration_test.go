@@ -198,6 +198,68 @@ steps:
 	}
 }
 
+// TestCLI_GenerateSVG confirms that ariel generate --format svg produces a
+// structurally valid SVG file. Visual correctness requires human review.
+func TestCLI_GenerateSVG(t *testing.T) {
+	outPath := filepath.Join(t.TempDir(), "out.svg")
+	stdout, stderr, exitCode := run("generate", "--format", "svg", "--output", outPath, "testdata/auth-flow.ariel.yaml")
+	if exitCode != 0 {
+		t.Fatalf("generate svg: exit %d\nstdout: %s\nstderr: %s", exitCode, stdout, stderr)
+	}
+
+	data, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+	svg := string(data)
+
+	for _, want := range []string{
+		`<?xml`,
+		`<svg`,
+		`<foreignObject`,
+		`type="radio"`,
+		`class="cta"`,
+		`class="diagrams"`,
+		`class="nav"`,
+	} {
+		if !strings.Contains(svg, want) {
+			t.Errorf("generated SVG missing %q", want)
+		}
+	}
+
+	if strings.Count(svg, `type="radio"`) < 2 {
+		t.Error("expected at least 2 radio inputs (one per step)")
+	}
+}
+
+// TestCLI_GenerateSVG_MultiSectionError confirms that multi-section walkthroughs
+// are rejected with a clear error.
+func TestCLI_GenerateSVG_MultiSectionError(t *testing.T) {
+	yaml := `title: "Multi"
+sections:
+  - title: "Section A"
+    mermaid_diagram: |
+      graph TD
+        A --> B
+    steps:
+      - label: "Overview"
+  - title: "Section B"
+    mermaid_diagram: |
+      graph TD
+        C --> D
+    steps:
+      - label: "Overview"
+`
+	f := writeTempYAML(t, yaml)
+	_, stderr, exitCode := run("generate", "--format", "svg", f)
+	if exitCode == 0 {
+		t.Fatal("expected non-zero exit for multi-section SVG")
+	}
+	if !strings.Contains(stderr, "multi-section") {
+		t.Errorf("expected 'multi-section' in stderr, got: %q", stderr)
+	}
+}
+
 func writeTempYAML(t *testing.T, content string) string {
 	t.Helper()
 	f, err := os.CreateTemp(t.TempDir(), "*.ariel.yaml")
