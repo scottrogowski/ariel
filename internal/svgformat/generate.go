@@ -110,11 +110,34 @@ func appendNarrationNode(diagram, narration string) string {
 	if !strings.HasPrefix(lower, "flowchart") && !strings.HasPrefix(lower, "graph") {
 		return diagram
 	}
-	// Replace double quotes with single quotes so the label parses correctly.
-	label := strings.ReplaceAll(narration, `"`, `'`)
+	// Replace double quotes with single quotes so the label parses correctly,
+	// then wrap at word boundaries so the node doesn't render as one long line.
+	label := wrapNarration(strings.ReplaceAll(narration, `"`, `'`), 40)
 	return strings.TrimRight(diagram, "\n") +
 		"\n    _narration_[\"" + label + "\"]\n" +
 		"    style _narration_ fill:#1a2744,color:#e8eaf0,stroke:#5b8dee,stroke-width:2px"
+}
+
+// wrapNarration splits text at word boundaries, joining lines with Mermaid's
+// <br/> line-break syntax for use inside ["..."] node labels.
+func wrapNarration(text string, charsPerLine int) string {
+	words := strings.Fields(text)
+	var lines []string
+	var current strings.Builder
+	for _, word := range words {
+		if current.Len() > 0 && current.Len()+1+len(word) > charsPerLine {
+			lines = append(lines, current.String())
+			current.Reset()
+		}
+		if current.Len() > 0 {
+			current.WriteByte(' ')
+		}
+		current.WriteString(word)
+	}
+	if current.Len() > 0 {
+		lines = append(lines, current.String())
+	}
+	return strings.Join(lines, "<br/>")
 }
 
 func buildOutputSVG(width, totalHeight, ctaH, diagH, navH int, stepSVGs []string) string {

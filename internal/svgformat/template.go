@@ -121,10 +121,15 @@ function applyStep(highlightNodes, focusNodes) {
   for (let i = 0; i < allActive.length; i++) {
     for (let j = 0; j < allActive.length; j++) {
       if (i !== j) {
-        (edgeMap[allActive[i] + '-' + allActive[j]] || []).forEach(el => {
-          el.style.setProperty('stroke', '#5b8dee', 'important');
-          el.style.setProperty('stroke-width', '2.5px', 'important');
-          el.style.setProperty('stroke-dasharray', '8 4', 'important');
+        (edgeMap[allActive[i] + '-' + allActive[j]] || []).forEach(g => {
+          // Target path elements directly; animation must be on the element with
+          // the stroke-dashoffset property, not the parent group.
+          g.querySelectorAll('path').forEach(path => {
+            path.style.setProperty('stroke', '#5b8dee', 'important');
+            path.style.setProperty('stroke-width', '2.5px', 'important');
+            path.style.setProperty('stroke-dasharray', '8 4', 'important');
+            path.style.setProperty('animation', 'ariel-flow 0.6s linear infinite', 'important');
+          });
         });
       }
     }
@@ -132,7 +137,13 @@ function applyStep(highlightNodes, focusNodes) {
 }
 
 function getSVG() {
-  return document.querySelector('#mermaid-container svg').outerHTML;
+  const svg = document.querySelector('#mermaid-container svg');
+  // Inject @keyframes into the SVG so animated edges are self-contained when
+  // the SVG string is embedded in the output file's foreignObject.
+  const s = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+  s.textContent = '@keyframes ariel-flow{from{stroke-dashoffset:24}to{stroke-dashoffset:0}}';
+  svg.insertBefore(s, svg.firstChild);
+  return svg.outerHTML;
 }
 
 function getDimensions() {
