@@ -118,8 +118,12 @@ function applyStep(highlightNodes, focusNodes) {
   for (let i = 0; i < allActive.length; i++) {
     for (let j = 0; j < allActive.length; j++) {
       if (i !== j) {
-        (edgeMap[allActive[i] + '-' + allActive[j]] || []).forEach(g => {
-          g.querySelectorAll('path').forEach(path => {
+        (edgeMap[allActive[i] + '-' + allActive[j]] || []).forEach(el => {
+          // flowchart-link is on the <path> itself in Mermaid 10.6.1, not a wrapping <g>
+          const targets = el.tagName.toLowerCase() === 'path'
+            ? [el]
+            : Array.from(el.querySelectorAll('path'));
+          targets.forEach(path => {
             path.style.setProperty('stroke', '#5b8dee', 'important');
             path.style.setProperty('stroke-width', '2.5px', 'important');
           });
