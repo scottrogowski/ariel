@@ -44,7 +44,7 @@ sections:
       - label: "Verify and generate"
         highlight_nodes: [C, CLI]
         focus_nodes: [CLI]
-        narration: "`ariel verify` catches any errors. `ariel generate` produces a self-contained HTML file."
+        narration: "`ariel verify` catches any errors. `ariel generate` produces a self-contained HTML, SVG, or MP4 file."
 
       - label: "Handoff"
         highlight_nodes: [C, CLI, HP, HR]
@@ -99,9 +99,9 @@ sections:
         MermJS -->|error| MermErr[Print errors · exit 1]
         MermJS -->|ok| Router{Command?}
         Router -->|verify| Done[✓ valid — exit 0]
-        Router -->|generate| Render[Render HTML Template]
+        Router -->|generate| Render[Render]
         Router -->|watch| Server[HTTP + WebSocket Server]
-        Render --> HTMLFile[.html file]
+        Render --> OutFile[.html / .svg / .mp4]
         Server --> Browser[Browser]
         FSWatch[fsnotify watcher] -->|file change| Parse
         Server -.->|ws update| Browser
@@ -129,9 +129,9 @@ sections:
         narration: "After all three checks pass, the command branches. verify exits with a success message. generate and watch continue to their output paths."
 
       - label: "generate"
-        highlight_nodes: [Render, HTMLFile]
+        highlight_nodes: [Render, OutFile]
         focus_nodes: [Render]
-        narration: "generate renders a self-contained HTML file — all CSS and JS inlined, step data baked in as a JS object, Mermaid from a pinned CDN. Double-click to open."
+        narration: "generate produces a self-contained output file. HTML and SVG embed all step data inline — no server needed. SVG is embeddable directly in GitHub READMEs and PR descriptions. MP4 requires ffmpeg."
 
       - label: "watch"
         highlight_nodes: [Server, Browser]
