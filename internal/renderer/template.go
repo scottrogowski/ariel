@@ -104,7 +104,7 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   .diagram-pane {
-    padding: 40px;
+    padding: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -113,7 +113,6 @@ const htmlTemplate = `<!DOCTYPE html>
 
   #mermaid-container {
     width: 100%;
-    max-width: 600px;
     transition: opacity 0.2s ease;
   }
 

@@ -30,7 +30,9 @@ const extractionHTMLTemplate = `<!DOCTYPE html>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #0f1117; }
   #mermaid-container { width: 900px; }
-  #mermaid-container svg { display: block; }
+  /* Override Mermaid's max-width so the SVG scales to fill the column.
+     getDimensions() then returns the height at full column width. */
+  #mermaid-container svg { display: block; width: 100% !important; max-width: none !important; height: auto !important; }
 </style>
 </head>
 <body>

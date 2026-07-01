@@ -15,14 +15,15 @@ import (
 )
 
 const (
-	outputWidth     = 1200
-	narrationWidth  = 300
-	diagramWidth    = outputWidth - narrationWidth // 900
-	colHeaderHeight = 44                           // title bar at top of each column
-	navHeight       = 60
-	svgTimeout      = 5 * time.Minute
-	browserWidth    = diagramWidth + 20 // slightly wider than diagramWidth to avoid a scrollbar
-	browserHeight   = 2000
+	outputWidth      = 1200
+	narrationWidth   = 300
+	diagramWidth     = outputWidth - narrationWidth // 900
+	pageHeaderHeight = 60                           // full-width title bar above both columns
+	colHeaderHeight  = 44                           // narration step-header height
+	navHeight        = 60
+	svgTimeout       = 5 * time.Minute
+	browserWidth     = diagramWidth + 20 // slightly wider than diagramWidth to avoid a scrollbar
+	browserHeight    = 2000
 )
 
 // Generate renders a Walkthrough as an interactive SVG file at outPath.
@@ -125,8 +126,8 @@ func Generate(w *dsl.Walkthrough, outPath string) error {
 		}
 	}
 
-	totalHeight := colHeaderHeight + maxDiagramHeight + navHeight
-	out := buildOutputSVG(outputWidth, totalHeight, diagramWidth, colHeaderHeight, maxDiagramHeight, navHeight,
+	totalHeight := pageHeaderHeight + colHeaderHeight + maxDiagramHeight + navHeight
+	out := buildOutputSVG(outputWidth, totalHeight, diagramWidth, pageHeaderHeight, colHeaderHeight, maxDiagramHeight, navHeight,
 		w.Title, stepSVGs, narrations, stepHeaders)
 	return os.WriteFile(outPath, []byte(out), 0644)
 }
@@ -144,7 +145,7 @@ func formatStepHeader(i, total int, label string) string {
 	return h
 }
 
-func buildOutputSVG(width, totalHeight, diagW, colHeaderH, diagH, navH int,
+func buildOutputSVG(width, totalHeight, diagW, pageHeaderH, colHeaderH, diagH, navH int,
 	title string, stepSVGs, narrations, stepHeaders []string) string {
 
 	n := len(stepSVGs)
@@ -171,12 +172,14 @@ func buildOutputSVG(width, totalHeight, diagW, colHeaderH, diagH, navH int,
 		fmt.Fprintf(&b, `<input type="radio" name="s" id="s%d"%s/>`+"\n", i, checked)
 	}
 
+	// Full-width page header with walkthrough title, matching HTML renderer layout.
+	fmt.Fprintf(&b, `<div class="page-header"><div class="page-title">%s</div></div>`+"\n", html.EscapeString(title))
+
 	// Content row: diagram column (left) + narration column (right).
 	b.WriteString(`<div class="content">` + "\n")
 
-	// Diagram column: static title + per-step SVGs.
+	// Diagram column: per-step SVGs only (title is in page-header above).
 	fmt.Fprintf(&b, `<div class="diagram-col" style="width:%dpx;">`+"\n", diagW)
-	fmt.Fprintf(&b, `<div class="col-title">%s</div>`+"\n", html.EscapeString(title))
 	b.WriteString(`<div class="diagrams">` + "\n")
 	for i, svgStr := range stepSVGs {
 		fmt.Fprintf(&b, `<div class="step step-%d">`+"\n", i)
@@ -242,15 +245,18 @@ func buildNavCSS(n int) string {
 	b.WriteString(`*{box-sizing:border-box;margin:0;padding:0;}` + "\n")
 	b.WriteString(`input[type="radio"]{display:none;}` + "\n")
 
+	// Full-width page header with walkthrough title.
+	b.WriteString(`.page-header{flex-shrink:0;height:60px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid #1e2130;}` + "\n")
+	b.WriteString(`.page-title{font-size:22px;font-weight:600;color:#e8eaf0;text-align:center;}` + "\n")
+
 	// Content row: diagram column left, narration column right.
 	b.WriteString(`.content{flex:1;display:flex;flex-direction:row;overflow:hidden;}` + "\n")
 
-	// Diagram column: flex column, title bar + diagram area.
+	// Diagram column: flex column containing only the diagram area (no per-column title).
 	b.WriteString(`.diagram-col{display:flex;flex-direction:column;}` + "\n")
-	b.WriteString(`.col-title{flex-shrink:0;height:44px;line-height:44px;padding:0 20px;font-size:13px;font-weight:600;color:#e8eaf0;border-bottom:1px solid #1e2130;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;}` + "\n")
-	b.WriteString(`.diagrams{flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;}` + "\n")
+	b.WriteString(`.diagrams{flex:1;overflow:hidden;}` + "\n")
 	b.WriteString(`.step{display:none;}` + "\n")
-	b.WriteString(`.step>svg{display:block;}` + "\n")
+	b.WriteString(`.step>svg{display:block;width:100%!important;max-width:none!important;height:auto!important;}` + "\n")
 	for i := 0; i < n; i++ {
 		fmt.Fprintf(&b, `#s%d:checked~.content .step-%d{display:block;}`+"\n", i, i)
 	}
