@@ -164,7 +164,7 @@ Diagram scaling in screenshots:
 
 #### SVG Architecture
 
-**Parity goal:** HTML and SVG outputs should look and behave identically. They should differ only where the SVG format imposes hard constraints: no JavaScript (navigation via CSS `:checked` + radio inputs only), edge animation via SMIL instead of CSS `@keyframes` (GitHub's SVG sanitizer strips `@keyframes`), and fixed pixel dimensions instead of responsive layout. Features that are purely JS-driven in HTML (click-to-navigate, keyboard shortcuts, narration fade transitions) are SVG-only exceptions — they cannot be replicated without JS. All other visual and behavioral differences are bugs to fix.
+**Parity goal:** HTML and SVG outputs should look and behave identically. They should differ only where the SVG format imposes hard constraints.
 
 SVG generation uses headless Chrome (via chromedp) to render each step and extract self-contained SVG strings, then assembles them into a single interactive SVG file using `foreignObject` + CSS `:checked`.
 
