@@ -47,8 +47,11 @@ AGENTS: Ariel follows spec-driven-development. Read spec/ariel-spec.md now. This
 
 ## Testing
 
+AGENTS: do this after every change
+
 ```sh
-make test     # unit tests
+make test
+make lint
 make example  # generates HTML, SVG, and MP4 outputs under examples/
 ```
 
