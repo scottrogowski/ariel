@@ -108,9 +108,7 @@ AUTHORING TIPS
   How do I embed the SVGs in Github PR summaries?
     Upload the SVG as a secret gist (gh gist create output.svg), then embed it
     in the PR description with standard markdown image syntax:
-
       ![walkthrough](https://gist.githubusercontent.com/USER/GIST_ID/raw/FILE.svg)
-
     GitHub renders a static preview inline; clicking opens the full interactive
     SVG. Do not commit the SVG to the repo unless it is meant to be permanent.
 
