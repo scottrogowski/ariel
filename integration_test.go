@@ -223,7 +223,7 @@ func TestCLI_GenerateSVG(t *testing.T) {
 		`class="page-header"`,
 		`class="diagrams"`,
 		`class="narrations"`,
-		`class="nav-controls"`,
+		`class="controls"`,
 	} {
 		if !strings.Contains(svg, want) {
 			t.Errorf("generated SVG missing %q", want)
