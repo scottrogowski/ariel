@@ -14,14 +14,14 @@ Actual example SVGs below
 
 **Go install**
 ```sh
-go install github.com/scottmrogowski/ariel@latest
+go install github.com/scottrogowski/ariel@latest
 ```
 
 MP4 output requires [`ffmpeg`](https://ffmpeg.org/download.html) on your `PATH`.
 
 ## Usage
 
-The best way to use Ariel is to ask your agent to `go install github.com/scottmrogowski/ariel@latest` and "use this tool to create a walkthrough to explain this code/system/PR/concept.
+The best way to use Ariel is to ask your agent to `go install github.com/scottrogowski/ariel@latest` and "use this tool to create a walkthrough to explain this code/system/PR/concept.
 
 Common commands
 ```sh

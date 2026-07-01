@@ -1,8 +1,8 @@
 package renderer
 
 import (
-	"github.com/scottmrogowski/ariel/internal/dsl"
-	internlmp4 "github.com/scottmrogowski/ariel/internal/mp4"
+	"github.com/scottrogowski/ariel/internal/dsl"
+	internlmp4 "github.com/scottrogowski/ariel/internal/mp4"
 )
 
 const DefaultStepDuration = internlmp4.DefaultStepDuration

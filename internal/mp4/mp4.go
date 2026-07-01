@@ -15,7 +15,7 @@ import (
 
 	"github.com/chromedp/chromedp"
 
-	"github.com/scottmrogowski/ariel/internal/dsl"
+	"github.com/scottrogowski/ariel/internal/dsl"
 )
 
 const (

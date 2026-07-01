@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
-	"github.com/scottmrogowski/ariel/internal/dsl"
+	"github.com/scottrogowski/ariel/internal/dsl"
 )
 
 // wsMessage is the JSON structure sent to browser clients.

@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/scottmrogowski/ariel/internal/dsl"
-	"github.com/scottmrogowski/ariel/internal/renderer"
+	"github.com/scottrogowski/ariel/internal/dsl"
+	"github.com/scottrogowski/ariel/internal/renderer"
 	"github.com/spf13/cobra"
 )
 

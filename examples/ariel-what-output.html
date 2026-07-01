@@ -348,7 +348,7 @@
 
 <header>
   <h1 class="page-title">What ariel does<span id="section-title-sep" class="page-title-sep" style="display:none">|</span><span id="section-title" class="page-section-title"></span></h1>
-  <a class="ariel-link" href="https://github.com/scottmrogowski/ariel" target="_blank" rel="noopener">
+  <a class="ariel-link" href="https://github.com/scottrogowski/ariel" target="_blank" rel="noopener">
     <span class="ariel-logo">
     <span class="ariel-emoji">🧜🏻‍♀️</span>
     <svg class="ariel-flowchart" viewBox="0 0 44 44" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -488,6 +488,20 @@ function buildNodeMap() {
       const id = labelToId[label];
       if (id) { addGroup(id, group); alreadyMapped.add(group); }
     });
+  }
+
+  // Sequence diagram z-order fix: Mermaid renders top actor groups before lifelines in DOM
+  // order, causing lifelines to paint over actor boxes. Moving top actors to SVG end fixes
+  // stacking without changing their visual position (SVG uses coordinates, not flow).
+  const firstActorLine = svg.querySelector('.actor-line');
+  if (firstActorLine) {
+    const toMove = [];
+    let sibling = svg.firstElementChild;
+    while (sibling && sibling !== firstActorLine) {
+      if (sibling.classList && sibling.classList.contains('actor')) toMove.push(sibling);
+      sibling = sibling.nextElementSibling;
+    }
+    toMove.forEach(el => svg.appendChild(el));
   }
 
   // Flowchart edge map — Mermaid labels edges with LS-{src} and LE-{dst} classes.

@@ -36,7 +36,7 @@ Ariel addresses this by turning a system description into a guided, animated wal
 - **Implementation language:** Go
 - **Output:** Single static binary, cross-compiled for macOS (arm64, amd64), Linux (amd64), Windows (amd64)
 - **Build tooling:** GoReleaser + GitHub Actions
-- **Distribution:** GitHub Releases (pre-built binaries), `go install github.com/scottmrogowski/ariel@latest`
+- **Distribution:** GitHub Releases (pre-built binaries), `go install github.com/scottrogowski/ariel@latest`
 - **Runtime dependencies:** None for the binary itself. `ffmpeg` must be on PATH when using `--format mp4`. Chromium (managed by chromedp) is used for `--format mp4` and `--format svg`.
 
 ---
@@ -199,6 +199,10 @@ When a step has any `highlight_nodes` or `focus_nodes`, all unreferenced nodes a
 ### Edge animation
 
 Edges between any two nodes in the combined set of `highlight_nodes` and `focus_nodes` are animated automatically — no manual specification.
+
+### Click-for-walkthrough CTA
+
+When a walkthrough has more than one step, the initial view shows a "Click for walkthrough" overlay covering the full output. Clicking the overlay advances to step 1 (the section overview) and the overlay disappears permanently. The CTA is a **one-way entry point**: it is not reachable via Back, step dots, or section dots. Back navigation starts from step 2 (the first step that has a predecessor). Section and step dot navigation targets the first real step (step 1), never the CTA state.
 
 ### Step player
 

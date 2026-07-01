@@ -1,4 +1,4 @@
-module github.com/scottmrogowski/ariel
+module github.com/scottrogowski/ariel
 
 go 1.23.1
 

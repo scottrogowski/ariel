@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/scottmrogowski/ariel/internal/dsl"
-	"github.com/scottmrogowski/ariel/internal/mermaidjs"
+	"github.com/scottrogowski/ariel/internal/dsl"
+	"github.com/scottrogowski/ariel/internal/mermaidjs"
 	"github.com/spf13/cobra"
 )
 

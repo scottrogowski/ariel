@@ -110,6 +110,19 @@ function buildNodeMap(svg) {
       if (id) { addGroup(id, group); alreadyMapped.add(group); }
     });
   }
+  // Sequence diagram z-order fix: Mermaid renders top actor groups before lifelines in DOM
+  // order, causing lifelines to paint over actor boxes. Moving top actors to SVG end fixes
+  // stacking without changing their visual position (SVG uses coordinates, not flow).
+  const firstActorLine = svg.querySelector('.actor-line');
+  if (firstActorLine) {
+    const toMove = [];
+    let sibling = svg.firstElementChild;
+    while (sibling && sibling !== firstActorLine) {
+      if (sibling.classList && sibling.classList.contains('actor')) toMove.push(sibling);
+      sibling = sibling.nextElementSibling;
+    }
+    toMove.forEach(el => svg.appendChild(el));
+  }
 }
 
 function buildEdgeMap(svg) {

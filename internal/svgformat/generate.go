@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/chromedp/chromedp"
-	"github.com/scottmrogowski/ariel/internal/dsl"
+	"github.com/scottrogowski/ariel/internal/dsl"
 )
 
 const (
@@ -30,11 +30,11 @@ const (
 	// availableW: diagram column width minus 10% total horizontal padding (5% each side).
 	availableW = int(float64(diagramWidth) * 0.9) // 810
 	// maxScaleUp: diagrams are scaled up by at most this factor from their natural Mermaid width.
-	maxScaleUp    = 1.5
-	svgTimeout    = 5 * time.Minute
-	browserWidth  = diagramWidth + 20 // slightly wider than diagramWidth to avoid a scrollbar
-	browserHeight = 2000
-	arielGitHubURL = "https://github.com/scottmrogowski/ariel"
+	maxScaleUp     = 1.5
+	svgTimeout     = 5 * time.Minute
+	browserWidth   = diagramWidth + 20 // slightly wider than diagramWidth to avoid a scrollbar
+	browserHeight  = 2000
+	arielGitHubURL = "https://github.com/scottrogowski/ariel"
 )
 
 type sectionMeta struct {
@@ -46,7 +46,11 @@ type sectionMeta struct {
 // Generate renders a Walkthrough as an interactive SVG file at outPath.
 // The output SVG uses foreignObject + CSS :checked for step navigation — interactive
 // when opened in GitHub's SVG viewer, static when embedded as <img>.
-// Multi-section walkthroughs are supported: sections are navigable via section dots.
+// Multi-section walkthroughs are supported; sections are navigable via section dots.
+//
+// The initial "Click for walkthrough" CTA (shown at s0) is a one-way entry point:
+// the Back button and all dot navigation start from s1, making s0 unreachable once
+// the user has clicked through.
 func Generate(w *dsl.Walkthrough, outPath string) error {
 	sections := w.ToSections()
 
@@ -187,7 +191,7 @@ func buildOutputSVG(totalW, totalH, diagW, diagAreaH int,
 		totalW, totalH)
 
 	b.WriteString("<style>\n")
-	b.WriteString(buildNavCSS(n, diagAreaH, effectiveWidths, stepSecIdx, secsMeta))
+	b.WriteString(buildNavCSS(n, diagAreaH, totalH, effectiveWidths, stepSecIdx, secsMeta))
 	b.WriteString("</style>\n")
 
 	// Radio inputs must precede all elements they control via the ~ combinator.
@@ -235,57 +239,70 @@ func buildOutputSVG(totalW, totalH, diagW, diagAreaH int,
 	b.WriteString("</div>\n") // end .diagrams
 	b.WriteString("</div>\n") // end .diagram-col
 
-	// Narration column: step narrations, progress dots, nav controls.
+	// Narration column: per-step narrations (each including their own progress dots),
+	// followed by nav controls pinned to the bottom.
 	fmt.Fprintf(&b, `<div class="narrations" style="width:%dpx;">`+"\n", narW)
 
-	// Per-step narration blocks (one visible at a time via CSS :checked).
 	for i := range stepSVGs {
+		si := stepSecIdx[i]
 		header := html.EscapeString(stepHeaders[i])
 		text := html.EscapeString(narrations[i])
 		text = strings.ReplaceAll(text, "\n", "<br/>")
-		fmt.Fprintf(&b,
-			`<div class="narration n-%d"><div class="narr-header">%s</div><div class="narr-text">%s</div></div>`+"\n",
-			i, header, text)
-	}
 
-	// Progress area: section dots (if multi-section) + per-section step dots.
-	b.WriteString(`<div class="progress-area">` + "\n")
-	if multiSection {
-		b.WriteString(`<div class="section-track">` + "\n")
-		for si, sec := range secsMeta {
-			// Clicking a section dot navigates to that section's first step.
-			fmt.Fprintf(&b, `<label class="sec-dot sec-dot-%d" for="s%d" title="%s"></label>`+"\n",
-				si, sec.start, html.EscapeString(sec.title))
-		}
-		b.WriteString("</div>\n") // end .section-track
-	}
-	// One step-track per section; CSS shows only the current section's track.
-	for si, sec := range secsMeta {
-		fmt.Fprintf(&b, `<div class="step-track sec-steps-%d">`+"\n", si)
-		for j := 0; j < sec.count; j++ {
-			globalI := sec.start + j
-			introCls := ""
-			if j == 0 {
-				introCls = " intro-dot"
+		fmt.Fprintf(&b, `<div class="narration n-%d">`+"\n", i)
+		fmt.Fprintf(&b, `<div class="narr-header">%s</div>`+"\n", header)
+		fmt.Fprintf(&b, `<div class="narr-text">%s</div>`+"\n", text)
+
+		// Progress dots inside each narration so they flow right below the text,
+		// matching HTML renderer layout (dots are inside .narration-area, not pinned to bottom).
+		b.WriteString(`<div class="progress-area">` + "\n")
+		if multiSection {
+			b.WriteString(`<div class="section-track">` + "\n")
+			for si2, sec := range secsMeta {
+				// Section 0's dot targets s1 (not s0/CTA) so the CTA is unreachable via navigation.
+				target := sec.start
+				if si2 == 0 && n > 1 {
+					target = 1
+				}
+				fmt.Fprintf(&b, `<label class="sec-dot sec-dot-%d" for="s%d" title="%s"></label>`+"\n",
+					si2, target, html.EscapeString(sec.title))
 			}
-			// Clicking a step dot navigates directly to that step.
-			fmt.Fprintf(&b, `<label class="dot dot-%d%s" for="s%d"></label>`+"\n", globalI, introCls, globalI)
+			b.WriteString("</div>\n") // end .section-track
 		}
-		b.WriteString("</div>\n") // end .sec-steps-N
+		// One step-track per section. Visibility controlled by CSS :checked rules.
+		for si2, sec := range secsMeta {
+			fmt.Fprintf(&b, `<div class="step-track sec-steps-%d">`+"\n", si2)
+			// Section 0 skips s0 (CTA state) when n > 1; all other sections start at their first step.
+			startJ := 0
+			if si2 == 0 && n > 1 {
+				startJ = 1
+			}
+			for j := startJ; j < sec.count; j++ {
+				globalI := sec.start + j
+				introCls := ""
+				if j == startJ {
+					introCls = " intro-dot"
+				}
+				fmt.Fprintf(&b, `<label class="dot dot-%d%s" for="s%d"></label>`+"\n", globalI, introCls, globalI)
+			}
+			b.WriteString("</div>\n") // end .sec-steps-N
+		}
+		b.WriteString("</div>\n") // end .progress-area
+		_ = si                    // si used above; suppress unused warning
+		b.WriteString("</div>\n") // end .narration
 	}
-	b.WriteString("</div>\n") // end .progress-area
 
-	// Nav controls: Back + Next buttons. One back and one next label per step,
-	// CSS shows the correct pair based on which radio is checked.
+	// Nav controls: Back + Next buttons. Always at the bottom via margin-top:auto.
 	b.WriteString(`<div class="controls">` + "\n")
 	b.WriteString(`<div class="nav-prev">` + "\n")
-	// Back buttons: shown on steps 1..N-1. Step 0 (overview/CTA state) has no back.
-	for i := 1; i < n; i++ {
+	// Back buttons start at s2: s0 is CTA state, s1 is first real step with no predecessor.
+	// This makes the CTA unreachable via Back navigation.
+	for i := 2; i < n; i++ {
 		fmt.Fprintf(&b, `<label class="prev prev-%d" for="s%d">&#x2190; Back</label>`+"\n", i, i-1)
 	}
 	b.WriteString("</div>\n")
 	b.WriteString(`<div class="nav-next">` + "\n")
-	// Next buttons: steps 0..N-2. Last step shows Done (targets itself = no-op click).
+	// Next buttons for steps 0..N-2. Last step shows Done (targets itself = no-op click, disabled-styled).
 	for i := 0; i < n-1; i++ {
 		fmt.Fprintf(&b, `<label class="next next-%d" for="s%d">Next &#x2192;</label>`+"\n", i, i+1)
 	}
@@ -297,6 +314,7 @@ func buildOutputSVG(totalW, totalH, diagW, diagAreaH int,
 	b.WriteString("</div>\n") // end .content
 
 	// CTA overlay: covers full output on step 0, advances to step 1 on click.
+	// This is a one-way entry point — the Back button and dot navigation never return to s0.
 	if n > 1 {
 		b.WriteString(`<label class="cta-overlay" for="s1"><div class="cta-btn">&#x25B6; Click for walkthrough</div></label>` + "\n")
 	}
@@ -310,7 +328,7 @@ func buildOutputSVG(totalW, totalH, diagW, diagAreaH int,
 
 // buildNavCSS generates all CSS for the SVG output: layout, theming, and the
 // :checked-based rules that drive step navigation, dot highlighting, and section titles.
-func buildNavCSS(n, diagAreaH int, effectiveWidths []int, stepSecIdx []int, secsMeta []sectionMeta) string {
+func buildNavCSS(n, diagAreaH, totalH int, effectiveWidths []int, stepSecIdx []int, secsMeta []sectionMeta) string {
 	var b strings.Builder
 	multiSection := len(secsMeta) > 1
 
@@ -352,20 +370,22 @@ func buildNavCSS(n, diagAreaH int, effectiveWidths []int, stepSecIdx []int, secs
 		fmt.Fprintf(&b, `#s%d:checked~.content .step-%d{display:block;}`+"\n", i, i)
 	}
 
-	// Narration column.
+	// Narration column: flex column; controls pin to bottom via margin-top:auto.
 	b.WriteString(`.narrations{display:flex;flex-direction:column;background:#141720;border-left:1px solid #1e2130;}` + "\n")
-	// .narration: hidden by default; when shown, takes all available flex space in the column.
-	b.WriteString(`.narration{display:none;flex-direction:column;flex:1;min-height:0;}` + "\n")
+	// .narration takes natural height (no flex:1) so progress dots flow right below the text.
+	b.WriteString(`.narration{display:none;flex-direction:column;}` + "\n")
 	for i := 0; i < n; i++ {
 		fmt.Fprintf(&b, `#s%d:checked~.content .n-%d{display:flex;}`+"\n", i, i)
 	}
-	b.WriteString(`.narr-header{flex-shrink:0;height:44px;line-height:44px;padding:0 20px;font-size:11px;font-weight:600;color:#5b8dee;letter-spacing:0.05em;text-transform:uppercase;border-bottom:1px solid #1e2130;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;}` + "\n")
-	b.WriteString(`.narr-text{flex:1;padding:20px;font-size:17px;line-height:1.65;color:#e8eaf0;overflow-y:auto;min-height:0;}` + "\n")
+	b.WriteString(`.narr-header{flex-shrink:0;padding:16px 20px;font-size:11px;font-weight:600;color:#5b8dee;letter-spacing:0.05em;text-transform:uppercase;border-bottom:1px solid #1e2130;}` + "\n")
+	// narr-text: cap height so long narrations don't push dots/controls out of view.
+	maxNarrTextH := totalH - pageHeaderHeight - navHeight - 120 // subtract header, controls, approx progress+narr-header
+	fmt.Fprintf(&b, `.narr-text{padding:20px;font-size:17px;line-height:1.65;color:#e8eaf0;overflow-y:auto;max-height:%dpx;}`+"\n", maxNarrTextH)
 
-	// Progress area: always rendered, sits below narration text above controls.
-	b.WriteString(`.progress-area{flex-shrink:0;padding:12px 20px 0;display:flex;flex-direction:column;gap:8px;}` + "\n")
+	// Progress area: flows immediately below narration text (dots are inside each .narration div).
+	b.WriteString(`.progress-area{padding:12px 20px;display:flex;flex-direction:column;gap:8px;}` + "\n")
 
-	// Section dots (multi-section only). Clicking navigates to that section's first step.
+	// Section dots (multi-section only). Clicking navigates to that section's first real step.
 	if multiSection {
 		b.WriteString(`.section-track{display:flex;gap:8px;align-items:center;}` + "\n")
 		b.WriteString(`.sec-dot{width:8px;height:8px;border-radius:50%;background:#2a2d3a;cursor:pointer;display:inline-block;transition:all 0.3s;}` + "\n")
@@ -385,21 +405,31 @@ func buildNavCSS(n, diagAreaH int, effectiveWidths []int, stepSecIdx []int, secs
 	}
 	b.WriteString(`.dot{width:6px;height:6px;border-radius:50%;background:#2a2d3a;cursor:pointer;display:inline-block;transition:all 0.3s;}` + "\n")
 	b.WriteString(`.dot:hover{background:#4a5a7a;}` + "\n")
-	// Intro dot (first step of each section): accent color, slightly transparent.
+	// Intro dot (first visible dot of each section): accent color, slightly transparent.
 	b.WriteString(`.intro-dot{background:#5b8dee;opacity:0.3;}` + "\n")
-	// Active step dot: pill for regular steps, circular for intro dot.
+	// Active step dot per step. s0 has no dot when n > 1 (CTA state, unreachable).
 	for i := 0; i < n; i++ {
+		if i == 0 && n > 1 {
+			continue // no dot generated for CTA step
+		}
 		si := stepSecIdx[i]
-		isIntro := i == secsMeta[si].start
+		// First dot of each section accounts for the CTA skip in section 0.
+		firstDot := secsMeta[si].start
+		if si == 0 && n > 1 {
+			firstDot = 1
+		}
+		isIntro := i == firstDot
 		if isIntro {
+			// Active intro dot: stays circular, full opacity.
 			fmt.Fprintf(&b, `#s%d:checked~.content .dot-%d{background:#5b8dee;opacity:1;width:6px;border-radius:50%%;}`+"\n", i, i)
 		} else {
+			// Active regular dot: pill shape.
 			fmt.Fprintf(&b, `#s%d:checked~.content .dot-%d{background:#5b8dee;opacity:1;width:20px;border-radius:3px;}`+"\n", i, i)
 		}
 	}
 
-	// Nav controls: Back (outline) and Next → (filled blue, flex:1) matching HTML .controls.
-	b.WriteString(`.controls{flex-shrink:0;height:60px;border-top:1px solid #1e2130;padding:0 20px;display:flex;align-items:center;gap:12px;}` + "\n")
+	// Nav controls: pinned to bottom of narrations column via margin-top:auto.
+	b.WriteString(`.controls{flex-shrink:0;margin-top:auto;height:60px;border-top:1px solid #1e2130;padding:0 20px;display:flex;align-items:center;gap:12px;}` + "\n")
 	b.WriteString(`.nav-next{flex:1;}` + "\n")
 	b.WriteString(`.prev,.next{display:none;padding:10px 20px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;}` + "\n")
 	b.WriteString(`.prev{background:transparent;color:#6b7280;border:1px solid #2a2d3a;}` + "\n")
@@ -409,7 +439,8 @@ func buildNavCSS(n, diagAreaH int, effectiveWidths []int, stepSecIdx []int, secs
 	b.WriteString(`.next-done{opacity:0.3;cursor:not-allowed;}` + "\n")
 	b.WriteString(`.next-done:hover{background:#5b8dee;}` + "\n")
 	for i := 0; i < n; i++ {
-		if i > 0 {
+		// Back: shown from s2 onward; s0=CTA, s1=first real step (no predecessor).
+		if i >= 2 {
 			fmt.Fprintf(&b, `#s%d:checked~.content .prev-%d{display:block;}`+"\n", i, i)
 		}
 		if i < n-1 {

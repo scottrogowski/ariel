@@ -10,7 +10,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/scottmrogowski/ariel/internal/dsl"
+	"github.com/scottrogowski/ariel/internal/dsl"
 )
 
 var mdLinkRe = regexp.MustCompile(`\[([^\]]+)\]\((https?://[^)]+)\)`)
@@ -107,7 +107,7 @@ func render(w *dsl.Walkthrough, wsSnippet string) (string, error) {
 
 	data := templateData{
 		Title:        w.Title,
-		GitHubURL:    "https://github.com/scottmrogowski/ariel",
+		GitHubURL:    "https://github.com/scottrogowski/ariel",
 		SectionsJSON: strings.TrimRight(jsonBuf.String(), "\n"),
 		WSSnippet:    wsSnippet,
 	}
