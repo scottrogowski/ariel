@@ -137,7 +137,9 @@ Render a walkthrough to HTML, SVG, or MP4.
 
 **HTML output:** Highly interactive diagram. Best experience. Single self-contained file, no server required.
 
-**SVG output:** Interactive image. Embeddable in READMEs and PR summaries. Renders statically when embedded as `<img>`; clicking opens GitHub's SVG viewer where full interactivity is available. Supports both single- and multi-section walkthroughs; sections are flattened into a single step sequence.
+**SVG output:** Interactive image. Embeddable in READMEs and PR summaries. Renders statically when embedded as `<img>`; clicking opens the SVG in a new tab or GitHub's SVG viewer where full interactivity is available. Supports both single- and multi-section walkthroughs; sections are flattened into a single step sequence.
+
+The recommended embedding workflow for PR summaries: generate the SVG, upload it as a secret gist (`gh gist create output.svg`), then embed the raw gist URL with standard markdown image syntax (`![walkthrough](https://gist.githubusercontent.com/USER/GIST_ID/raw/FILE.svg)`). GitHub blocks SVG file uploads via the attachment API (XSS risk), so the gist approach is the only way to host an SVG without committing it to the repository.
 
 **MP4 output:** Non-interactive video. Each step is held for `--step-duration` seconds. Requires `ffmpeg` on PATH.
 
