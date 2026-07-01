@@ -417,23 +417,11 @@ async function initSection(idx) {
   const container = document.getElementById('mermaid-container');
   container.innerHTML = '<div class="mermaid">' + sec.mermaid_diagram + '</div>';
   await mermaid.run({ nodes: [container.querySelector('.mermaid')] });
-  applyDiagramScale(container);
   nodeMap = {};
   edgeMap = {};
   nodeSteps = {};
   buildNodeMap();
   buildNodeSteps();
-}
-
-// applyDiagramScale caps the diagram at 1.5× its natural Mermaid width, matching the SVG format.
-// Mermaid sets svg.style.maxWidth to the diagram's natural width before any override.
-function applyDiagramScale(container) {
-  const svg = container.querySelector('svg');
-  if (!svg) return;
-  const naturalW = parseFloat(svg.style.maxWidth) || svg.getBoundingClientRect().width;
-  const containerW = container.getBoundingClientRect().width;
-  const effectiveW = Math.min(Math.round(naturalW * 1.5), Math.floor(containerW));
-  svg.style.maxWidth = effectiveW + 'px';
 }
 
 function sectionIndexFromHash() {
