@@ -1,15 +1,7 @@
 # Ariel — Specification
 
-**Version:** 0.4
-**Purpose:** A CLI tool that converts a YAML walkthrough file into an animated, narrated diagram presentation. Designed to be authored by an LLM (Claude Code), with live browser preview, HTML export (interactive, best experience), SVG export (embeddable in GitHub PRs and READMEs), and MP4 export (non-interactive video).
-
----
-
-## About This Spec
-
-This document is the source of truth for ariel's DSL, CLI contracts, and frontend behavior. It is a **living document** — every code change that affects user-visible behavior, the DSL schema, CLI flags, exit codes, or output format must be accompanied by a corresponding update to this spec. A spec that diverges from the code is worse than no spec. When in doubt: update the spec first, then write the code.
-
-Spec entries should be true regardless of current implementation state. If a sentence would need editing the next time a bug is fixed or a limitation is lifted, it belongs in a commit message or comment, not here.
+This document is the source of truth for ariel's design intent. Any update to the code which changes design intent must be added here in the SAME PR.
+Implementation detail does not belong here. If a sentence would need editing the next time a bug is fixed or something minor is tweaked, it belongs in a commit message or comment, not here.
 
 ---
 
@@ -138,8 +130,6 @@ Render a walkthrough to HTML, SVG, or MP4.
 **HTML output:** Highly interactive diagram. Best experience. Single self-contained file, no server required.
 
 **SVG output:** Interactive image. Embeddable in READMEs and PR summaries. Renders statically when embedded as `<img>`; clicking opens the SVG in a new tab or GitHub's SVG viewer where full interactivity is available. Supports both single- and multi-section walkthroughs; sections are flattened into a single step sequence.
-
-The recommended embedding workflow for PR summaries: generate the SVG, upload it as a secret gist (`gh gist create output.svg`), then embed the raw gist URL with standard markdown image syntax (`![walkthrough](https://gist.githubusercontent.com/USER/GIST_ID/raw/FILE.svg)`). GitHub blocks SVG file uploads via the attachment API (XSS risk), so the gist approach is the only way to host an SVG without committing it to the repository.
 
 **MP4 output:** Non-interactive video. Each step is held for `--step-duration` seconds. Requires `ffmpeg` on PATH.
 
