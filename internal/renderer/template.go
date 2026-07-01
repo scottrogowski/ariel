@@ -295,7 +295,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
   /* Dimming: applied per-element when any highlighted/active nodes exist on the current step */
   #mermaid-container .dimmed {
-    opacity: 0.25;
+    opacity: 0.4;
     transition: opacity 0.35s ease;
   }
 

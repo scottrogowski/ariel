@@ -71,7 +71,8 @@ func Generate(w *dsl.Walkthrough, outPath string) error {
 
 	for _, sec := range sections {
 		// Each section has its own Mermaid diagram; write extraction HTML once per section.
-		if err := os.WriteFile(htmlPath, []byte(renderExtractionHTML(sec.MermaidDiagram)), 0644); err != nil {
+		nodeLabels, _ := dsl.ExtractGraph(sec.MermaidDiagram)
+		if err := os.WriteFile(htmlPath, []byte(renderExtractionHTML(sec.MermaidDiagram, nodeLabels)), 0644); err != nil {
 			return fmt.Errorf("write extraction HTML: %w", err)
 		}
 
