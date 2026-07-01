@@ -101,9 +101,18 @@ AUTHORING TIPS
     - The last step should identify what is worth scrutinizing in a review
 
   Where should the ariel.yaml file live:
-    Depends on the use-case. Sometimes it makes sense to commit the ariel.yaml
-    file. Most of the time (e.g. generating SVGs for PRs or brief
-    explanations), you can save the file under the `/tmp` directory.
+    Sometimes it makes sense to commit the ariel.yaml file. Most of the time
+    (e.g. generating SVGs for PRs or brief explanations), you can save the
+    file under the `/tmp` directory.
+
+  How do I embed the SVGs in Github PR summaries?
+    Upload the SVG as a secret gist (gh gist create output.svg), then embed it
+    in the PR description with standard markdown image syntax:
+
+      ![walkthrough](https://gist.githubusercontent.com/USER/GIST_ID/raw/FILE.svg)
+
+    GitHub renders a static preview inline; clicking opens the full interactive
+    SVG. Do not commit the SVG to the repo unless it is meant to be permanent.
 
 COMMON ERRORS
   highlight_nodes/focus_nodes reference unknown ID
