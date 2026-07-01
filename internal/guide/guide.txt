@@ -106,11 +106,16 @@ AUTHORING TIPS
     file under the `/tmp` directory.
 
   How do I embed the SVGs in Github PR summaries?
-    Upload the SVG as a secret gist (gh gist create output.svg), then embed it
-    in the PR description with standard markdown image syntax:
+    The cleanest way is to commit the svg. Otherwise, upload the SVG as a secret gist
+    (gh gist create output.svg), then embed it in the PR description with standard markdown image syntax:
       ![walkthrough](https://gist.githubusercontent.com/USER/GIST_ID/raw/FILE.svg)
-    GitHub renders a static preview inline; clicking opens the full interactive
-    SVG. Do not commit the SVG to the repo unless it is meant to be permanent.
+    GitHub renders a static preview inline; clicking opens the full interactive SVG.
+
+  What if policy blocks uploading secret gists?
+    In that case, you can:
+    1. Commit the svg to a temporary assets branch
+    2. Ask the user to drag/drop the mp4/html output onto the PR summary manually. MP4 can play in the PR summary. HTML will be click-to-download. SVG will not function properly if added in this way.
+    3. Ask the user to share the html file with their reviewers directly.
 
 COMMON ERRORS
   highlight_nodes/focus_nodes reference unknown ID
