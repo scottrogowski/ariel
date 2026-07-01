@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,9 +22,14 @@ const (
 	pageHeaderHeight = 60                           // full-width title bar above both columns
 	colHeaderHeight  = 44                           // narration step-header height
 	navHeight        = 60
-	svgTimeout       = 5 * time.Minute
-	browserWidth     = diagramWidth + 20 // slightly wider than diagramWidth to avoid a scrollbar
-	browserHeight    = 2000
+	maxOutputHeight  = 850
+	// diagramSidePad: fraction of diagram column width used as padding on each side (5% × 2 = 10% total).
+	diagramSidePad = 0.05
+	// maxScaleUp: diagrams are scaled up by at most this factor from their natural Mermaid size.
+	maxScaleUp   = 2.0
+	svgTimeout   = 5 * time.Minute
+	browserWidth = diagramWidth + 20 // slightly wider than diagramWidth to avoid a scrollbar
+	browserHeight = 2000
 )
 
 // Generate renders a Walkthrough as an interactive SVG file at outPath.
@@ -52,7 +58,11 @@ func Generate(w *dsl.Walkthrough, outPath string) error {
 	stepSVGs := make([]string, totalSteps)
 	narrations := make([]string, totalSteps)
 	stepHeaders := make([]string, totalSteps)
-	var maxDiagramHeight int
+	// effectiveWidths[i]: the rendered width of step i's diagram in the output SVG.
+	// Capped at min(2× natural Mermaid width, available column width with 10% padding).
+	effectiveWidths := make([]int, totalSteps)
+	availableW := int(float64(diagramWidth) * (1.0 - 2*diagramSidePad)) // 810px
+	var maxEffectiveH int
 
 	htmlPath := filepath.Join(tmpDir, "diagram.html")
 	globalIdx := 0
@@ -110,25 +120,49 @@ func Generate(w *dsl.Walkthrough, outPath string) error {
 				return fmt.Errorf("step %d: getDimensions: %w", globalIdx, err)
 			}
 			var dims struct {
-				H int `json:"h"`
+				W  int `json:"w"`
+				H  int `json:"h"`
+				NW int `json:"nw"` // natural Mermaid width (before any CSS override)
 			}
 			if err := json.Unmarshal([]byte(dimsJSON), &dims); err != nil {
 				return fmt.Errorf("step %d: parse dimensions: %w", globalIdx, err)
 			}
-			if dims.H <= 0 {
-				return fmt.Errorf("step %d: diagram rendered with zero height — Mermaid may have failed to parse the diagram", globalIdx)
+			if dims.H <= 0 || dims.NW <= 0 {
+				return fmt.Errorf("step %d: diagram rendered with zero dimensions — Mermaid may have failed to parse the diagram", globalIdx)
 			}
-			if dims.H > maxDiagramHeight {
-				maxDiagramHeight = dims.H
+			// Cap scale-up at maxScaleUp× natural width, then further cap at available column width.
+			effectiveW := int(math.Round(float64(dims.NW) * maxScaleUp))
+			if effectiveW > availableW {
+				effectiveW = availableW
+			}
+			effectiveWidths[globalIdx] = effectiveW
+			// Effective height scales proportionally from the measured natural height.
+			effectiveH := int(math.Round(float64(dims.H) * float64(effectiveW) / float64(dims.W)))
+			if effectiveH > maxEffectiveH {
+				maxEffectiveH = effectiveH
 			}
 
 			globalIdx++
 		}
 	}
 
-	totalHeight := pageHeaderHeight + colHeaderHeight + maxDiagramHeight + navHeight
-	out := buildOutputSVG(outputWidth, totalHeight, diagramWidth, pageHeaderHeight, colHeaderHeight, maxDiagramHeight, navHeight,
-		w.Title, stepSVGs, narrations, stepHeaders)
+	// Natural layout dimensions (internal coordinate space).
+	naturalH := pageHeaderHeight + colHeaderHeight + maxEffectiveH + navHeight
+
+	// Scale entire SVG down proportionally if it exceeds maxOutputHeight.
+	// Width is always outputWidth (1200); only height can exceed the limit.
+	scale := 1.0
+	if naturalH > maxOutputHeight {
+		scale = float64(maxOutputHeight) / float64(naturalH)
+	}
+	finalW := int(math.Round(float64(outputWidth) * scale))
+	finalH := int(math.Round(float64(naturalH) * scale))
+	if finalH > maxOutputHeight {
+		finalH = maxOutputHeight
+	}
+
+	out := buildOutputSVG(finalW, finalH, outputWidth, naturalH, diagramWidth, pageHeaderHeight, colHeaderHeight, maxEffectiveH, navHeight,
+		effectiveWidths, w.Title, stepSVGs, narrations, stepHeaders)
 	return os.WriteFile(outPath, []byte(out), 0644)
 }
 
@@ -145,22 +179,24 @@ func formatStepHeader(i, total int, label string) string {
 	return h
 }
 
-func buildOutputSVG(width, totalHeight, diagW, pageHeaderH, colHeaderH, diagH, navH int,
-	title string, stepSVGs, narrations, stepHeaders []string) string {
+func buildOutputSVG(finalW, finalH, naturalW, naturalH, diagW, pageHeaderH, colHeaderH, diagH, navH int,
+	effectiveWidths []int, title string, stepSVGs, narrations, stepHeaders []string) string {
 
 	n := len(stepSVGs)
-	narW := width - diagW
+	narW := naturalW - diagW
 	var b strings.Builder
 
 	fmt.Fprintf(&b, `<?xml version="1.0" encoding="UTF-8"?>`+"\n")
-	fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d">`+"\n", width, totalHeight)
-	fmt.Fprintf(&b, `<foreignObject width="%d" height="%d">`+"\n", width, totalHeight)
+	// viewBox maps the natural coordinate space to the clamped rendered dimensions.
+	fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">`+"\n",
+		finalW, finalH, naturalW, naturalH)
+	fmt.Fprintf(&b, `<foreignObject width="%d" height="%d">`+"\n", naturalW, naturalH)
 	// position:relative is required so the cta-overlay label can be positioned absolutely over the full area.
 	fmt.Fprintf(&b, `<div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:%dpx;height:%dpx;display:flex;flex-direction:column;font-family:Inter,system-ui,sans-serif;background:#0f1117;">`+"\n",
-		width, totalHeight)
+		naturalW, naturalH)
 
 	b.WriteString("<style>\n")
-	b.WriteString(buildNavCSS(n))
+	b.WriteString(buildNavCSS(n, effectiveWidths))
 	b.WriteString("</style>\n")
 
 	// Radio inputs must precede all elements they control via the ~ combinator.
@@ -239,7 +275,9 @@ func buildOutputSVG(width, totalHeight, diagW, pageHeaderH, colHeaderH, diagH, n
 
 // buildNavCSS generates the CSS that drives step navigation via :checked selectors.
 // All rules are statically emitted for N steps.
-func buildNavCSS(n int) string {
+// effectiveWidths[i] is the rendered width of step i's diagram: capped at 2× natural Mermaid
+// size and at 90% of the diagram column (10% total horizontal padding).
+func buildNavCSS(n int, effectiveWidths []int) string {
 	var b strings.Builder
 
 	b.WriteString(`*{box-sizing:border-box;margin:0;padding:0;}` + "\n")
@@ -254,9 +292,14 @@ func buildNavCSS(n int) string {
 
 	// Diagram column: flex column containing only the diagram area (no per-column title).
 	b.WriteString(`.diagram-col{display:flex;flex-direction:column;}` + "\n")
-	b.WriteString(`.diagrams{flex:1;overflow:hidden;}` + "\n")
-	b.WriteString(`.step{display:none;}` + "\n")
-	b.WriteString(`.step>svg{display:block;width:100%!important;max-width:none!important;height:auto!important;}` + "\n")
+	// 10% horizontal padding (5% each side); flex+center for vertical centering within the column.
+	b.WriteString(`.diagrams{flex:1;overflow:hidden;padding:0 5%;display:flex;flex-direction:column;align-items:center;justify-content:center;}` + "\n")
+	b.WriteString(`.step{display:none;width:100%;}` + "\n")
+	// Per-step max-width enforces the 2× natural-width cap; margin:auto centers within the step.
+	b.WriteString(`.step>svg{display:block;width:100%!important;height:auto!important;margin:0 auto;}` + "\n")
+	for i, w := range effectiveWidths {
+		fmt.Fprintf(&b, `.step-%d>svg{max-width:%dpx!important;}`+"\n", i, w)
+	}
 	for i := 0; i < n; i++ {
 		fmt.Fprintf(&b, `#s%d:checked~.content .step-%d{display:block;}`+"\n", i, i)
 	}

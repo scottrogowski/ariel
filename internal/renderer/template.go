@@ -104,10 +104,9 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   .diagram-pane {
-    padding: 12px;
+    padding: 0 5%;
     display: flex;
     align-items: center;
-    justify-content: center;
     border-right: 1px solid var(--border);
   }
 

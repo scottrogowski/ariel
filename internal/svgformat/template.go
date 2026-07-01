@@ -30,9 +30,9 @@ const extractionHTMLTemplate = `<!DOCTYPE html>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #0f1117; }
   #mermaid-container { width: 900px; }
-  /* Override Mermaid's max-width so the SVG scales to fill the column.
-     getDimensions() then returns the height at full column width. */
-  #mermaid-container svg { display: block; width: 100% !important; max-width: none !important; height: auto !important; }
+  /* Let the SVG render at its natural Mermaid size so getDimensions() returns the
+     true natural width and height. The output SVG scales it up to 2× in CSS. */
+  #mermaid-container svg { display: block; }
 </style>
 </head>
 <body>
@@ -151,7 +151,9 @@ function getSVG() {
 function getDimensions() {
   const svg = document.querySelector('#mermaid-container svg');
   const rect = svg.getBoundingClientRect();
-  return JSON.stringify({w: Math.ceil(rect.width), h: Math.ceil(rect.height)});
+  // naturalW: Mermaid's own max-width (before any CSS override) — used to cap scale-up.
+  const naturalW = parseFloat(svg.style.maxWidth) || Math.ceil(rect.width);
+  return JSON.stringify({w: Math.ceil(rect.width), h: Math.ceil(rect.height), nw: Math.ceil(naturalW)});
 }
 
 init();
