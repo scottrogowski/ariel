@@ -2,13 +2,13 @@
 
 <p align="center"><img src="logo.png" width="128" alt="ariel logo"></p>
 
-CLI tool to generate step-by-step Mermaid diagram walkthroughs. Each walkthrough pairs a diagram with a sequence of steps that highlight nodes, animate edges, and narrate what is happening. Outputs HTML (interactive), SVG (for embedding in GitHub PRs and READMEs), MP4, and GIF. Primarily designed as a tool for LLMs.
+A tool for LLMs to explain complex systems to humans. Using ariel, LLMs can generate step-by-step Mermaid diagram walkthroughs. The walkthrough breaks a system down into comprehensible chunks. Output formats include interactive self-contained HTML (best experience), interactive SVG (for embedding in GitHub PRs and READMEs), or MP4 (non-interactive). Additionally, you can "watch" a file which your agent updates as it codes.
+
+Actual example SVGs below
 
 [![ariel-why walkthrough](examples/ariel-why-output.svg)](examples/ariel-why-output.svg)
 
 [![ariel-what walkthrough](examples/ariel-what-output.svg)](examples/ariel-what-output.svg)
-
-Run `ariel guide` at the start of a session to load the full DSL into context.
 
 ## Install
 
@@ -17,14 +17,15 @@ Run `ariel guide` at the start of a session to load the full DSL into context.
 go install github.com/scottmrogowski/ariel@latest
 ```
 
-**Pre-built binaries** — download from [Releases](https://github.com/scottmrogowski/ariel/releases) and put the binary on your `PATH`.
-
 MP4 output requires [`ffmpeg`](https://ffmpeg.org/download.html) on your `PATH`.
 
 ## Usage
 
+The best way to use Ariel is to ask your agent to `go install github.com/scottmrogowski/ariel@latest` and "use this tool to create a walkthrough to explain this code/system/PR/concept.
+
+Common commands
 ```sh
-# Load the DSL reference into LLM context (run this first when using an agent)
+# Load the DSL reference into LLM context (agents are expected to run this first)
 ariel guide
 
 # Lint a walkthrough file
@@ -36,7 +37,7 @@ ariel watch my-system.ariel.yaml
 # Render to a self-contained HTML file
 ariel generate my-system.ariel.yaml
 
-# Render to SVG (interactive when clicked in GitHub PRs and READMEs)
+# Render to interactive SVG (for embedding in GitHub PRs and READMEs)
 ariel generate --format svg my-system.ariel.yaml
 ```
 
@@ -48,7 +49,7 @@ AGENTS: Ariel follows spec-driven-development. Read spec/ariel-spec.md now. This
 
 ```sh
 make test     # unit tests
-make example  # generates HTML, SVG, MP4, and GIF outputs under examples/
+make example  # generates HTML, SVG, and MP4 outputs under examples/
 ```
 
-Automated tests cover parsing, verification, and CLI behavior. Visual output correctness — node highlighting, edge animation, layout, SVG interactivity, and video/GIF playback — cannot be tested automatically. After any change to the renderer or template, open the generated HTML and SVG in a browser and inspect the GIF to verify. A human must do this.
+Important: Automated tests cover parsing, verification, and CLI behavior. Visual output correctness — node highlighting, edge animation, layout, SVG interactivity, etc — cannot be tested automatically. After any change to the renderer or template, open the generated HTML and SVG in a browser and inspect the MP4 to verify.

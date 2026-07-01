@@ -10,7 +10,7 @@ mermaid_diagram: |
     Model --> Decision[Good Decision]
 steps:
   - label: "The problem ariel solves"
-    narration: "Ariel generates step-by-step diagram walkthroughs to help humans understand complex systems. It is most useful in READMEs and pull request summaries"
+    narration: "Ariel generates step-by-step diagram walkthroughs to help humans understand complex systems."
 
   - label: "The problem"
     highlight_nodes: [LLM, Code]
@@ -22,16 +22,16 @@ steps:
 
   - label: "Architectural diagrams"
     highlight_nodes: [Code, Review]
-    narration: "Automatically generating diagrams helps. Now, instead of building a mental model from scratch, the reviewer has a map to cross-reference against the code."
+    narration: "Automatically generating diagrams helps. With a diagram handy, instead of building a mental model from scratch, the reviewer can now cross-reference against the code."
 
   - label: "The review bottleneck"
     focus_nodes: [WM]
     highlight_nodes: [Code, Review]
-    narration: "However, diagrams without narrative still leave reviewers context-switching — toggling between diagram and code, with no prescribed reading order."
+    narration: "However, diagrams without narrative still leave reviewers overloaded without guidance or even a prescribed reading order."
 
   - label: "Two outcomes"
     highlight_nodes: [WM, Stamp, Model, Decision]
-    narration: "Working memory has a hard ceiling. Overloaded reviewers rubber-stamp. Comprehending reviewers make better decisions."
+    narration: "Overloaded reviewers rubber-stamp. Comprehending reviewers make better decisions."
 
   - label: "ariel's role"
     highlight_nodes: [WM, Model, Decision]

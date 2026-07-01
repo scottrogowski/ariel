@@ -79,12 +79,12 @@ sections:
       - label: "generate"
         focus_nodes: [Ge]
         highlight_nodes: [User]
-        narration: "generate produces a self-contained HTML file — all CSS and JS inlined, Mermaid loaded from a pinned CDN. Opens by double-clicking. No server, no dependencies."
+        narration: "generate produces an output file - either html, svg, or mp4. All three are self-contained. No dependencies, no CDN."
 
       - label: "watch"
         focus_nodes: [W]
         highlight_nodes: [User]
-        narration: "watch starts a local HTTP server with live reload. Changes to the YAML push a freshly-rendered page over WebSocket — no manual refresh."
+        narration: "watch starts a local HTTP server with live reload. Changes to the YAML push a freshly-rendered diagram to you — no manual refresh."
 
   - title: "The pipeline"
     mermaid_diagram: |

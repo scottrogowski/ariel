@@ -1,7 +1,7 @@
 # Ariel — Specification
 
-**Version:** 0.3
-**Purpose:** A CLI tool that converts a YAML walkthrough file into an animated, narrated diagram presentation. Designed to be authored by an LLM (Claude Code), with live browser preview, HTML export, MP4/GIF export for video sharing, and SVG export for embedding in GitHub PRs and READMEs.
+**Version:** 0.4
+**Purpose:** A CLI tool that converts a YAML walkthrough file into an animated, narrated diagram presentation. Designed to be authored by an LLM (Claude Code), with live browser preview, HTML export (interactive, best experience), SVG export (embeddable in GitHub PRs and READMEs), and MP4 export (non-interactive video).
 
 ---
 
@@ -15,7 +15,7 @@ This document is the source of truth for ariel's DSL, CLI contracts, and fronten
 
 Code is being generated faster than engineers can understand it. Specs are written, PRs are opened, and reviewers approve without truly comprehending what the system does. Static diagrams help but are insufficient — they show structure without conveying flow, decision points, or what is non-obvious.
 
-Ariel addresses this by turning a system description into a guided, animated walkthrough. An LLM reads the spec, identifies what is important (decision points, non-obvious design choices, failure paths), and authors a YAML walkthrough file. Ariel renders that file as a step-by-step animated presentation — in the browser, as an MP4/GIF for video sharing, or as an interactive SVG for embedding directly in GitHub PRs and READMEs.
+Ariel addresses this by turning a system description into a guided, animated walkthrough. An LLM reads the spec, identifies what is important (decision points, non-obvious design choices, failure paths), and authors a YAML walkthrough file. Ariel renders that file as a step-by-step animated presentation — in the browser, as an interactive SVG for embedding directly in GitHub PRs and READMEs, or as an MP4 for video sharing.
 
 ---
 
@@ -24,7 +24,7 @@ Ariel addresses this by turning a system description into a guided, animated wal
 - **LLM-first authoring.** The YAML DSL is written by an LLM. Syntax is explicit and unambiguous. The `guide` subcommand loads the full DSL reference into LLM context.
 - **Strong guardrails for agentic use.** `verify` is a full linter — syntax, semantic, and Mermaid validity — because agentic loops need fast, reliable feedback.
 - **Single-threaded human attention.** Each step presents one idea: one narration sentence, one visual change. Animation and narration never compete.
-- **Single file artifacts.** The HTML output is fully self-contained. The MP4 and GIF outputs are standard video formats. The SVG output is a single XML file. None require a server.
+- **Single file artifacts.** The HTML output is fully self-contained. The MP4 output is a standard H.264 video. The SVG output is a single XML file. None require a server.
 - **Simplicity over features.** Build only what is needed.
 
 ---
@@ -35,7 +35,7 @@ Ariel addresses this by turning a system description into a guided, animated wal
 - **Output:** Single static binary, cross-compiled for macOS (arm64, amd64), Linux (amd64), Windows (amd64)
 - **Build tooling:** GoReleaser + GitHub Actions
 - **Distribution:** GitHub Releases (pre-built binaries), `go install github.com/scottmrogowski/ariel@latest`
-- **Runtime dependencies:** None for the binary itself. `ffmpeg` must be on PATH when using `--format mp4` or `--format gif`. Chromium (managed by chromedp) is used for `--format mp4`, `--format gif`, and `--format svg`.
+- **Runtime dependencies:** None for the binary itself. `ffmpeg` must be on PATH when using `--format mp4`. Chromium (managed by chromedp) is used for `--format mp4` and `--format svg`.
 
 ---
 
@@ -48,8 +48,8 @@ Ariel addresses this by turning a system description into a guided, animated wal
 ```
 ariel generates annotated walkthroughs from a YAML file paired with a Mermaid diagram.
 Each walkthrough defines a sequence of steps that highlight nodes, animate edges,
-and display narration text — rendered as self-contained HTML (interactive, keyboard
-navigable), MP4/GIF (for video sharing), or SVG (for embedding in GitHub PRs and READMEs).
+and display narration text — rendered as self-contained HTML (interactive, best experience),
+SVG (for embedding in GitHub READMEs and PR summaries), or MP4 (non-interactive video).
 ```
 
 Subcommands:
@@ -60,7 +60,7 @@ Subcommands:
 | `single-diagram-example` | Print a complete single-diagram walkthrough YAML example |
 | `multiple-diagram-example` | Print a complete multi-section walkthrough YAML example |
 | `verify` | Lint a walkthrough file for syntax and semantic errors |
-| `generate` | Render a walkthrough file to HTML, MP4, GIF, or SVG |
+| `generate` | Render a walkthrough file to HTML, SVG, or MP4 |
 | `watch` | Serve a live-reloading browser preview |
 
 ---
@@ -126,20 +126,18 @@ ariel.yaml:31: warning: step 6 has no narration and no visual changes
 
 ### `ariel generate <file.ariel.yaml> [flags]`
 
-Render a walkthrough to HTML, MP4, GIF, or SVG.
+Render a walkthrough to HTML, SVG, or MP4.
 
 **Flags:**
 - `--output <path>` — output path (default: input filename with format extension)
-- `--format <html|mp4|gif|svg>` — output format (default: `html`)
-- `--step-duration <n>` — seconds each step is held in MP4/GIF output (default: `2`, mp4/gif only)
+- `--format <html|svg|mp4>` — output format (default: `html`)
+- `--step-duration <n>` — seconds each step is held in MP4 output (default: `2`, mp4 only)
 
-**HTML output:** A single `.html` file with all CSS and JS inlined, Mermaid loaded from pinned CDN, no server required. Openable by double-clicking in any modern browser.
+**HTML output:** Highly interactive diagram. Best experience. A single `.html` file with all CSS and JS inlined, Mermaid loaded from pinned CDN, no server required. Openable by double-clicking in any modern browser.
 
-**MP4 output:** A standard H.264 `.mp4` file at 25fps (CFR). Requires `ffmpeg` on PATH.
+**SVG output:** Interactive image. Embeddable in READMEs and PR summaries. An interactive `.svg` file for embedding in GitHub PRs and READMEs. Supports both single- and multi-section walkthroughs; sections are flattened into a single step sequence. See SVG Architecture below.
 
-**GIF output:** An animated `.gif` file. Requires `ffmpeg` on PATH.
-
-**SVG output:** An interactive `.svg` file for embedding in GitHub PRs and READMEs. Supports both single- and multi-section walkthroughs; sections are flattened into a single step sequence. See SVG Architecture below.
+**MP4 output:** Non-interactive video. A standard H.264 `.mp4` file at 25fps (CFR). Requires `ffmpeg` on PATH.
 
 **Exit codes:** `0` success, `1` verify failed or render error, `2` file not found, `3` output path not writable.
 
@@ -174,29 +172,31 @@ SVG generation uses headless Chrome (via chromedp) to render each step and extra
 - Hover effects work in the SVG file viewer, not in the `<img>` embed.
 
 **Per-step extraction:**
-1. For each step, ariel appends an unconnected `_narration_["..."]` Mermaid node to the diagram source. Mermaid's layout engine places unconnected nodes in available space — ariel does not attempt to position it.
-2. Narration text is word-wrapped at ~40 characters per line using Mermaid's `<br/>` label syntax so the node renders with multiple lines.
-3. The diagram is rendered in a minimal headless page (`browserWidth: 980px`). Node highlighting and edge animation are applied as inline `style.setProperty(..., 'important')` calls so each extracted SVG is visually self-contained.
-4. Animated edges use `@keyframes ariel-flow { from { stroke-dashoffset: 24 } to { stroke-dashoffset: 0 } }` injected as a `<style>` element inside each extracted SVG.
-5. Bare `<br>` tags from Mermaid's HTML output inside `foreignObject` are replaced with `<br/>` so the output file is valid XML.
+1. Each step is rendered in a minimal headless page (`browserWidth: 920px`). Node highlighting and edge animation are applied as inline `style.setProperty(..., 'important')` calls so each extracted SVG is visually self-contained.
+2. Node highlighting mirrors the HTML renderer: dimmed nodes at 40% opacity, highlighted nodes with blue tint, focus nodes with teal border.
+3. Animated edges use SMIL `<animate attributeName="stroke-dashoffset">` elements appended to each edge path. CSS `@keyframes` are used in the HTML renderer but would be stripped by GitHub's SVG sanitizer, so SMIL is the only viable option here.
+4. Bare `<br>` tags from Mermaid's HTML output inside `foreignObject` are replaced with `<br/>` so the output file is valid XML.
 
 **Output SVG structure:**
 ```
-<?xml ...?><svg width="960" height="...">
-  <foreignObject width="960" height="...">
-    <div xmlns="http://www.w3.org/1999/xhtml">
+<?xml ...?><svg width="1200" height="≤850">
+  <foreignObject width="1200" height="≤850">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="display:flex;flex-direction:column">
       <style>  (navigation CSS — :checked rules for N steps)  </style>
       <input type="radio" id="s0" checked/> ... <input type="radio" id="sN"/>
-      <div class="cta">▶ Click for walkthrough</div>   (shown only on step 0)
-      <div class="diagrams">
-        <div class="step step-0">  (pre-rendered Mermaid SVG)  </div>
-        ...
+      <div class="page-header">  (full-width walkthrough title)  </div>
+      <div class="content">  (flex row)
+        <div class="diagram-col">  (900px — pre-rendered Mermaid SVGs)  </div>
+        <div class="narrations">  (300px — step headers and narration text)  </div>
       </div>
-      <div class="nav">  (prev labels, dot labels, next labels)  </div>
+      <label class="cta-overlay" for="s1">  (shown only on step 0)  </label>
+      <div class="bottom">  (nav controls — prev/dots/next)  </div>
     </div>
   </foreignObject>
 </svg>
 ```
+
+**Sizing:** Max 1200×850. `narrationWidth = 300px` (fixed). `diagramColumnWidth = 900px` (fixed). Diagrams are scaled up to `1.5×` their natural Mermaid width, capped at 810px (90% of column after 10% horizontal padding), then scaled down if the resulting height exceeds 686px (850 minus fixed chrome). The output SVG height is `164 + maxEffectiveH` (always ≤ 850).
 
 **Multi-section support:** Sections are flattened into a single global step sequence. Each step is rendered from its section's Mermaid diagram. The section title is prepended to step labels in the narration panel header (e.g. "Section Title — step label") so the reader knows which section they are in. The diagram area is sized to the tallest diagram across all sections.
 
@@ -246,11 +246,17 @@ Complete examples: `internal/guide/single-diagram-example.ariel.yaml` and `inter
 
 ### Node identification
 
-After rendering, the frontend scans `.node` SVG group elements. Mermaid 10.6.1 gives each group an ID of `flowchart-{nodeId}-{n}`. The node ID is extracted from this pattern — robust to duplicate display labels.
+After rendering, the frontend builds a `nodeMap` using three strategies in priority order:
+
+1. **Flowchart:** `.node` groups with ID `flowchart-{nodeId}-{n}` — Mermaid 10.6.1 standard pattern.
+2. **Sequence diagram:** `g.actor` groups matched by normalized text content against inverted `node_labels`.
+3. **Generic fallback:** any `<g>` whose normalized text content matches an unmapped `node_labels` entry.
+
+`node_labels` is derived from `dsl.ExtractGraph` (static DSL parse) and maps node ID → display label. The map is inverted at runtime (display label → node ID) to enable text-based matching in strategies 2 and 3.
 
 ### Node highlighting
 
-When a step has any `highlight_nodes` or `focus_nodes`, the container receives `.has-highlights` and all unreferenced nodes are dimmed to 25% opacity. Referenced nodes are restored to full opacity with visual emphasis:
+When a step has any `highlight_nodes` or `focus_nodes`, all unreferenced nodes are dimmed to 40% opacity. Referenced nodes are restored to full opacity with visual emphasis:
 
 - `.highlighted` — distinct fill and border color (blue tint); applied to `highlight_nodes` not also in `focus_nodes`
 - `.active` — stronger emphasis (teal border, glow); applied to all `focus_nodes`; takes precedence if a node appears in both lists
@@ -309,7 +315,6 @@ ariel/
 │   ├── renderer/
 │   │   ├── generate.go       # HTML generation
 │   │   ├── mp4.go            # MP4 shim (delegates to internal/mp4)
-│   │   ├── gif.go            # GIF shim (delegates to internal/mp4)
 │   │   ├── svg.go            # SVG shim (delegates to internal/svgformat)
 │   │   ├── watch.go          # HTTP server + WebSocket
 │   │   └── template.go       # HTML/CSS/JS template

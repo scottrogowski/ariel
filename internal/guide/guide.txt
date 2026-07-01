@@ -67,9 +67,9 @@ VISUAL EMPHASIS
   flowchart diagrams. Edge animation is not supported for sequenceDiagram.
 
 OUTPUT FORMATS
-  html  — self-contained interactive HTML file (default)
-  mp4   — video; requires ffmpeg on PATH
-  gif   — animated GIF; requires ffmpeg on PATH; scaled to 960px wide
+  html  — highly interactive diagram; best experience (default)
+  svg   — interactive image; embeddable in READMEs and PR summaries
+  mp4   — non-interactive video; requires ffmpeg on PATH
 
 AUTHORING TIPS
   Step sequencing:
