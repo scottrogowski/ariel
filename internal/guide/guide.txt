@@ -100,6 +100,11 @@ AUTHORING TIPS
     - Plain English — no jargon unless the jargon is the point
     - The last step should identify what is worth scrutinizing in a review
 
+  Where should the ariel.yaml file live:
+    Depends on the use-case. Sometimes it makes sense to commit the ariel.yaml
+    file. Most of the time (e.g. generating SVGs for PRs or brief
+    explanations), you can save the file under the `/tmp` directory.
+
 COMMON ERRORS
   highlight_nodes/focus_nodes reference unknown ID
     → Check mermaid_diagram for the exact node ID (case-sensitive)

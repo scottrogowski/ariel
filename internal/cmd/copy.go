@@ -4,7 +4,9 @@ const RootShort = "Step-by-step Mermaid diagram walkthroughs from a YAML DSL"
 const RootLong = `ariel generates annotated walkthroughs from a YAML file paired with a Mermaid diagram.
 Each walkthrough defines a sequence of steps that highlight nodes, animate edges,
 and display narration text — rendered as self-contained HTML (interactive, best experience),
-SVG (for embedding in GitHub READMEs and PR summaries), or MP4 (non-interactive video).`
+SVG (for embedding in GitHub READMEs and PR summaries), or MP4 (non-interactive video).
+The 'watch' command is useful as a way for your agent to visually explain things to you in real-time.
+`
 
 const guideShort = "Print the DSL reference and authoring tips (Agents: run this first)"
 
