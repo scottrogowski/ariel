@@ -16,23 +16,18 @@ import (
 )
 
 const (
-	outputWidth      = 1200
 	narrationWidth   = 300
-	diagramWidth     = outputWidth - narrationWidth // 900
+	diagAreaW        = 900
+	diagAreaH        = 686 // pageHeader(60) + diagAreaH(686) + overhead(104=narr-header+nav) = totalH(850)
+	totalW           = diagAreaW + narrationWidth // 1200
+	totalH           = 850
 	pageHeaderHeight = 60
-	colHeaderHeight  = 44
 	navHeight        = 60
-	maxOutputHeight  = 850
-	// overhead: fixed height consumed by page-header, col-header, and nav.
-	overhead = pageHeaderHeight + colHeaderHeight + navHeight // 164
-	// maxDiagramAreaH: maximum pixel height the diagram area can occupy so total height ≤ maxOutputHeight.
-	maxDiagramAreaH = maxOutputHeight - overhead // 686
-	// availableW: diagram column width minus 10% total horizontal padding (5% each side).
-	availableW = int(float64(diagramWidth) * 0.9) // 810
-	// maxScaleUp: diagrams are scaled up by at most this factor from their natural Mermaid width.
-	maxScaleUp     = 1.5
+	// bboxMargin is the fractional padding added around the highlighted node bounding box
+	// when computing the scale that fits all highlighted nodes into the viewport.
+	bboxMargin     = 0.15
 	svgTimeout     = 5 * time.Minute
-	browserWidth   = diagramWidth + 20 // slightly wider than diagramWidth to avoid a scrollbar
+	browserWidth   = 4000 // generous width so diagrams of any size render at natural pixel dimensions
 	browserHeight  = 2000
 	arielGitHubURL = "https://github.com/scottrogowski/ariel"
 )
@@ -41,6 +36,19 @@ type sectionMeta struct {
 	title string
 	start int // global index of first step in this section
 	count int // total steps in this section
+}
+
+type stepTransform struct {
+	scale float64
+	tx    float64
+	ty    float64
+}
+
+type nodeBBox struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+	W float64 `json:"w"`
+	H float64 `json:"h"`
 }
 
 // Generate renders a Walkthrough as an interactive SVG file at outPath.
@@ -72,9 +80,10 @@ func Generate(w *dsl.Walkthrough, outPath string) error {
 	stepSVGs := make([]string, totalSteps)
 	narrations := make([]string, totalSteps)
 	stepHeaders := make([]string, totalSteps)
-	effectiveWidths := make([]int, totalSteps)
+	naturalWs := make([]int, totalSteps)
+	naturalHs := make([]int, totalSteps)
+	transforms := make([]stepTransform, totalSteps)
 	stepSecIdx := make([]int, totalSteps) // which section each global step belongs to
-	var maxEffectiveH int
 
 	htmlPath := filepath.Join(tmpDir, "diagram.html")
 	globalIdx := 0
@@ -132,25 +141,38 @@ func Generate(w *dsl.Walkthrough, outPath string) error {
 			if err := json.Unmarshal([]byte(dimsJSON), &dims); err != nil {
 				return fmt.Errorf("step %d: parse dimensions: %w", globalIdx, err)
 			}
-			if dims.H <= 0 || dims.NW <= 0 {
+			if dims.W <= 0 || dims.H <= 0 {
 				return fmt.Errorf("step %d: diagram rendered with zero dimensions — Mermaid may have failed to parse the diagram", globalIdx)
 			}
-			effectiveW, effectiveH := computeEffectiveDims(dims.NW, dims.H)
-			effectiveWidths[globalIdx] = effectiveW
-			if effectiveH > maxEffectiveH {
-				maxEffectiveH = effectiveH
+			naturalWs[globalIdx] = dims.W
+			naturalHs[globalIdx] = dims.H
+
+			var bboxes []nodeBBox
+			allNodes := append(strSlice(step.HighlightNodes), strSlice(step.FocusNodes)...)
+			if len(allNodes) > 0 {
+				nodesJSON, _ := json.Marshal(allNodes)
+				var bboxJSON string
+				if err := chromedp.Run(ctx, chromedp.Evaluate(
+					fmt.Sprintf(`getNodeBBoxes(%s)`, nodesJSON), &bboxJSON,
+				)); err != nil {
+					return fmt.Errorf("step %d: getNodeBBoxes: %w", globalIdx, err)
+				}
+				var bboxMap map[string]nodeBBox
+				if err := json.Unmarshal([]byte(bboxJSON), &bboxMap); err != nil {
+					return fmt.Errorf("step %d: parse bboxes: %w", globalIdx, err)
+				}
+				for _, bb := range bboxMap {
+					bboxes = append(bboxes, bb)
+				}
 			}
+			transforms[globalIdx] = computeStepTransform(dims.W, dims.H, bboxes)
 
 			globalIdx++
 		}
 	}
 
-	// Output dimensions are fixed: width is always outputWidth, height is overhead + maxEffectiveH.
-	// maxEffectiveH is already capped at maxDiagramAreaH, so totalH ≤ maxOutputHeight always holds.
-	totalH := overhead + maxEffectiveH
-
-	out := buildOutputSVG(outputWidth, totalH, diagramWidth, maxEffectiveH,
-		effectiveWidths, w.Title, stepSVGs, narrations, stepHeaders, stepSecIdx, secsMeta)
+	out := buildOutputSVG(w.Title, stepSVGs, narrations, stepHeaders,
+		stepSecIdx, secsMeta, naturalWs, naturalHs, transforms)
 	return os.WriteFile(outPath, []byte(out), 0644)
 }
 
@@ -174,12 +196,12 @@ func formatStepHeader(sectionTitle string, secStepIdx, secTotal int, stepLabel s
 	return h
 }
 
-func buildOutputSVG(totalW, totalH, diagW, diagAreaH int,
-	effectiveWidths []int, title string, stepSVGs, narrations, stepHeaders []string,
-	stepSecIdx []int, secsMeta []sectionMeta) string {
+func buildOutputSVG(title string, stepSVGs, narrations, stepHeaders []string,
+	stepSecIdx []int, secsMeta []sectionMeta,
+	naturalWs, naturalHs []int, transforms []stepTransform) string {
 
 	n := len(stepSVGs)
-	narW := totalW - diagW
+	narW := narrationWidth
 	multiSection := len(secsMeta) > 1
 	var b strings.Builder
 
@@ -191,7 +213,7 @@ func buildOutputSVG(totalW, totalH, diagW, diagAreaH int,
 		totalW, totalH)
 
 	b.WriteString("<style>\n")
-	b.WriteString(buildNavCSS(n, diagAreaH, totalH, effectiveWidths, stepSecIdx, secsMeta))
+	b.WriteString(buildNavCSS(n, stepSecIdx, secsMeta, naturalWs, naturalHs, transforms))
 	b.WriteString("</style>\n")
 
 	// Radio inputs must precede all elements they control via the ~ combinator.
@@ -229,7 +251,7 @@ func buildOutputSVG(totalW, totalH, diagW, diagAreaH int,
 	b.WriteString(`<div class="content">` + "\n")
 
 	// Diagram column.
-	fmt.Fprintf(&b, `<div class="diagram-col" style="width:%dpx;">`+"\n", diagW)
+	fmt.Fprintf(&b, `<div class="diagram-col" style="width:%dpx;">`+"\n", diagAreaW)
 	b.WriteString(`<div class="diagrams">` + "\n")
 	for i, svgStr := range stepSVGs {
 		fmt.Fprintf(&b, `<div class="step step-%d">`+"\n", i)
@@ -328,7 +350,8 @@ func buildOutputSVG(totalW, totalH, diagW, diagAreaH int,
 
 // buildNavCSS generates all CSS for the SVG output: layout, theming, and the
 // :checked-based rules that drive step navigation, dot highlighting, and section titles.
-func buildNavCSS(n, diagAreaH, totalH int, effectiveWidths []int, stepSecIdx []int, secsMeta []sectionMeta) string {
+func buildNavCSS(n int, stepSecIdx []int, secsMeta []sectionMeta,
+	naturalWs, naturalHs []int, transforms []stepTransform) string {
 	var b strings.Builder
 	multiSection := len(secsMeta) > 1
 
@@ -357,14 +380,15 @@ func buildNavCSS(n, diagAreaH, totalH int, effectiveWidths []int, stepSecIdx []i
 	// Content row.
 	b.WriteString(`.content{flex:1;display:flex;flex-direction:row;overflow:hidden;}` + "\n")
 
-	// Diagram column.
+	// Diagram column: fixed viewport with overflow:hidden; diagrams pan/zoom within it via CSS transforms.
 	b.WriteString(`.diagram-col{display:flex;flex-direction:column;}` + "\n")
-	fmt.Fprintf(&b, `.diagrams{height:%dpx;overflow:hidden;padding:0 5%%;display:flex;flex-direction:column;align-items:center;justify-content:center;}`+"\n", diagAreaH)
-	b.WriteString(`.step{display:none;width:100%;}` + "\n")
-	b.WriteString(`.step>svg{display:block;width:100%!important;height:auto!important;margin:0 auto;}` + "\n")
-	// Per-step max-width enforces the 1.5× natural-width cap.
-	for i, w := range effectiveWidths {
-		fmt.Fprintf(&b, `.step-%d>svg{max-width:%dpx!important;}`+"\n", i, w)
+	fmt.Fprintf(&b, `.diagrams{height:%dpx;width:%dpx;overflow:hidden;position:relative;}`+"\n", diagAreaH, diagAreaW)
+	b.WriteString(`.step{display:none;position:absolute;top:0;left:0;}` + "\n")
+	b.WriteString(`.step>svg{display:block;position:absolute;top:0;left:0;transform-origin:0 0;}` + "\n")
+	// Per-step: pin SVG to natural pixel dimensions and apply precomputed pan/zoom transform.
+	for i, t := range transforms {
+		fmt.Fprintf(&b, `.step-%d>svg{width:%dpx!important;height:%dpx!important;transform:translate(%.2fpx,%.2fpx) scale(%.6f);}`+"\n",
+			i, naturalWs[i], naturalHs[i], t.tx, t.ty, t.scale)
 	}
 	for i := 0; i < n; i++ {
 		fmt.Fprintf(&b, `#s%d:checked~.content .step-%d{display:block;}`+"\n", i, i)
@@ -478,21 +502,44 @@ func newBrowserCtx() (context.Context, context.CancelFunc) {
 	}
 }
 
-// computeEffectiveDims returns the effective (width, height) for a diagram given its natural
-// Mermaid dimensions. Applies the sizing rules:
-//  1. Scale up to maxScaleUp× natural width, capped at availableW.
-//  2. If the resulting height exceeds maxDiagramAreaH, scale both down proportionally.
-func computeEffectiveDims(naturalW, naturalH int) (int, int) {
-	w := int(math.Round(float64(naturalW) * maxScaleUp))
-	if w > availableW {
-		w = availableW
+// computeStepTransform returns the CSS transform (scale + translation) for one diagram step.
+// bboxes holds natural-pixel bounding boxes of all highlighted and focused nodes;
+// empty bboxes signals an overview step: scale the full diagram to fit, centered.
+// Scale is capped at 1.0 so diagram text never exceeds narration text size.
+func computeStepTransform(naturalW, naturalH int, bboxes []nodeBBox) stepTransform {
+	vw, vh := float64(diagAreaW), float64(diagAreaH)
+	nw, nh := float64(naturalW), float64(naturalH)
+
+	if len(bboxes) == 0 {
+		s := math.Min(vw/nw, vh/nh)
+		if s > 1.0 {
+			s = 1.0
+		}
+		return stepTransform{scale: s, tx: (vw - nw*s) / 2, ty: (vh - nh*s) / 2}
 	}
-	h := int(math.Round(float64(naturalH) * float64(w) / float64(naturalW)))
-	if h > maxDiagramAreaH {
-		w = int(math.Round(float64(w) * float64(maxDiagramAreaH) / float64(h)))
-		h = maxDiagramAreaH
+
+	x0, y0, x1, y1 := math.Inf(1), math.Inf(1), math.Inf(-1), math.Inf(-1)
+	for _, bb := range bboxes {
+		if bb.X < x0 {
+			x0 = bb.X
+		}
+		if bb.Y < y0 {
+			y0 = bb.Y
+		}
+		if bb.X+bb.W > x1 {
+			x1 = bb.X + bb.W
+		}
+		if bb.Y+bb.H > y1 {
+			y1 = bb.Y + bb.H
+		}
 	}
-	return w, h
+
+	cx, cy := (x0+x1)/2, (y0+y1)/2
+	sw := vw / ((x1 - x0) * (1 + bboxMargin))
+	sh := vh / ((y1 - y0) * (1 + bboxMargin))
+	s := math.Min(math.Min(sw, sh), 1.0)
+
+	return stepTransform{scale: s, tx: vw/2 - cx*s, ty: vh/2 - cy*s}
 }
 
 func strSlice(s []string) []string {

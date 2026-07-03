@@ -192,6 +192,24 @@ When a step has any `highlight_nodes` or `focus_nodes`, all unreferenced nodes a
 
 Edges between any two nodes in the combined set of `highlight_nodes` and `focus_nodes` are animated automatically — no manual specification.
 
+### Diagram viewport (pan and zoom)
+
+The diagram column has a fixed pixel area and clips its content (`overflow: hidden`). The diagram is never scaled up beyond its natural Mermaid rendering size (scale 1.0). Mermaid renders node labels at ~16px; narration text is 17px — so scale 1.0 is the ceiling that keeps diagram text ≤ narration text.
+
+**Overview step** (first step of each section, no highlights): diagram is scaled to fit the container — same behavior as before. For large diagrams this means text will be noticeably smaller than narration, which is acceptable.
+
+**Steps with highlights or focuses:** the viewport pans and zooms toward the highlighted/focused nodes:
+
+1. Compute the combined bounding box of all highlighted and focused nodes in natural Mermaid coordinates.
+2. Target scale: `min(1.0, scale_to_fit_bbox)`, where `scale_to_fit_bbox` is the largest scale at which the combined bounding box (with a small margin) still fits within the container.
+3. Translate so the center of the combined bounding box is centered in the container.
+
+This means: if all highlighted nodes fit at scale 1.0 they will be shown at 1.0 (diagram text ≈ narration text). If the bounding box is too large to fit at 1.0, the viewport scales down just enough to fit — diagram text will be smaller than narration in this case.
+
+**SVG output:** transforms `(scale, tx, ty)` are precomputed per step at generation time via bounding box queries in the headless browser, then baked into per-step CSS rules. No JavaScript is present in the output SVG.
+
+**HTML output:** transforms are computed dynamically in JavaScript after each `applyStep()` call, using live `getBBox()` results, and applied as a CSS transform on the diagram SVG element.
+
 ### Click-for-walkthrough CTA
 
 When a walkthrough has more than one step, the initial view shows a "Click for walkthrough" overlay covering the full output. Clicking the overlay advances to step 1 (the section overview) and the overlay disappears permanently. The CTA is a **one-way entry point**: it is not reachable via Back, step dots, or section dots. Back navigation starts from step 2 (the first step that has a predecessor). Section and step dot navigation targets the first real step (step 1), never the CTA state.

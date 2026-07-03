@@ -72,6 +72,11 @@ const nodeLabels = [[.NodeLabelsJSON]];
 async function init() {
   await mermaid.run({ nodes: [document.querySelector('.mermaid')] });
   const svg = document.querySelector('#mermaid-container svg');
+  // Force SVG to render at its natural Mermaid width so all getBoundingClientRect()
+  // calls return coordinates in the natural pixel space.
+  const naturalW = parseFloat(svg.style.maxWidth) || Math.ceil(svg.getBoundingClientRect().width);
+  svg.style.width = naturalW + 'px';
+  svg.style.maxWidth = 'none';
   buildNodeMap(svg);
   buildEdgeMap(svg);
   document.getElementById('ready').style.display = 'block';
@@ -236,12 +241,31 @@ function getSVG() {
   return document.querySelector('#mermaid-container svg').outerHTML;
 }
 
+function getNodeBBoxes(nodeIds) {
+  const svgEl = document.querySelector('#mermaid-container svg');
+  const svgRect = svgEl.getBoundingClientRect();
+  const result = {};
+  for (const id of nodeIds) {
+    const groups = nodeMap[id];
+    if (!groups || groups.length === 0) continue;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const g of groups) {
+      const r = g.getBoundingClientRect();
+      x0 = Math.min(x0, r.left - svgRect.left);
+      y0 = Math.min(y0, r.top - svgRect.top);
+      x1 = Math.max(x1, r.right - svgRect.left);
+      y1 = Math.max(y1, r.bottom - svgRect.top);
+    }
+    if (x0 < Infinity) result[id] = {x: x0, y: y0, w: x1 - x0, h: y1 - y0};
+  }
+  return JSON.stringify(result);
+}
+
 function getDimensions() {
   const svg = document.querySelector('#mermaid-container svg');
   const rect = svg.getBoundingClientRect();
-  // naturalW: Mermaid's own max-width (before any CSS override) — used to cap scale-up.
-  const naturalW = parseFloat(svg.style.maxWidth) || Math.ceil(rect.width);
-  return JSON.stringify({w: Math.ceil(rect.width), h: Math.ceil(rect.height), nw: Math.ceil(naturalW)});
+  const w = Math.ceil(rect.width);
+  return JSON.stringify({w, h: Math.ceil(rect.height), nw: w});
 }
 
 init();
