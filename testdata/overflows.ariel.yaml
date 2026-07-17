@@ -1,0 +1,10 @@
+title: Overflows Diagram Test
+mermaid_diagram: |
+  graph LR
+    A[Alpha] --> B[Beta] --> C[Gamma] --> D[Delta] --> E[Epsilon] --> F[Zeta] --> G[Eta] --> H[Theta] --> I[Iota] --> J[Kappa] --> K[Lambda] --> L[Mu]
+steps:
+  - narration: Overview step. This diagram is wider than the viewport.
+  - narration: Highlight left nodes A and B.
+    highlight_nodes: [A, B]
+  - narration: Highlight right nodes K and L.
+    highlight_nodes: [K, L]

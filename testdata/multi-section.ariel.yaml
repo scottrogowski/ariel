@@ -1,0 +1,20 @@
+title: Multi-Section Test
+sections:
+  - title: "Section One"
+    mermaid_diagram: |
+      graph TD
+        A[Alpha] --> B[Beta]
+    steps:
+      - narration: Overview of section one. No highlights.
+      - narration: Highlight node A.
+        highlight_nodes: [A]
+      - narration: Highlight node B.
+        highlight_nodes: [B]
+  - title: "Section Two"
+    mermaid_diagram: |
+      graph LR
+        X[Xray] --> Y[Yankee]
+    steps:
+      - narration: Overview of section two. No highlights.
+      - narration: Highlight node X.
+        highlight_nodes: [X]

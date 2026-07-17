@@ -1,0 +1,10 @@
+title: Fits Diagram Test
+mermaid_diagram: |
+  graph TD
+    A[Node A] --> B[Node B]
+steps:
+  - narration: Overview step. This diagram is small enough to display at natural size.
+  - narration: Highlighting node A. The diagram must not move.
+    highlight_nodes: [A]
+  - narration: Highlighting node B. The diagram must still not move.
+    highlight_nodes: [B]
