@@ -1,10 +1,17 @@
-# ariel
-
 <p align="center"><img src="internal/logo/logo.svg" width="100%" alt="ariel logo"></p>
 
-A tool for LLMs to explain complex systems to humans. Using ariel, LLMs can generate step-by-step Mermaid diagram walkthroughs. The walkthrough breaks a system down into comprehensible chunks. Output formats include interactive self-contained HTML (best experience), interactive SVG (for embedding in GitHub PRs and READMEs), or MP4 (non-interactive). Additionally, you can "watch" a file which your agent updates as it codes.
+Ariel is a CLI that generates mermaid diagram walkthroughs. Its primary use-case is for LLMs to explain complex systems/concepts to humans.
 
-Actual example SVGs below
+Ariel walkthroughs simplify otherwise complex things into comprehensible chunks. Output formats include interactive:
+- self-contained HTML (best experience)
+- interactive SVG (for embedding in GitHub PRs and READMEs)
+- MP4
+
+The most powerful command is `ariel watch`. With it, your agent will write to a file to communicate with you which then renders, on-update, in your browser.
+
+_A picture is worth 1000 words. A walkthrough is worth 10,000._
+
+## Example SVGs
 
 [![ariel-why walkthrough](examples/example-output/ariel-why-output.svg)](examples/example-output/ariel-why-output.svg)
 
@@ -21,7 +28,7 @@ MP4 output requires [`ffmpeg`](https://ffmpeg.org/download.html) on your `PATH`.
 
 ## Usage
 
-The best way to use Ariel is to ask your agent to `go install github.com/scottrogowski/ariel/cmd/ariel@latest` and "use this tool to create a walkthrough to explain this code/system/PR/concept.
+Ask your agent to "use the 'ariel' CLI to create a walkthrough to explain this code/system/PR/concept."
 
 Common commands
 ```sh
@@ -41,19 +48,19 @@ ariel generate my-system.ariel.yaml
 ariel generate --format svg my-system.ariel.yaml
 ```
 
-## Developing
+## Development
 
-AGENTS: Ariel follows spec-driven-development. Read spec/ariel-spec.md now. This is NOT optional. The spec MUST be kept in sync with all source changes.
+Ariel follows spec-driven-development. Read spec/ariel-spec.md. If you are an agent, read this NOW. This is NOT optional. The spec MUST be kept in sync with all source changes.
 
-After every code change that could alter the output rendering (which is almost every code change), run `make example`. This is NOT optional. Almost every commit should have modifications to the examples.
+After every code change that could alter the output rendering (which is almost every code change), run `make examples`. This is also NOT optional. Almost every commit should have modifications to the examples.
 
 ## Testing
 
 ```sh
 make test
 make lint
-make example  # generates HTML, SVG, and MP4 outputs under examples/example-output/
+make examples
 ```
 
-AGENTS: Tests do not cover most visual output. This must be manually validated by you or the user. You should use `chrome-devtools` if you have access. If you do not, be sure the user knows that they must validate.
-HUMANS: Please validate the output before opening PRs and include screenshots.
+AGENTS: Tests do not cover most visual output. This must be manually validated by you or the user. Use `chrome-devtools` if you have access. If you have access, be sure you are not littering the repo root with artifacts. Use `/tmp`. If you do not have access, remind the user that they must manually validate before finalizing changes.
+HUMANS: Please manually validate the output before opening PRs.

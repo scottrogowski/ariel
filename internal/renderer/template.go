@@ -8,6 +8,7 @@ const htmlTemplate = `<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>[[.Title]] | Ariel</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,[[.FaviconBase64]]">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
 <style>
   :root {

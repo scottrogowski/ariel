@@ -52,11 +52,12 @@ type jsSection struct {
 }
 
 type templateData struct {
-	Title        string
-	GitHubURL    string
-	SectionsJSON string
-	LogoSVG      string
-	WSSnippet    string // empty for generate, populated for watch
+	Title         string
+	GitHubURL     string
+	SectionsJSON  string
+	LogoSVG       string
+	FaviconBase64 string
+	WSSnippet     string // empty for generate, populated for watch
 }
 
 var tmpl = template.Must(
@@ -108,11 +109,12 @@ func render(w *dsl.Walkthrough, wsSnippet string) (string, error) {
 	}
 
 	data := templateData{
-		Title:        w.Title,
-		GitHubURL:    "https://github.com/scottrogowski/ariel",
-		SectionsJSON: strings.TrimRight(jsonBuf.String(), "\n"),
-		LogoSVG:      logo.SVG,
-		WSSnippet:    wsSnippet,
+		Title:         w.Title,
+		GitHubURL:     "https://github.com/scottrogowski/ariel",
+		SectionsJSON:  strings.TrimRight(jsonBuf.String(), "\n"),
+		LogoSVG:       logo.SVG,
+		FaviconBase64: logo.FaviconBase64(),
+		WSSnippet:     wsSnippet,
 	}
 
 	var buf bytes.Buffer

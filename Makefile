@@ -1,10 +1,10 @@
 BIN := ./ariel
 
-.PHONY: build example test lint
+.PHONY: build examples test lint
 build:
 	go build -o $(BIN) ./cmd/ariel
 
-example: build
+examples: build
 	$(BIN) generate --output examples/example-output/ariel-why-output.html examples/example-input/ariel-why.ariel.yaml
 	$(BIN) generate --format svg --output examples/example-output/ariel-why-output.svg examples/example-input/ariel-why.ariel.yaml
 	$(BIN) generate --format mp4 --output examples/example-output/ariel-why-output.mp4 examples/example-input/ariel-why.ariel.yaml
@@ -17,7 +17,7 @@ example: build
 test:
 	go test ./...
 	@echo ""
-	@echo "Tests pass. Run 'make example' and inspect HTML/MP4 to validate visual output."
+	@echo "Tests pass. Run 'make examples' and inspect HTML/MP4 to validate visual output."
 
 lint:
 	go vet ./...
