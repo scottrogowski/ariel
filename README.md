@@ -1,14 +1,14 @@
 # ariel
 
-<p align="center"><img src="logo.png" width="128" alt="ariel logo"></p>
+<p align="center"><img src="internal/logo/logo.svg" width="128" alt="ariel logo"></p>
 
 A tool for LLMs to explain complex systems to humans. Using ariel, LLMs can generate step-by-step Mermaid diagram walkthroughs. The walkthrough breaks a system down into comprehensible chunks. Output formats include interactive self-contained HTML (best experience), interactive SVG (for embedding in GitHub PRs and READMEs), or MP4 (non-interactive). Additionally, you can "watch" a file which your agent updates as it codes.
 
 Actual example SVGs below
 
-[![ariel-why walkthrough](examples/ariel-why-output.svg)](examples/ariel-why-output.svg)
+[![ariel-why walkthrough](examples/example-output/ariel-why-output.svg)](examples/example-output/ariel-why-output.svg)
 
-[![ariel-what walkthrough](examples/ariel-what-output.svg)](examples/ariel-what-output.svg)
+[![ariel-what walkthrough](examples/example-output/ariel-what-output.svg)](examples/example-output/ariel-what-output.svg)
 
 ## Install
 
@@ -52,7 +52,7 @@ AGENTS: do this after every change
 ```sh
 make test
 make lint
-make example  # generates HTML, SVG, and MP4 outputs under examples/
+make example  # generates HTML, SVG, and MP4 outputs under examples/example-output/
 ```
 
 Important: Automated tests cover parsing, verification, and CLI behavior. Visual output correctness — node highlighting, edge animation, layout, SVG interactivity, etc — cannot be tested automatically. After any change to the renderer or template, open the generated HTML and SVG in a browser and inspect the MP4 to verify.

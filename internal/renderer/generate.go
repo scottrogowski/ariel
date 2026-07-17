@@ -11,6 +11,7 @@ import (
 	"text/template"
 
 	"github.com/scottrogowski/ariel/internal/dsl"
+	"github.com/scottrogowski/ariel/internal/logo"
 )
 
 var mdLinkRe = regexp.MustCompile(`\[([^\]]+)\]\((https?://[^)]+)\)`)
@@ -54,6 +55,7 @@ type templateData struct {
 	Title        string
 	GitHubURL    string
 	SectionsJSON string
+	LogoSVG      string
 	WSSnippet    string // empty for generate, populated for watch
 }
 
@@ -109,6 +111,7 @@ func render(w *dsl.Walkthrough, wsSnippet string) (string, error) {
 		Title:        w.Title,
 		GitHubURL:    "https://github.com/scottrogowski/ariel",
 		SectionsJSON: strings.TrimRight(jsonBuf.String(), "\n"),
+		LogoSVG:      logo.SVG,
 		WSSnippet:    wsSnippet,
 	}
 

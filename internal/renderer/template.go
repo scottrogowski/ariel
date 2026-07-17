@@ -74,28 +74,15 @@ const htmlTemplate = `<!DOCTYPE html>
   .ariel-link:hover { opacity: 1; }
 
   .ariel-logo {
-    position: relative;
-    width: 36px;
-    height: 36px;
     display: block;
+    width: 160px;
+    height: auto;
   }
 
-  .ariel-emoji {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 20px;
-    line-height: 1;
-    z-index: 1;
-  }
-
-  .ariel-flowchart {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 36px;
-    height: 36px;
+  .ariel-logo svg {
+    display: block;
+    width: 160px;
+    height: auto;
   }
 
   .main {
@@ -368,14 +355,7 @@ const htmlTemplate = `<!DOCTYPE html>
 <header>
   <h1 class="page-title">[[.Title]]<span id="section-title-sep" class="page-title-sep" style="display:none">|</span><span id="section-title" class="page-section-title"></span></h1>
   <a class="ariel-link" href="[[.GitHubURL]]" target="_blank" rel="noopener">
-    <span class="ariel-logo">
-    <span class="ariel-emoji">🧜🏻‍♀️</span>
-    <svg class="ariel-flowchart" viewBox="0 0 44 44" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="22" cy="22" r="20" stroke-width="1.2"/>
-      <rect x="7.86" y="7.86" width="28.28" height="28.28" stroke-width="1.2"/>
-      <polygon points="22,2 42,22 22,42 2,22" stroke-width="1.2"/>
-    </svg>
-    </span>
+    <span class="ariel-logo">[[.LogoSVG]]</span>
   </a>
 </header>
 

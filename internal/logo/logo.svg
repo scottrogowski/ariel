@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 688 256" width="688" height="256">
+  <rect width="688" height="256" fill="#0f1117"/>
+
+  <rect x="8" y="80" width="96" height="96" rx="6" fill="none" stroke="#6b7280" stroke-width="6"/>
+  <rect x="152" y="80" width="96" height="96" rx="6" fill="none" stroke="#6b7280" stroke-width="6"/>
+  <rect x="296" y="80" width="96" height="96" rx="6" fill="none" stroke="#6b7280" stroke-width="6"/>
+  <rect x="440" y="80" width="96" height="96" rx="6" fill="none" stroke="#6b7280" stroke-width="6"/>
+  <rect x="584" y="80" width="96" height="96" rx="6" fill="none" stroke="#6b7280" stroke-width="6"/>
+
+  <line x1="104" y1="128" x2="134" y2="128" stroke="#6b7280" stroke-width="6" stroke-linecap="round"/>
+  <polygon points="132,113 152,128 132,143" fill="#6b7280"/>
+  <line x1="248" y1="128" x2="278" y2="128" stroke="#6b7280" stroke-width="6" stroke-linecap="round"/>
+  <polygon points="276,113 296,128 276,143" fill="#6b7280"/>
+  <line x1="392" y1="128" x2="422" y2="128" stroke="#6b7280" stroke-width="6" stroke-linecap="round"/>
+  <polygon points="420,113 440,128 420,143" fill="#6b7280"/>
+  <line x1="536" y1="128" x2="566" y2="128" stroke="#6b7280" stroke-width="6" stroke-linecap="round"/>
+  <polygon points="564,113 584,128 564,143" fill="#6b7280"/>
+
+  <text x="56" y="128" dy="0.32em" font-size="64" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+        fill="#6b7280" text-anchor="middle">A</text>
+  <text x="200" y="128" dy="0.32em" font-size="64" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+        fill="#6b7280" text-anchor="middle">R</text>
+  <text x="344" y="128" dy="0.32em" font-size="64" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+        fill="#6b7280" text-anchor="middle">I</text>
+  <text x="488" y="128" dy="0.32em" font-size="64" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+        fill="#6b7280" text-anchor="middle">E</text>
+  <text x="632" y="128" dy="0.32em" font-size="64" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+        fill="#6b7280" text-anchor="middle">L</text>
+</svg>

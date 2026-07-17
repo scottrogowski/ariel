@@ -13,6 +13,7 @@ import (
 
 	"github.com/chromedp/chromedp"
 	"github.com/scottrogowski/ariel/internal/dsl"
+	"github.com/scottrogowski/ariel/internal/logo"
 )
 
 const (
@@ -237,15 +238,9 @@ func buildOutputSVG(title string, stepSVGs, narrations, stepHeaders []string,
 	}
 	b.WriteString("</div>\n")
 	// Logo links to the ariel GitHub page (functional in SVG viewer, not in <img> embed).
-	fmt.Fprintf(&b,
-		`<a class="ariel-link" href="%s">`+
-			`<span class="ariel-logo">`+
-			`<span class="ariel-emoji">&#x1F9DC;&#x1F3FB;&#x200D;&#x2640;&#xFE0F;</span>`+
-			`<svg class="ariel-flowchart" viewBox="0 0 44 44" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg">`+
-			`<circle cx="22" cy="22" r="20" stroke-width="1.2"/>`+
-			`<rect x="7.86" y="7.86" width="28.28" height="28.28" stroke-width="1.2"/>`+
-			`<polygon points="22,2 42,22 22,42 2,22" stroke-width="1.2"/>`+
-			`</svg></span></a>`+"\n", arielGitHubURL)
+	// Written with WriteString rather than Fprintf: logo.SVG is untrusted-to-%-escape input.
+	b.WriteString(`<a class="ariel-link" href="` + arielGitHubURL + `">`)
+	b.WriteString(`<span class="ariel-logo">` + logo.SVG + `</span></a>` + "\n")
 	b.WriteString("</div>\n") // end .page-header
 
 	// Content row: diagram column (left) + narration column (right).
@@ -370,9 +365,8 @@ func buildNavCSS(n int, stepSecIdx []int, secsMeta []sectionMeta,
 	// Logo.
 	b.WriteString(`.ariel-link{position:absolute;right:32px;opacity:0.7;text-decoration:none;color:#6b7280;}` + "\n")
 	b.WriteString(`.ariel-link:hover{opacity:1;}` + "\n")
-	b.WriteString(`.ariel-logo{position:relative;width:36px;height:36px;display:block;}` + "\n")
-	b.WriteString(`.ariel-emoji{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:20px;line-height:1;z-index:1;}` + "\n")
-	b.WriteString(`.ariel-flowchart{position:absolute;top:0;left:0;width:36px;height:36px;}` + "\n")
+	b.WriteString(`.ariel-logo{display:block;width:160px;height:auto;}` + "\n")
+	b.WriteString(`.ariel-logo svg{display:block;width:160px;height:auto;}` + "\n")
 
 	// Content row.
 	b.WriteString(`.content{flex:1;display:flex;flex-direction:row;overflow:hidden;}` + "\n")

@@ -1,5 +1,3 @@
-- Are edges enough? Weird to see edges highlighted and not nodes
-- Fix up logo as an SVG and embed in html
 - Spend a lot of time with the copy updating it
 - Try zoom around instead of sidebar
 - Links in narration (make it markdown?)
