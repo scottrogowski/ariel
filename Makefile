@@ -2,7 +2,7 @@ BIN := ./ariel
 
 .PHONY: build example test lint
 build:
-	go build -o $(BIN) .
+	go build -o $(BIN) ./cmd/ariel
 
 example: build
 	$(BIN) generate --output examples/example-output/ariel-why-output.html examples/example-input/ariel-why.ariel.yaml

@@ -57,7 +57,7 @@ func run(args ...string) (stdout, stderr string, exitCode int) {
 // TestCLI_VerifyKnownGoodFile confirms that the included testdata file is valid:
 // verify must exit 0 and produce no error lines (warnings are acceptable).
 func TestCLI_VerifyKnownGoodFile(t *testing.T) {
-	stdout, _, exitCode := run("verify", "testdata/auth-flow.ariel.yaml")
+	stdout, _, exitCode := run("verify", "../../testdata/auth-flow.ariel.yaml")
 	if exitCode != 0 {
 		t.Fatalf("expected exit 0, got %d; output: %s", exitCode, stdout)
 	}
@@ -134,7 +134,7 @@ func TestCLI_MultipleDiagramExampleVerifies(t *testing.T) {
 // requires human review — see package-level comment.
 func TestCLI_GenerateHTML(t *testing.T) {
 	outPath := filepath.Join(t.TempDir(), "out.html")
-	stdout, _, exitCode := run("generate", "--output", outPath, "testdata/auth-flow.ariel.yaml")
+	stdout, _, exitCode := run("generate", "--output", outPath, "../../testdata/auth-flow.ariel.yaml")
 	if exitCode != 0 {
 		t.Fatalf("generate: exit %d\noutput: %s", exitCode, stdout)
 	}
@@ -203,7 +203,7 @@ steps:
 // structurally valid SVG file. Visual correctness requires human review.
 func TestCLI_GenerateSVG(t *testing.T) {
 	outPath := filepath.Join(t.TempDir(), "out.svg")
-	stdout, stderr, exitCode := run("generate", "--format", "svg", "--output", outPath, "testdata/auth-flow.ariel.yaml")
+	stdout, stderr, exitCode := run("generate", "--format", "svg", "--output", outPath, "../../testdata/auth-flow.ariel.yaml")
 	if exitCode != 0 {
 		t.Fatalf("generate svg: exit %d\nstdout: %s\nstderr: %s", exitCode, stdout, stderr)
 	}

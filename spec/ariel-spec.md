@@ -28,7 +28,7 @@ Ariel addresses this by turning a system description into a guided, animated wal
 - **Implementation language:** Go
 - **Output:** Single static binary, cross-compiled for macOS (arm64, amd64), Linux (amd64), Windows (amd64)
 - **Build tooling:** GoReleaser + GitHub Actions
-- **Distribution:** GitHub Releases (pre-built binaries), `go install github.com/scottrogowski/ariel@latest`
+- **Distribution:** GitHub Releases (pre-built binaries), `go install github.com/scottrogowski/ariel/cmd/ariel@latest`
 - **Runtime dependencies:** None for the binary itself. `ffmpeg` must be on PATH when using `--format mp4`. Chromium (managed by chromedp) is used for `--format mp4` and `--format svg`.
 
 ---
