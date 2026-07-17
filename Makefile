@@ -1,7 +1,6 @@
 BIN := ./ariel
 
 .PHONY: build example test lint
-
 build:
 	go build -o $(BIN) .
 
@@ -18,8 +17,8 @@ example: build
 test:
 	go test ./...
 	@echo ""
-	@echo "Unit tests pass. Automated tests cannot verify visual output."
-	@echo "Run 'make example' and inspect the generated HTML and MP4 to validate rendering."
+	@echo "Tests pass. Run 'make example' and inspect HTML/MP4 to validate visual output."
 
 lint:
 	go vet ./...
+

@@ -276,9 +276,9 @@ sections:
 	}
 	svg := string(data)
 
-	// 4 steps = 4 radio inputs (count opening tags, not CSS selectors)
-	if strings.Count(svg, `<input type="radio"`) != 4 {
-		t.Errorf("expected 4 radio inputs for 4 steps, got %d", strings.Count(svg, `<input type="radio"`))
+	// 4 steps = 5 radio inputs: s0 is the CTA state, s1..s4 are the actual steps.
+	if strings.Count(svg, `<input type="radio"`) != 5 {
+		t.Errorf("expected 5 radio inputs for 4 steps (s0=CTA + s1..s4), got %d", strings.Count(svg, `<input type="radio"`))
 	}
 	// Section title should appear in the narration panel headers
 	if !strings.Contains(svg, "Section A") {

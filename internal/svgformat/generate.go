@@ -217,12 +217,13 @@ func buildOutputSVG(title string, stepSVGs, narrations, stepHeaders []string,
 	b.WriteString("</style>\n")
 
 	// Radio inputs must precede all elements they control via the ~ combinator.
-	for i := range stepSVGs {
+	// s0 = CTA state (checked initially); s1..sN = actual steps (overview + highlights).
+	for j := 0; j <= n; j++ {
 		checked := ""
-		if i == 0 {
+		if j == 0 {
 			checked = ` checked="checked"`
 		}
-		fmt.Fprintf(&b, `<input type="radio" name="s" id="s%d"%s/>`+"\n", i, checked)
+		fmt.Fprintf(&b, `<input type="radio" name="s" id="s%d"%s/>`+"\n", j, checked)
 	}
 
 	// Page header: title (with per-step section name for multi-section) + ariel logo.
@@ -254,7 +255,7 @@ func buildOutputSVG(title string, stepSVGs, narrations, stepHeaders []string,
 	fmt.Fprintf(&b, `<div class="diagram-col" style="width:%dpx;">`+"\n", diagAreaW)
 	b.WriteString(`<div class="diagrams">` + "\n")
 	for i, svgStr := range stepSVGs {
-		fmt.Fprintf(&b, `<div class="step step-%d">`+"\n", i)
+		fmt.Fprintf(&b, `<div class="step step-%d">`+"\n", i+1) // s0 is CTA; steps are s1..sN
 		b.WriteString(svgStr)
 		b.WriteString("\n</div>\n")
 	}
@@ -266,12 +267,13 @@ func buildOutputSVG(title string, stepSVGs, narrations, stepHeaders []string,
 	fmt.Fprintf(&b, `<div class="narrations" style="width:%dpx;">`+"\n", narW)
 
 	for i := range stepSVGs {
+		j := i + 1 // radio button index: s1..sN (s0 is the CTA state)
 		si := stepSecIdx[i]
 		header := html.EscapeString(stepHeaders[i])
 		text := html.EscapeString(narrations[i])
 		text = strings.ReplaceAll(text, "\n", "<br/>")
 
-		fmt.Fprintf(&b, `<div class="narration n-%d">`+"\n", i)
+		fmt.Fprintf(&b, `<div class="narration n-%d">`+"\n", j)
 		fmt.Fprintf(&b, `<div class="narr-header">%s</div>`+"\n", header)
 		fmt.Fprintf(&b, `<div class="narr-text">%s</div>`+"\n", text)
 
@@ -281,11 +283,8 @@ func buildOutputSVG(title string, stepSVGs, narrations, stepHeaders []string,
 		if multiSection {
 			b.WriteString(`<div class="section-track">` + "\n")
 			for si2, sec := range secsMeta {
-				// Section 0's dot targets s1 (not s0/CTA) so the CTA is unreachable via navigation.
-				target := sec.start
-				if si2 == 0 && n > 1 {
-					target = 1
-				}
+				// Each section dot targets that section's overview step (radio button = sec.start+1).
+				target := sec.start + 1
 				fmt.Fprintf(&b, `<label class="sec-dot sec-dot-%d" for="s%d" title="%s"></label>`+"\n",
 					si2, target, html.EscapeString(sec.title))
 			}
@@ -294,18 +293,13 @@ func buildOutputSVG(title string, stepSVGs, narrations, stepHeaders []string,
 		// One step-track per section. Visibility controlled by CSS :checked rules.
 		for si2, sec := range secsMeta {
 			fmt.Fprintf(&b, `<div class="step-track sec-steps-%d">`+"\n", si2)
-			// Section 0 skips s0 (CTA state) when n > 1; all other sections start at their first step.
-			startJ := 0
-			if si2 == 0 && n > 1 {
-				startJ = 1
-			}
-			for j := startJ; j < sec.count; j++ {
-				globalI := sec.start + j
+			for k := 0; k < sec.count; k++ {
+				radioIdx := sec.start + k + 1 // radio button index for step k of section si2
 				introCls := ""
-				if j == startJ {
-					introCls = " intro-dot"
+				if k == 0 {
+					introCls = " intro-dot" // first step of each section is the overview
 				}
-				fmt.Fprintf(&b, `<label class="dot dot-%d%s" for="s%d"></label>`+"\n", globalI, introCls, globalI)
+				fmt.Fprintf(&b, `<label class="dot dot-%d%s" for="s%d"></label>`+"\n", radioIdx, introCls, radioIdx)
 			}
 			b.WriteString("</div>\n") // end .sec-steps-N
 		}
@@ -317,18 +311,17 @@ func buildOutputSVG(title string, stepSVGs, narrations, stepHeaders []string,
 	// Nav controls: Back + Next buttons. Always at the bottom via margin-top:auto.
 	b.WriteString(`<div class="controls">` + "\n")
 	b.WriteString(`<div class="nav-prev">` + "\n")
-	// Back buttons start at s2: s0 is CTA state, s1 is first real step with no predecessor.
-	// This makes the CTA unreachable via Back navigation.
-	for i := 2; i < n; i++ {
-		fmt.Fprintf(&b, `<label class="prev prev-%d" for="s%d">&#x2190; Back</label>`+"\n", i, i-1)
+	// Back: s1 (overview) has no Back (s0 is CTA, not a real step); s2..sN each go back one step.
+	for j := 2; j <= n; j++ {
+		fmt.Fprintf(&b, `<label class="prev prev-%d" for="s%d">&#x2190; Back</label>`+"\n", j, j-1)
 	}
 	b.WriteString("</div>\n")
 	b.WriteString(`<div class="nav-next">` + "\n")
-	// Next buttons for steps 0..N-2. Last step shows Done (targets itself = no-op click, disabled-styled).
-	for i := 0; i < n-1; i++ {
-		fmt.Fprintf(&b, `<label class="next next-%d" for="s%d">Next &#x2192;</label>`+"\n", i, i+1)
+	// Next: s0 (CTA) has no Next button (CTA overlay handles it); s1..sN-1 advance one step; sN = Done.
+	for j := 1; j < n; j++ {
+		fmt.Fprintf(&b, `<label class="next next-%d" for="s%d">Next &#x2192;</label>`+"\n", j, j+1)
 	}
-	fmt.Fprintf(&b, `<label class="next next-done next-%d" for="s%d">Done</label>`+"\n", n-1, n-1)
+	fmt.Fprintf(&b, `<label class="next next-done next-%d" for="s%d">Done</label>`+"\n", n, n)
 	b.WriteString("</div>\n")
 	b.WriteString("</div>\n") // end .controls
 
@@ -364,10 +357,14 @@ func buildNavCSS(n int, stepSecIdx []int, secsMeta []sectionMeta,
 	if multiSection {
 		b.WriteString(`.page-sep{margin:0 10px;color:#6b7280;font-weight:300;}` + "\n")
 		b.WriteString(`.sec-title{display:none;font-size:22px;font-weight:400;color:#e8eaf0;}` + "\n")
-		// Show the current section's title span in the header.
+		// Show the current section's title span in the header (s0=CTA shows section 0's title).
+		if n > 1 {
+			fmt.Fprintf(&b, `#s0:checked~.page-header .sec-title-0{display:inline;}`+"\n")
+		}
 		for i := 0; i < n; i++ {
+			j := i + 1
 			si := stepSecIdx[i]
-			fmt.Fprintf(&b, `#s%d:checked~.page-header .sec-title-%d{display:inline;}`+"\n", i, si)
+			fmt.Fprintf(&b, `#s%d:checked~.page-header .sec-title-%d{display:inline;}`+"\n", j, si)
 		}
 	}
 	// Logo.
@@ -387,19 +384,30 @@ func buildNavCSS(n int, stepSecIdx []int, secsMeta []sectionMeta,
 	b.WriteString(`.step>svg{display:block;position:absolute;top:0;left:0;transform-origin:0 0;}` + "\n")
 	// Per-step: pin SVG to natural pixel dimensions and apply precomputed pan/zoom transform.
 	for i, t := range transforms {
+		j := i + 1 // radio button index: s1..sN
 		fmt.Fprintf(&b, `.step-%d>svg{width:%dpx!important;height:%dpx!important;transform:translate(%.2fpx,%.2fpx) scale(%.6f);}`+"\n",
-			i, naturalWs[i], naturalHs[i], t.tx, t.ty, t.scale)
+			j, naturalWs[i], naturalHs[i], t.tx, t.ty, t.scale)
 	}
+	// s0 always shows step-1: for n>1 this is the overview behind the CTA overlay;
+	// for n==1 (no CTA) this makes s0 directly show the single step.
+	b.WriteString(`#s0:checked~.content .step-1{display:block;}` + "\n")
 	for i := 0; i < n; i++ {
-		fmt.Fprintf(&b, `#s%d:checked~.content .step-%d{display:block;}`+"\n", i, i)
+		j := i + 1
+		fmt.Fprintf(&b, `#s%d:checked~.content .step-%d{display:block;}`+"\n", j, j)
 	}
 
 	// Narration column: flex column; controls pin to bottom via margin-top:auto.
 	b.WriteString(`.narrations{display:flex;flex-direction:column;background:#141720;border-left:1px solid #1e2130;}` + "\n")
 	// .narration takes natural height (no flex:1) so progress dots flow right below the text.
 	b.WriteString(`.narration{display:none;flex-direction:column;}` + "\n")
+	// n==1: s0 also shows n-1 (no CTA, s0 IS the only visible state).
+	if n == 1 {
+		b.WriteString(`#s0:checked~.content .n-1{display:flex;}` + "\n")
+		b.WriteString(`#s0:checked~.content .sec-steps-0{display:flex;}` + "\n")
+	}
 	for i := 0; i < n; i++ {
-		fmt.Fprintf(&b, `#s%d:checked~.content .n-%d{display:flex;}`+"\n", i, i)
+		j := i + 1
+		fmt.Fprintf(&b, `#s%d:checked~.content .n-%d{display:flex;}`+"\n", j, j)
 	}
 	b.WriteString(`.narr-header{flex-shrink:0;padding:16px 20px;font-size:11px;font-weight:600;color:#5b8dee;letter-spacing:0.05em;text-transform:uppercase;border-bottom:1px solid #1e2130;}` + "\n")
 	// narr-text: cap height so long narrations don't push dots/controls out of view.
@@ -415,40 +423,39 @@ func buildNavCSS(n int, stepSecIdx []int, secsMeta []sectionMeta,
 		b.WriteString(`.sec-dot{width:8px;height:8px;border-radius:50%;background:#2a2d3a;cursor:pointer;display:inline-block;transition:all 0.3s;}` + "\n")
 		b.WriteString(`.sec-dot:hover{background:#4ecdc4;opacity:0.6;}` + "\n")
 		// Active section dot: teal pill matching HTML's .section-dot.active.
+		if n > 1 {
+			fmt.Fprintf(&b, `#s0:checked~.content .sec-dot-0{background:#4ecdc4;width:24px;border-radius:3px;}`+"\n")
+		}
 		for i := 0; i < n; i++ {
+			j := i + 1
 			si := stepSecIdx[i]
-			fmt.Fprintf(&b, `#s%d:checked~.content .sec-dot-%d{background:#4ecdc4;width:24px;border-radius:3px;}`+"\n", i, si)
+			fmt.Fprintf(&b, `#s%d:checked~.content .sec-dot-%d{background:#4ecdc4;width:24px;border-radius:3px;}`+"\n", j, si)
 		}
 	}
 
 	// Per-section step-track rows. Only the current section's row is visible.
 	b.WriteString(`.step-track{display:none;gap:6px;align-items:center;}` + "\n")
 	for i := 0; i < n; i++ {
+		j := i + 1
 		si := stepSecIdx[i]
-		fmt.Fprintf(&b, `#s%d:checked~.content .sec-steps-%d{display:flex;}`+"\n", i, si)
+		fmt.Fprintf(&b, `#s%d:checked~.content .sec-steps-%d{display:flex;}`+"\n", j, si)
 	}
 	b.WriteString(`.dot{width:6px;height:6px;border-radius:50%;background:#2a2d3a;cursor:pointer;display:inline-block;transition:all 0.3s;}` + "\n")
 	b.WriteString(`.dot:hover{background:#4a5a7a;}` + "\n")
 	// Intro dot (first visible dot of each section): accent color, slightly transparent.
 	b.WriteString(`.intro-dot{background:#5b8dee;opacity:0.3;}` + "\n")
-	// Active step dot per step. s0 has no dot when n > 1 (CTA state, unreachable).
+	// Active step dot per step. s0 (CTA state) has no dot; s1..sN map to dots dot-1..dot-N.
 	for i := 0; i < n; i++ {
-		if i == 0 && n > 1 {
-			continue // no dot generated for CTA step
-		}
+		j := i + 1 // radio button index
 		si := stepSecIdx[i]
-		// First dot of each section accounts for the CTA skip in section 0.
-		firstDot := secsMeta[si].start
-		if si == 0 && n > 1 {
-			firstDot = 1
-		}
-		isIntro := i == firstDot
+		firstDot := secsMeta[si].start + 1 // radio button of first step (overview) of this section
+		isIntro := j == firstDot
 		if isIntro {
 			// Active intro dot: stays circular, full opacity.
-			fmt.Fprintf(&b, `#s%d:checked~.content .dot-%d{background:#5b8dee;opacity:1;width:6px;border-radius:50%%;}`+"\n", i, i)
+			fmt.Fprintf(&b, `#s%d:checked~.content .dot-%d{background:#5b8dee;opacity:1;width:6px;border-radius:50%%;}`+"\n", j, j)
 		} else {
 			// Active regular dot: pill shape.
-			fmt.Fprintf(&b, `#s%d:checked~.content .dot-%d{background:#5b8dee;opacity:1;width:20px;border-radius:3px;}`+"\n", i, i)
+			fmt.Fprintf(&b, `#s%d:checked~.content .dot-%d{background:#5b8dee;opacity:1;width:20px;border-radius:3px;}`+"\n", j, j)
 		}
 	}
 
@@ -462,15 +469,21 @@ func buildNavCSS(n int, stepSecIdx []int, secsMeta []sectionMeta,
 	b.WriteString(`.next:hover{background:#4a7de0;}` + "\n")
 	b.WriteString(`.next-done{opacity:0.3;cursor:not-allowed;}` + "\n")
 	b.WriteString(`.next-done:hover{background:#5b8dee;}` + "\n")
+	// s0 (CTA): no Back or Next CSS (CTA overlay handles navigation).
+	// s1 (overview): Next only; s2..sN-1: Back and Next; sN: Back and Done.
+	// n==1 special case: s0 IS the user-facing state, so show Done at s0.
+	if n == 1 {
+		b.WriteString(`#s0:checked~.content .next-done{display:block;}` + "\n")
+	}
 	for i := 0; i < n; i++ {
-		// Back: shown from s2 onward; s0=CTA, s1=first real step (no predecessor).
-		if i >= 2 {
-			fmt.Fprintf(&b, `#s%d:checked~.content .prev-%d{display:block;}`+"\n", i, i)
+		j := i + 1
+		if j >= 2 { // overview (j=1) has no Back; first highlight (j=2) onwards have Back
+			fmt.Fprintf(&b, `#s%d:checked~.content .prev-%d{display:block;}`+"\n", j, j)
 		}
-		if i < n-1 {
-			fmt.Fprintf(&b, `#s%d:checked~.content .next-%d{display:block;}`+"\n", i, i)
-		} else {
-			fmt.Fprintf(&b, `#s%d:checked~.content .next-done{display:block;}`+"\n", i)
+		if j < n {
+			fmt.Fprintf(&b, `#s%d:checked~.content .next-%d{display:block;}`+"\n", j, j)
+		} else { // j == n = last step
+			fmt.Fprintf(&b, `#s%d:checked~.content .next-done{display:block;}`+"\n", j)
 		}
 	}
 

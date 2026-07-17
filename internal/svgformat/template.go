@@ -108,26 +108,57 @@ function buildNodeMap(svg) {
   // Strategy 3: generic fallback for any remaining unmapped IDs.
   if (Object.keys(nodeLabels).some(id => !nodeMap[id])) {
     const alreadyMapped = new Set(Object.values(nodeMap).flat());
+    // Skip groups that are nested inside an already-mapped group: in sequence diagrams the
+    // outer lifeline+actor group and the inner actor box group both have the same textContent,
+    // and mapping both causes double-opacity multiplication (0.4 × 0.4 = 0.16) which makes
+    // the actor box far more transparent than the lifeline, so the lifeline shows through.
+    function isDescendantOfMapped(el) {
+      let p = el.parentElement;
+      while (p && p !== svg) {
+        if (alreadyMapped.has(p)) return true;
+        p = p.parentElement;
+      }
+      return false;
+    }
     svg.querySelectorAll('g').forEach(group => {
-      if (alreadyMapped.has(group)) return;
+      if (alreadyMapped.has(group) || isDescendantOfMapped(group)) return;
       const label = normalize(group.textContent);
       const id = labelToId[label];
       if (id) { addGroup(id, group); alreadyMapped.add(group); }
     });
   }
-  // Sequence diagram z-order fix: Mermaid renders top actor groups before lifelines in DOM
-  // order, causing lifelines to paint over actor boxes. Moving top actors to SVG end fixes
-  // stacking without changing their visual position (SVG uses coordinates, not flow).
-  const firstActorLine = svg.querySelector('.actor-line');
-  if (firstActorLine) {
-    const toMove = [];
-    let sibling = svg.firstElementChild;
-    while (sibling && sibling !== firstActorLine) {
-      if (sibling.classList && sibling.classList.contains('actor')) toMove.push(sibling);
-      sibling = sibling.nextElementSibling;
+  // Sequence diagram z-order fix: Mermaid renders top actor box groups before lifelines in
+  // DOM order, causing lifelines to paint over actor boxes. Moving top actor boxes to the
+  // SVG end fixes stacking without changing visual position (SVG uses coordinates, not flow).
+  //
+  // In some Mermaid versions class="actor" is on <rect>/<text> children, not on the <g>
+  // wrapper. To be robust, we detect top actor box groups as: direct <g> children that
+  // contain rect.actor/text.actor but no <line> (lifelines are in groups containing <line>).
+  // Works for both the old (g.actor) and new (g > rect.actor) Mermaid structures.
+  {
+    const svgKids = Array.from(svg.children);
+    const firstLifelineIdx = svgKids.findIndex(el =>
+      el.tagName && el.tagName.toLowerCase() === 'g' && (
+        el.classList.contains('actor-line') ||
+        el.querySelector('line:not(.messageLine0):not(.messageLine1)')
+      )
+    );
+    if (firstLifelineIdx > 0) {
+      const toMove = svgKids.slice(0, firstLifelineIdx).filter(el =>
+        el.tagName && el.tagName.toLowerCase() === 'g' &&
+        el.querySelector('rect.actor, text.actor')
+      );
+      toMove.forEach(el => svg.appendChild(el));
     }
-    toMove.forEach(el => svg.appendChild(el));
   }
+  // Bug fix: SVG spec says inheritable properties (including fill) use the referencing
+  // element's value as the initial value inside marker content. Active message lines have
+  // inline fill:none which overrides the CSS fill:lightgrey on the marker path, making
+  // arrowheads invisible. Explicit inline fill takes precedence over CSS inheritance.
+  svg.querySelectorAll('marker path, marker polygon').forEach(el => {
+    el.style.setProperty('fill', 'lightgrey', 'important');
+    el.style.setProperty('stroke', 'lightgrey', 'important');
+  });
 }
 
 function buildEdgeMap(svg) {
@@ -203,7 +234,23 @@ function applyStep(highlightNodes, focusNodes) {
           el.style.setProperty('stroke-width', '2px', 'important');
         });
       } else {
-        group.style.opacity = '0.4';
+        // Top actor box groups (contain rect.actor but no lifeline <line>) must stay
+        // opaque so the lifeline behind them doesn't show through. Dim via fill/text
+        // instead of group opacity. Other groups (lifeline+bottom, flowchart nodes) dim
+        // normally with opacity.
+        const isTopActorBox = !!group.querySelector('rect.actor') && !group.querySelector('line');
+        if (isTopActorBox) {
+          group.style.opacity = '1';
+          group.querySelectorAll('rect.actor').forEach(el => {
+            el.style.setProperty('fill', '#111520', 'important');
+            el.style.setProperty('stroke-opacity', '0.2', 'important');
+          });
+          group.querySelectorAll('text.actor').forEach(el => {
+            el.style.setProperty('opacity', '0.15', 'important');
+          });
+        } else {
+          group.style.opacity = '0.4';
+        }
       }
     });
   });

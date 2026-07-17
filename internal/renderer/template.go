@@ -28,7 +28,8 @@ const htmlTemplate = `<!DOCTYPE html>
     background: var(--bg);
     color: var(--text);
     font-family: 'Inter', system-ui, sans-serif;
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
   }
@@ -104,22 +105,23 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   .diagram-pane {
-    padding: 0 5%;
-    display: flex;
-    align-items: center;
+    position: relative;
+    overflow: hidden;
     border-right: 1px solid var(--border);
   }
 
   #mermaid-container {
-    width: 100%;
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transition: opacity 0.2s ease;
   }
 
   #mermaid-container svg {
     display: block;
-    width: 100% !important;
-    height: auto !important;
-    margin: 0 auto;
   }
 
   .side-pane {
@@ -134,6 +136,7 @@ const htmlTemplate = `<!DOCTYPE html>
     display: flex;
     flex-direction: column;
     gap: 24px;
+    overflow-y: auto;
   }
 
   .step-label {
@@ -299,6 +302,18 @@ const htmlTemplate = `<!DOCTYPE html>
     transition: opacity 0.35s ease;
   }
 
+  /* Top actor box groups must stay opaque so the lifeline behind them doesn't show through.
+     Use dimmed-actor instead of dimmed: keeps group opacity at 1 but darkens fill/text. */
+  #mermaid-container .dimmed-actor rect.actor {
+    fill: #111520 !important;
+    stroke-opacity: 0.2 !important;
+    transition: fill 0.35s ease;
+  }
+  #mermaid-container .dimmed-actor text.actor {
+    opacity: 0.15;
+    transition: opacity 0.35s ease;
+  }
+
   #mermaid-container .highlighted rect,
   #mermaid-container .highlighted circle,
   #mermaid-container .highlighted polygon,
@@ -383,6 +398,7 @@ const htmlTemplate = `<!DOCTYPE html>
   </div>
 </div>
 
+<div id="ariel-ready" style="display:none"></div>
 <script>
 const sections = [[.SectionsJSON]];
 
@@ -392,6 +408,7 @@ let nodeSteps = {}; // node ID → sorted list of step indices that reference it
 let currentSection = 0;
 let currentStep = 0;
 let initialized = false;
+let diagramNaturalW = 0; // natural pixel width of the current diagram SVG; captured before any transform
 
 mermaid.initialize({
   startOnLoad: false,
@@ -421,6 +438,11 @@ async function initSection(idx) {
   const container = document.getElementById('mermaid-container');
   container.innerHTML = '<div class="mermaid">' + sec.mermaid_diagram + '</div>';
   await mermaid.run({ nodes: [container.querySelector('.mermaid')] });
+  // viewBox.baseVal.width is the true natural coordinate width mermaid always sets.
+  // style.maxWidth may be "100%" (→ parseFloat gives 100, not the pixel width), so we
+  // avoid it. getBoundingClientRect reflects CSS layout, not the intrinsic SVG size.
+  const freshSvg = container.querySelector('svg');
+  diagramNaturalW = freshSvg ? (freshSvg.viewBox.baseVal.width || 0) : 0;
   nodeMap = {};
   edgeMap = {};
   nodeSteps = {};
@@ -446,6 +468,7 @@ initSection(startSection).then(() => {
   renderStep();
   updateHash(startSection);
   initialized = true;
+  document.getElementById('ariel-ready').style.display = 'block';
 });
 
 function buildNodeMap() {
@@ -486,26 +509,44 @@ function buildNodeMap() {
   // Only runs if some expected IDs remain unmapped after strategies 1 and 2.
   if (Object.keys(labels).some(id => !nodeMap[id])) {
     const alreadyMapped = new Set(Object.values(nodeMap).flat());
+    // Skip groups nested inside an already-mapped group: sequence diagram outer
+    // lifeline+actor groups and their inner actor box sub-groups share the same
+    // textContent; mapping both causes opacity double-multiplication (0.4 × 0.4).
+    function isDescendantOfMapped(el) {
+      let p = el.parentElement;
+      while (p && p !== svg) {
+        if (alreadyMapped.has(p)) return true;
+        p = p.parentElement;
+      }
+      return false;
+    }
     svg.querySelectorAll('g').forEach(group => {
-      if (alreadyMapped.has(group)) return;
+      if (alreadyMapped.has(group) || isDescendantOfMapped(group)) return;
       const label = normalize(group.textContent);
       const id = labelToId[label];
       if (id) { addGroup(id, group); alreadyMapped.add(group); }
     });
   }
 
-  // Sequence diagram z-order fix: Mermaid renders top actor groups before lifelines in DOM
-  // order, causing lifelines to paint over actor boxes. Moving top actors to SVG end fixes
-  // stacking without changing their visual position (SVG uses coordinates, not flow).
-  const firstActorLine = svg.querySelector('.actor-line');
-  if (firstActorLine) {
-    const toMove = [];
-    let sibling = svg.firstElementChild;
-    while (sibling && sibling !== firstActorLine) {
-      if (sibling.classList && sibling.classList.contains('actor')) toMove.push(sibling);
-      sibling = sibling.nextElementSibling;
+  // Sequence diagram z-order fix: Mermaid renders top actor box groups before lifelines in
+  // DOM order, causing lifelines to paint over actor boxes. Moving top actor boxes to the
+  // SVG end fixes stacking. In some Mermaid versions class="actor" is on <rect>/<text>
+  // children, not on the <g> wrapper, so we detect by presence of rect.actor without <line>.
+  {
+    const svgKids = Array.from(svg.children);
+    const firstLifelineIdx = svgKids.findIndex(el =>
+      el.tagName && el.tagName.toLowerCase() === 'g' && (
+        el.classList.contains('actor-line') ||
+        el.querySelector('line:not(.messageLine0):not(.messageLine1)')
+      )
+    );
+    if (firstLifelineIdx > 0) {
+      const toMove = svgKids.slice(0, firstLifelineIdx).filter(el =>
+        el.tagName && el.tagName.toLowerCase() === 'g' &&
+        el.querySelector('rect.actor, text.actor')
+      );
+      toMove.forEach(el => svg.appendChild(el));
     }
-    toMove.forEach(el => svg.appendChild(el));
   }
 
   // Flowchart edge map — Mermaid labels edges with LS-{src} and LE-{dst} classes.
@@ -592,8 +633,8 @@ function handleNodeClick(id) {
 function clearAllHighlights() {
   const svg = document.querySelector('#mermaid-container svg');
   if (!svg) return;
-  svg.querySelectorAll('.highlighted, .active, .dimmed').forEach(el => {
-    el.classList.remove('highlighted', 'active', 'dimmed');
+  svg.querySelectorAll('.highlighted, .active, .dimmed, .dimmed-actor').forEach(el => {
+    el.classList.remove('highlighted', 'active', 'dimmed', 'dimmed-actor');
   });
   svg.querySelectorAll('.flowchart-link, .messageLine0, .messageLine1').forEach(e => e.classList.remove('animated'));
 }
@@ -605,10 +646,19 @@ function applyStep(step) {
 
   const focusSet = new Set(step.focus_nodes);
 
-  // Apply dimmed/highlighted/active to every SVG group for each node (top + bottom for sequence).
+  // Apply dimmed/highlighted/active to every SVG group for each node.
+  // Top actor box groups (rect.actor present, no lifeline <line>) get dimmed-actor instead
+  // of dimmed so their background rect stays opaque and blocks the lifeline behind them.
   Object.entries(nodeMap).forEach(([id, els]) => {
-    const cls = !activeSet.has(id) ? 'dimmed' : focusSet.has(id) ? 'active' : 'highlighted';
-    els.forEach(el => el.classList.add(cls));
+    const activeCls = focusSet.has(id) ? 'active' : 'highlighted';
+    els.forEach(el => {
+      if (!activeSet.has(id)) {
+        const isTopActorBox = el.querySelector('rect.actor') && !el.querySelector('line');
+        el.classList.add(isTopActorBox ? 'dimmed-actor' : 'dimmed');
+      } else {
+        el.classList.add(activeCls);
+      }
+    });
   });
 
   const allNodes = [...activeSet];
@@ -724,6 +774,7 @@ function renderStep() {
   }, 200);
 
   if (initialized) applyStep(step);
+  applyPanZoom(step);
 
   const isFirst = currentSection === 0 && currentStep === 0;
   const isLastStep = currentStep === sec.steps.length - 1;
@@ -768,6 +819,107 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextStep(); }
   if (e.key === 'ArrowLeft') { e.preventDefault(); prevStep(); }
 });
+
+function applyPanZoom(step) {
+  const svg = document.querySelector('#mermaid-container svg');
+  if (!svg || diagramNaturalW === 0) return;
+
+  const container = document.getElementById('mermaid-container');
+  const availW = container.clientWidth;
+  const availH = container.clientHeight;
+  if (availW === 0 || availH === 0) return;
+
+  const vb = svg.viewBox.baseVal;
+  if (!vb || vb.width === 0) return;
+
+  // naturalH: diagram's natural pixel height, derived from viewBox aspect ratio.
+  const naturalH = diagramNaturalW * vb.height / vb.width;
+  const fits = diagramNaturalW <= availW && naturalH <= availH;
+  const activeNodes = [...step.highlight_nodes, ...step.focus_nodes];
+
+  if (fits) {
+    // Diagram fits at natural scale: show at natural size, centered. No change between steps.
+    svg.style.cssText = 'display:block;width:' + diagramNaturalW.toFixed(1) + 'px;height:' + naturalH.toFixed(1) + 'px;max-width:none;';
+    return;
+  }
+
+  if (activeNodes.length === 0) {
+    // Overflow diagram, overview step: scale to fit container with 10% padding per side.
+    const scale = Math.min(availW * 0.8 / diagramNaturalW, availH * 0.8 / naturalH);
+    const w = diagramNaturalW * scale;
+    const h = naturalH * scale;
+    svg.style.cssText = 'display:block;width:' + w.toFixed(1) + 'px;height:' + h.toFixed(1) + 'px;max-width:none;';
+    return;
+  }
+
+  // Overflow diagram, highlight step: pan and zoom toward the highlighted nodes.
+  // getCTM() returns coordinates in SVG viewport space, which is scaled by the current
+  // viewBox-to-viewport ratio. Divide by currentScale to recover viewBox units.
+  const currentRenderedW = svg.getBoundingClientRect().width;
+  if (currentRenderedW === 0) return;
+  const currentScale = currentRenderedW / vb.width;
+
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const id of activeNodes) {
+    const groups = nodeMap[id];
+    if (!groups) continue;
+    for (const g of groups) {
+      try {
+        const lb = g.getBBox();
+        const m = g.getCTM();
+        if (!m) continue;
+        const corners = [
+          [lb.x, lb.y], [lb.x + lb.width, lb.y],
+          [lb.x, lb.y + lb.height], [lb.x + lb.width, lb.y + lb.height]
+        ];
+        for (const [lx, ly] of corners) {
+          // Transform local coords to SVG viewport coords via CTM.
+          const vpx = m.a * lx + m.c * ly + m.e;
+          const vpy = m.b * lx + m.d * ly + m.f;
+          // Convert SVG viewport coords to viewBox units.
+          const vbx = vpx / currentScale + vb.x;
+          const vby = vpy / currentScale + vb.y;
+          x0 = Math.min(x0, vbx); y0 = Math.min(y0, vby);
+          x1 = Math.max(x1, vbx); y1 = Math.max(y1, vby);
+        }
+      } catch (_) {}
+    }
+  }
+
+  if (x0 === Infinity) {
+    // No bboxes found: fall back to overview scale-to-fit.
+    const scale = Math.min(availW / diagramNaturalW, availH / naturalH);
+    const w = diagramNaturalW * scale;
+    const h = naturalH * scale;
+    svg.style.cssText = 'display:block;width:' + w.toFixed(1) + 'px;height:' + h.toFixed(1) + 'px;max-width:none;';
+    return;
+  }
+
+  const margin = 0.15;
+  const paddedW = (x1 - x0) * (1 + margin);
+  const paddedH = (y1 - y0) * (1 + margin);
+  const cx = (x0 + x1) / 2;
+  const cy = (y0 + y1) / 2;
+
+  // CSS pixels per viewBox unit. Cap at natural scale (1.0) per spec.
+  const naturalPxPerUnit = diagramNaturalW / vb.width;
+  const pxPerUnit = Math.min(availW / paddedW, availH / paddedH, naturalPxPerUnit);
+
+  const svgW = vb.width * pxPerUnit;
+  const svgH = vb.height * pxPerUnit;
+
+  // Map viewBox bbox center to CSS pixels within the SVG element.
+  const cxPx = (cx - vb.x) / vb.width * svgW;
+  const cyPx = (cy - vb.y) / vb.height * svgH;
+
+  // Container centers SVG via flexbox. Translate so bbox center aligns with container center.
+  // Flex places SVG top-left at ((availW-svgW)/2, (availH-svgH)/2). After translate(tx, ty),
+  // bbox center lands at: (availW-svgW)/2 + tx + cxPx = availW/2  →  tx = svgW/2 - cxPx.
+  const tx = svgW / 2 - cxPx;
+  const ty = svgH / 2 - cyPx;
+
+  svg.style.cssText = 'display:block;width:' + svgW.toFixed(1) + 'px;height:' + svgH.toFixed(1) + 'px;max-width:none;transform:translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px);';
+}
 </script>
 [[.WSSnippet]]</body>
 </html>

@@ -196,19 +196,22 @@ Edges between any two nodes in the combined set of `highlight_nodes` and `focus_
 
 The diagram column has a fixed pixel area and clips its content (`overflow: hidden`). The diagram is never scaled up beyond its natural Mermaid rendering size (scale 1.0). Mermaid renders node labels at ~16px; narration text is 17px — so scale 1.0 is the ceiling that keeps diagram text ≤ narration text.
 
-**Overview step** (first step of each section, no highlights): diagram is scaled to fit the container — same behavior as before. For large diagrams this means text will be noticeably smaller than narration, which is acceptable.
+**Condition for pan/zoom:** Pan and zoom are only active when the diagram's natural rendering (scale 1.0) exceeds the container in at least one dimension. If the diagram fits at natural scale, it is shown at natural size and centered for every step — no panning or zooming, even on highlight steps.
 
-**Steps with highlights or focuses:** the viewport pans and zooms toward the highlighted/focused nodes:
+**When the diagram fits at natural scale** (naturalW ≤ containerW and naturalH ≤ containerH): all steps show the diagram at natural size, centered. No visual change between steps except highlighting.
 
-1. Compute the combined bounding box of all highlighted and focused nodes in natural Mermaid coordinates.
-2. Target scale: `min(1.0, scale_to_fit_bbox)`, where `scale_to_fit_bbox` is the largest scale at which the combined bounding box (with a small margin) still fits within the container.
-3. Translate so the center of the combined bounding box is centered in the container.
+**When the diagram exceeds the container** (naturalW > containerW or naturalH > containerH):
 
-This means: if all highlighted nodes fit at scale 1.0 they will be shown at 1.0 (diagram text ≈ narration text). If the bounding box is too large to fit at 1.0, the viewport scales down just enough to fit — diagram text will be smaller than narration in this case.
+- **Overview step** (first step of each section, no highlights): diagram is scaled to fit the container with 10% padding on each side. For very large diagrams this means text will be noticeably smaller than narration, which is acceptable.
 
-**SVG output:** transforms `(scale, tx, ty)` are precomputed per step at generation time via bounding box queries in the headless browser, then baked into per-step CSS rules. No JavaScript is present in the output SVG.
+- **Steps with highlights or focuses:** the viewport pans and zooms toward the highlighted/focused nodes:
+  1. Compute the combined bounding box of all highlighted and focused nodes in natural Mermaid coordinates.
+  2. Target scale: `min(1.0, scale_to_fit_bbox)`, where `scale_to_fit_bbox` is the largest scale at which the combined bounding box (with 15% margin) still fits within the container.
+  3. Translate so the center of the combined bounding box is centered in the container.
 
-**HTML output:** transforms are computed dynamically in JavaScript after each `applyStep()` call, using live `getBBox()` results, and applied as a CSS transform on the diagram SVG element.
+**SVG output:** transforms are precomputed per step at generation time via bounding box queries in the headless browser, then baked into per-step CSS. No JavaScript is present in the output SVG.
+
+**HTML output:** transforms are computed dynamically in JavaScript after each `applyStep()` call, using live `getBBox()` results, and applied as inline styles on the diagram SVG element.
 
 ### Click-for-walkthrough CTA
 
