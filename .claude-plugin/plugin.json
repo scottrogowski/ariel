@@ -1,0 +1,13 @@
+{
+  "name": "ariel",
+  "version": "0.1.0",
+  "description": "Generate step-by-step Mermaid diagram walkthroughs (HTML/SVG/MP4) from a YAML DSL. Bundles the ariel CLI (built from source on first use) and teaches agents to author walkthroughs.",
+  "author": {
+    "name": "Scott Rogowski",
+    "url": "https://github.com/scottrogowski"
+  },
+  "homepage": "https://github.com/scottrogowski/ariel",
+  "repository": "https://github.com/scottrogowski/ariel",
+  "license": "MIT",
+  "keywords": ["mermaid", "diagram", "walkthrough", "visualization", "documentation"]
+}

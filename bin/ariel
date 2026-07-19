@@ -1,0 +1,22 @@
+#!/bin/sh
+# Plugin wrapper: builds the ariel CLI from the bundled source on first use, then
+# execs it. Resolves the plugin root from this script's own path so it does not
+# depend on ${CLAUDE_PLUGIN_ROOT} being exported to bin/ commands.
+set -e
+
+script_dir=$(cd "$(dirname "$0")" && pwd)
+plugin_root=$(cd "$script_dir/.." && pwd)
+build_dir="${CLAUDE_PLUGIN_DATA:-$plugin_root/.build}"
+bin="$build_dir/ariel"
+
+if [ ! -x "$bin" ] || [ -n "$(find "$plugin_root/cmd" "$plugin_root/internal" -name '*.go' -newer "$bin" 2>/dev/null)" ]; then
+  if ! command -v go >/dev/null 2>&1; then
+    echo "ariel: a Go toolchain is required to build from source (https://go.dev/dl)" >&2
+    exit 127
+  fi
+  echo "ariel: building from source (first run may take a few seconds)..." >&2
+  mkdir -p "$build_dir"
+  (cd "$plugin_root" && go build -o "$bin" ./cmd/ariel) >&2
+fi
+
+exec "$bin" "$@"

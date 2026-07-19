@@ -1,15 +1,15 @@
 <p align="center"><img src="internal/logo/logo.svg" width="100%" alt="ariel logo"></p>
 
-Ariel is a CLI that generates mermaid diagram walkthroughs. Its primary use-case is for LLMs to explain complex systems/concepts to humans.
+Ariel is a CLI that generates mermaid diagram walkthroughs. It enables LLMs to explain complex systems/concepts to humans.
 
-Ariel walkthroughs simplify otherwise complex things into comprehensible chunks. Output formats include interactive:
+Ariel walkthroughs simplify otherwise complex systems/ideas into comprehensible chunks. Output formats include interactive:
 - self-contained HTML (best experience)
 - interactive SVG (for embedding in GitHub PRs and READMEs)
 - MP4
 
-The most powerful command is `ariel watch`. With it, your agent will write to a file to communicate with you which then renders, on-update, in your browser.
+Ariel's most powerful command is `ariel watch`. This allows your agent to iteratively update a file which Ariel then re-renders in your browser.
 
-_A picture is worth 1000 words. A walkthrough is worth 10,000._
+_If a picture is worth 1000 words, is a walkthrough worth 10,000?_
 
 ## Example SVGs
 
@@ -19,16 +19,31 @@ _A picture is worth 1000 words. A walkthrough is worth 10,000._
 
 ## Install
 
+**Claude plugin (recommended)**
+
+Gives your agent the `ariel` command and teaches it the workflow in one step:
+```sh
+/plugin marketplace add scottrogowski/ariel
+/plugin install ariel
+```
+
 **Go install**
 ```sh
 go install github.com/scottrogowski/ariel/cmd/ariel@latest
 ```
+The `~/go/bin` directory is usually not on Claude's path so if you install this way, Claude will need to search for Ariel
 
-MP4 output requires [`ffmpeg`](https://ffmpeg.org/download.html) on your `PATH`.
+**Notes**
+
+MP4 output requires [`ffmpeg`](https://ffmpeg.org/download.html).
+
+Windows is not supported at this time.
 
 ## Usage
 
-Ask your agent to "use the 'ariel' CLI to create a walkthrough to explain this code/system/PR/concept."
+Prompt your agent:
+
+> Create a walkthrough with the `ariel` CLI to explain this [code/system/PR/concept].
 
 Common commands
 ```sh
@@ -54,6 +69,8 @@ Ariel follows spec-driven-development. Read spec/ariel-spec.md. If you are an ag
 
 After every code change that could alter the output rendering (which is almost every code change), run `make examples`. This is also NOT optional. Almost every commit should have modifications to the examples.
 
+After merging updates, bump the git tag per semver, e.g. `git tag v1.1.1 && git push --tags`.
+
 ## Testing
 
 ```sh
@@ -62,5 +79,6 @@ make lint
 make examples
 ```
 
-AGENTS: Tests do not cover most visual output. This must be manually validated by you or the user. Use `chrome-devtools` if you have access. If you have access, be sure you are not littering the repo root with artifacts. Use `/tmp`. If you do not have access, remind the user that they must manually validate before finalizing changes.
+AGENTS: Tests do not cover most visual output. Your changes must be manually validated by you or the user. Use `chrome-devtools` if you have access. Use `/tmp` for temporary artifacts, not the repo root. If you do not have access to `chrome-devtools`, remind the user that they must manually validate before finalizing changes.
+
 HUMANS: Please manually validate the output before opening PRs.

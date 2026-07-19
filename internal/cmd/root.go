@@ -7,9 +7,10 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "ariel",
-	Short: RootShort,
-	Long:  RootLong,
+	Use:     "ariel",
+	Short:   RootShort,
+	Long:    RootLong,
+	Version: arielVersion(),
 	SilenceUsage: true,
 }
 

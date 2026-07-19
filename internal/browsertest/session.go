@@ -45,6 +45,20 @@ type ViewportState struct {
 // The session is automatically cancelled when the test ends.
 func Open(t *testing.T, htmlPath string) *Session {
 	t.Helper()
+	return openTarget(t, "file://"+htmlPath)
+}
+
+// OpenURL navigates to the given URL (e.g. a running watch server) in headless
+// Chrome and waits for the page to signal readiness via the #ariel-ready element.
+func OpenURL(t *testing.T, url string) *Session {
+	t.Helper()
+	return openTarget(t, url)
+}
+
+// openTarget launches a headless Chrome session, navigates to target, and waits
+// for the #ariel-ready readiness signal.
+func openTarget(t *testing.T, target string) *Session {
+	t.Helper()
 
 	allocCtx, allocCancel := chromedp.NewExecAllocator(
 		context.Background(),
@@ -64,10 +78,10 @@ func Open(t *testing.T, htmlPath string) *Session {
 	t.Cleanup(s.cancel)
 
 	if err := chromedp.Run(ctx,
-		chromedp.Navigate("file://"+htmlPath),
+		chromedp.Navigate(target),
 		chromedp.WaitVisible("#ariel-ready", chromedp.ByID),
 	); err != nil {
-		t.Fatalf("browsertest.Open: %v", err)
+		t.Fatalf("browsertest.openTarget: %v", err)
 	}
 
 	return s
@@ -204,6 +218,28 @@ func (s *Session) BBoxCenterError(nodeIDs []string) (errX, errY float64) {
 		s.t.Fatalf("browsertest.BBoxCenterError: %s", result.Reason)
 	}
 	return result.ErrX, result.ErrY
+}
+
+// Eval evaluates a JS expression that returns a string and returns it.
+func (s *Session) Eval(js string) string {
+	s.t.Helper()
+	return s.evalString(js)
+}
+
+// WaitTrue polls jsBoolExpr (a JS expression returning a boolean) until it is
+// true or timeout elapses, returning whether it became true. Evaluation errors
+// (e.g. execution context destroyed during a reload) are tolerated and retried.
+func (s *Session) WaitTrue(jsBoolExpr string, timeout time.Duration) bool {
+	s.t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		var res bool
+		if err := chromedp.Run(s.ctx, chromedp.Evaluate(jsBoolExpr, &res)); err == nil && res {
+			return true
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return false
 }
 
 // exec runs a JS void expression and waits briefly for DOM to settle.

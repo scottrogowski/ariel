@@ -29,3 +29,5 @@ const generateFlagStepDurationHelp = "seconds per step (mp4 only)"
 
 const watchShort = "Serve a live-reloading browser preview of a walkthrough file"
 const watchFlagPortHelp = "port to bind"
+
+const versionShort = "Print the installed ariel version"

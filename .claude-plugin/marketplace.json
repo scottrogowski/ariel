@@ -1,0 +1,14 @@
+{
+  "name": "ariel",
+  "description": "Ariel — animated Mermaid diagram walkthroughs from a YAML DSL.",
+  "owner": {
+    "name": "Scott Rogowski"
+  },
+  "plugins": [
+    {
+      "name": "ariel",
+      "source": "./",
+      "description": "Generate step-by-step Mermaid diagram walkthroughs (HTML/SVG/MP4) from a YAML DSL."
+    }
+  ]
+}

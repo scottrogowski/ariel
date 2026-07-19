@@ -17,7 +17,6 @@ import (
 // wsMessage is the JSON structure sent to browser clients.
 type wsMessage struct {
 	Type    string `json:"type"`
-	Content string `json:"content,omitempty"` // populated on "update"
 	Message string `json:"message,omitempty"` // populated on "error"
 }
 
@@ -46,7 +45,8 @@ func NewWatchServer(filePath string, port int, initialHTML string) *WatchServer 
 	}
 }
 
-// UpdateContent re-renders the walkthrough and broadcasts the new HTML to all connected clients.
+// UpdateContent re-renders the walkthrough, stores it for the next page load, and
+// tells connected clients to reload so they fetch the fresh HTML.
 func (s *WatchServer) UpdateContent(w *dsl.Walkthrough) {
 	html, err := render(w, s.wsSnippet())
 	if err != nil {
@@ -58,7 +58,7 @@ func (s *WatchServer) UpdateContent(w *dsl.Walkthrough) {
 	s.html = html
 	s.mu.Unlock()
 
-	msg, _ := json.Marshal(wsMessage{Type: "update", Content: html})
+	msg, _ := json.Marshal(wsMessage{Type: "update"})
 	s.broadcast(msg)
 }
 
@@ -165,17 +165,10 @@ func (s *WatchServer) wsSnippet() string {
     overlay.textContent = '⚠ ' + msg;
   }
 
-  function clearError() {
-    if (overlay) { overlay.remove(); overlay = null; }
-  }
-
   ws.onmessage = function(e) {
     var msg = JSON.parse(e.data);
     if (msg.type === 'update') {
-      clearError();
-      document.open();
-      document.write(msg.content);
-      document.close();
+      window.location.reload();
     } else if (msg.type === 'error') {
       showError(msg.message);
     }

@@ -28,8 +28,20 @@ Ariel addresses this by turning a system description into a guided, animated wal
 - **Implementation language:** Go
 - **Output:** Single static binary, cross-compiled for macOS (arm64, amd64), Linux (amd64), Windows (amd64)
 - **Build tooling:** GoReleaser + GitHub Actions
-- **Distribution:** GitHub Releases (pre-built binaries), `go install github.com/scottrogowski/ariel/cmd/ariel@latest`
+- **Distribution:** Claude Code plugin (primary path for agents, see below), `go install github.com/scottrogowski/ariel/cmd/ariel@latest`, and GitHub Releases pre-built binaries.
 - **Runtime dependencies:** None for the binary itself. `ffmpeg` must be on PATH when using `--format mp4`. Chromium (managed by chromedp) is used for `--format mp4` and `--format svg`.
+
+---
+
+## Claude Code Plugin
+
+Ariel ships as a Claude Code plugin so that other engineers' agents both install it and learn to use it in a single step. The plugin solves the two distribution problems together: installation without PATH setup, and discovery of the DSL.
+
+- **Installation without PATH setup.** The plugin bundles ariel's source and a `bin/` wrapper that Claude Code adds to the Bash tool's PATH while the plugin is enabled. The wrapper builds the binary on first use and rebuilds it when the source changes, so the agent invokes `ariel` as a bare command regardless of the user's shell configuration. This sidesteps the failure mode of a bare `go install`, whose `~/go/bin` target is absent from the Bash tool's PATH (it reads `.zshenv`, not `.zshrc`).
+- **Discovery.** The plugin bundles a skill that teaches the agent the workflow — run `ariel guide`, author a `.ariel.yaml`, verify, then watch or generate. The skill defers the DSL reference to `ariel guide` rather than duplicating it, keeping one source of truth.
+- **Why build from source.** Building on the user's machine keeps the plugin clone tiny (~1MB) and native to any architecture, whereas vendoring prebuilt binaries would force every user to download all supported architectures at once (a plugin install is a full git clone). It also keeps all executed code inspectable in the repository, which matters for community-marketplace safety screening.
+- **Requirements.** A Go toolchain builds the binary on first use; `ffmpeg` remains required only for MP4 output.
+- **Marketplace.** The repository is its own single-plugin marketplace; users add it with `/plugin marketplace add scottrogowski/ariel` and install with `/plugin install`.
 
 ---
 
@@ -56,6 +68,7 @@ Subcommands:
 | `verify` | Lint a walkthrough file for syntax and semantic errors |
 | `generate` | Render a walkthrough file to HTML, SVG, or MP4 |
 | `watch` | Serve a live-reloading browser preview |
+| `version` | Print the installed ariel version |
 
 ---
 
@@ -148,12 +161,20 @@ Start a local HTTP server that serves the walkthrough and live-reloads when the 
 **Behavior:**
 1. Runs `verify` on startup. Prints errors but does not refuse to start.
 2. Opens the browser automatically at `http://localhost:<port>`.
-3. On file change: re-parses the YAML and pushes the updated walkthrough to the browser.
-4. Browser replaces the page with the new content, or shows an error overlay on parse failure.
+3. On file change: re-parses and re-verifies, stores the fresh render, and signals the browser over the WebSocket to reload.
+4. Browser reloads and fetches the new render, or shows a dismissible error overlay on parse/verify failure (no reload).
 
 The watch output is identical to the HTML generate output.
 
 **Exit codes:** `0` clean shutdown (Ctrl+C), `1` port in use, `2` file not found.
+
+---
+
+### `ariel version`
+
+Print the installed version, derived at runtime from the module build info (the git tag). A `go install ...@vX.Y.Z` build reports the tag; a local `go build` reports a VCS pseudo-version (commit + dirty state). The git tag is the single source of truth — bumping the version means pushing a new semver tag. Also exposed as the `--version` flag.
+
+**Flags:** None. **Exit codes:** 0 always.
 
 ---
 
