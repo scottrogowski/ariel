@@ -1,5 +1,4 @@
-- Spend a lot of time with the copy updating it
-- Try zoom around instead of sidebar
-- Links in narration (make it markdown?)
-- Instead of mermaid + our thing, extend the mermaid DSL?
--
+- add versioning
+- there is a bug with watch. When the diagram updates, we end up re-rendering a blank diagram. This resolves upon page refresh
+- distribution? Should this be installed as an MCP? Just installing ariel is not great because ~/go/bin is not on CLAUDE's path as CLAUDE uses .zshenv but not .zshrc
+
