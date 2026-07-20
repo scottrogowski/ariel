@@ -10,7 +10,7 @@ description: >-
 
 `ariel` renders step-by-step Mermaid diagram walkthroughs from a `.ariel.yaml` file.
 
-1. Run `ariel guide` and read it fully — it is the authoritative DSL reference. Do this before authoring. It is short.
+1. Read the DSL reference below before authoring — it is authoritative and short (`ariel guide` prints the identical text).
 2. Author a `.ariel.yaml` file describing the diagram and the narrated steps.
 3. Run `ariel verify <file>` and fix any reported issues.
 4. Render or preview:
@@ -19,3 +19,158 @@ description: >-
    - `ariel generate --format svg <file>` — interactive SVG for embedding in GitHub PRs and READMEs.
 
 The `ariel` command is provided by this plugin and builds from source on first use, so Go must be installed.
+
+## DSL reference
+
+<!-- BEGIN GENERATED: ariel guide — regenerate with `make sync-skill`; do not edit by hand -->
+
+```
+ariel DSL reference — read this before authoring a walkthrough file.
+
+See also: `ariel single-diagram-example` and/or `ariel multiple-diagram-example`
+
+FILE STRUCTURE — single diagram
+  title: "My Walkthrough"          # optional
+  mermaid_diagram: |               # required; valid Mermaid syntax
+    graph TD
+      A[Node A] --> B[Node B]
+  steps:                           # required; at least one entry
+    # NOTE: The first step of each section is the overview with precisely two fields: label & narration
+    - label: "Overview label"      # required for first step; 2–4 words shown above narration
+      narration: "What happens."   # required for first step; 1–3 plain-English sentences
+    - label: "Step 2"              # optional; 2–4 words shown above narration
+      narration: "Next this."      # optional; 1–3 plain-English sentences
+      highlight_nodes: [A]         # optional; node IDs to dim everything else (context)
+      focus_nodes: [B]             # optional; node IDs for primary actor (stronger emphasis)
+
+FILE STRUCTURE — multiple diagrams
+  title: "My Walkthrough"
+  sections:
+    - title: "Overview"            # optional section title
+      mermaid_diagram: |
+        graph LR
+          A --> B
+      steps:
+        - narration: "Section one."
+    - title: "Detail"
+      mermaid_diagram: |
+        graph TD
+          ...
+      steps:
+        - narration: "Section two."
+
+  Use "sections" for multi-diagram walkthroughs. Use "mermaid_diagram"+"steps"
+  for single-diagram. The two formats cannot be combined in one file.
+
+  Each step must have at least one of: narration, label, highlight_nodes,
+  focus_nodes. Unknown fields at any level are errors.
+
+NODE IDs
+  From "A[Display Label]", the node ID is "A". Always reference the ID, never
+  the label. IDs are case-sensitive. Check the mermaid_diagram block for exact
+  IDs before writing steps.
+
+  Supported node shapes (all extract the same way):
+    A[text]       rectangle
+    A{text}       diamond
+    A([text])     rounded
+    A[(text)]     cylinder
+    A((text))     circle
+
+  For sequenceDiagram, participant IDs are the short IDs, not the aliases:
+    participant HP as Human Prompter  →  node ID is "HP"
+
+VISUAL EMPHASIS
+  highlight_nodes and focus_nodes are supported for two diagram types only:
+    - flowchart / graph (e.g. "graph TD", "flowchart LR")
+    - sequenceDiagram
+  Using these fields with any other Mermaid diagram type is a verify error.
+
+  highlight_nodes — dims all other nodes; highlighted nodes show a blue tint.
+  focus_nodes     — same dimming; focused nodes show a stronger teal emphasis.
+  If a node appears in both, focus takes precedence.
+
+  Edges between highlighted and focused nodes are animated automatically for
+  flowchart diagrams. Edge animation is not supported for sequenceDiagram.
+
+OUTPUT FORMATS
+  html  — highly interactive diagram; best experience (default)
+  svg   — interactive image; embeddable in READMEs and PR summaries
+  mp4   — non-interactive video; requires ffmpeg on PATH
+
+AUTHORING TIPS
+  Step sequencing:
+    1. Overview step — no highlights, lets the viewer see the full diagram
+    2. Entry point — first human-initiated action
+    3. Happy path — follow the primary flow from start to finish
+    4. Failure path — cover error branches after the happy path
+    5. "What to scrutinize" — final step identifying what deserves review
+
+  For multi-diagram files, use sections to progress from simple to detailed:
+    - Section 1: high-level overview (few nodes, major components only)
+    - Section 2+: drill into subsystems or failure paths
+
+  What to narrate:
+    - Decision points (forks where the system chooses between paths)
+    - Non-obvious design choices (surprising or could easily be done differently)
+    - Failure modes and missing specifications
+    - The entry point and primary happy path
+
+  What NOT to narrate:
+    - Every node and every edge (this just reads the diagram aloud)
+    - Implementation details obvious from the diagram
+    - More than two ideas per step
+
+  Narration style:
+    - One sentence per step, three maximum
+    - Write from the system's perspective: "The API decides" not "Node PV branches"
+    - Plain English — no jargon unless the jargon is the point
+    - The last step should identify what is worth scrutinizing in a review
+
+  Where should the ariel.yaml file live:
+    Sometimes it makes sense to commit the ariel.yaml file. Most of the time
+    (e.g. generating SVGs for PRs or brief explanations), you can save the
+    file under the `/tmp` directory.
+
+  How do I embed the SVGs in Github PR summaries?
+    The cleanest way is to commit the svg. Otherwise, upload the SVG as a secret gist
+    (gh gist create output.svg), then embed it in the PR description with standard markdown image syntax:
+      ![walkthrough](https://gist.githubusercontent.com/USER/GIST_ID/raw/FILE.svg)
+    GitHub renders a static preview inline; clicking opens the full interactive SVG.
+
+  What if policy blocks uploading secret gists?
+    In that case, you can:
+    1. Commit the svg to a temporary assets branch
+    2. Ask the user to drag/drop the mp4/html output onto the PR summary manually. MP4 can play in the PR summary. HTML will be click-to-download. SVG will not function properly if added in this way.
+    3. Ask the user to share the html file with their reviewers directly.
+
+COMMON ERRORS
+  highlight_nodes/focus_nodes reference unknown ID
+    → Check mermaid_diagram for the exact node ID (case-sensitive)
+
+  Unknown field in step or section
+    → Remove it; the DSL does not support extra fields
+
+  Missing mermaid_diagram or steps
+    → Both are required (in either the flat or sections format)
+
+  Mixing "sections" with "mermaid_diagram"/"steps"
+    → Use one format per file, not both
+
+  Steps with no content
+    → Every step needs at least one of: narration, label, highlight_nodes,
+       focus_nodes
+
+  Warning: not all highlighted components are connected
+    → The nodes referenced across highlight_nodes and focus_nodes for this step
+       don't form a single connected subgraph. Often means you're combining
+       unrelated diagram regions in one step — consider splitting into two steps
+
+  First step has highlight_nodes or focus_nodes
+    → The first step of each section is the overview. Remove visual fields
+       from step 1 — it may only use "label" and "narration"
+
+Run "ariel verify <file>" after writing — it catches all the above.
+```
+
+<!-- END GENERATED: ariel guide -->

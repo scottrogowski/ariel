@@ -1,8 +1,11 @@
 BIN := ./ariel
 
-.PHONY: build examples test lint
+.PHONY: build examples test lint sync-skill
 build:
 	go build -o $(BIN) ./cmd/ariel
+
+sync-skill:
+	go run ./internal/skillsync/gen
 
 examples: build
 	$(BIN) generate --output examples/example-output/ariel-why-output.html examples/example-input/ariel-why.ariel.yaml

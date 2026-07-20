@@ -47,7 +47,7 @@ Prompt your agent:
 
 Common commands
 ```sh
-# Load the DSL reference into LLM context (agents are expected to run this first)
+# Print the DSL reference (the create-walkthrough skill also carries it inline)
 ariel guide
 
 # Lint a walkthrough file
