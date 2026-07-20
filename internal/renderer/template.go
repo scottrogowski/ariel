@@ -11,17 +11,7 @@ const htmlTemplate = `<!DOCTYPE html>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,[[.FaviconBase64]]">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
 <style>
-  :root {
-    --bg: #0f1117;
-    --surface: #1a1d27;
-    --border: #2a2d3a;
-    --accent: #5b8dee;
-    --accent-glow: rgba(91, 141, 238, 0.3);
-    --success: #4ecdc4;
-    --text: #e8eaf0;
-    --muted: #6b7280;
-    --narration-bg: #141720;
-  }
+  [[.ThemeCSS]]
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -151,7 +141,7 @@ const htmlTemplate = `<!DOCTYPE html>
     text-underline-offset: 3px;
   }
 
-  .narration-text a:hover { color: #7aaaf5; }
+  .narration-text a:hover { color: var(--link-hover); }
 
   .progress-track {
     display: flex;
@@ -212,7 +202,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
   .section-dot.active {
     background: var(--success);
-    box-shadow: 0 0 8px rgba(78, 205, 196, 0.3);
+    box-shadow: 0 0 8px var(--success-glow);
     width: 24px;
     border-radius: 3px;
   }
@@ -250,12 +240,12 @@ const htmlTemplate = `<!DOCTYPE html>
 
   .btn-next {
     background: var(--accent);
-    color: white;
+    color: var(--on-accent);
     flex: 1;
   }
 
   .btn-next:hover:not(:disabled) {
-    background: #4a7de0;
+    background: var(--accent-hover);
     box-shadow: 0 0 16px var(--accent-glow);
   }
 
@@ -293,7 +283,7 @@ const htmlTemplate = `<!DOCTYPE html>
   /* Top actor box groups must stay opaque so the lifeline behind them doesn't show through.
      Use dimmed-actor instead of dimmed: keeps group opacity at 1 but darkens fill/text. */
   #mermaid-container .dimmed-actor rect.actor {
-    fill: #111520 !important;
+    fill: var(--dim-fill) !important;
     stroke-opacity: 0.2 !important;
     transition: fill 0.35s ease;
   }
@@ -307,7 +297,7 @@ const htmlTemplate = `<!DOCTYPE html>
   #mermaid-container .highlighted polygon,
   #mermaid-container .highlighted ellipse,
   #mermaid-container .highlighted path {
-    fill: #1e3a6e !important;
+    fill: var(--highlight-fill) !important;
     stroke: var(--accent) !important;
     stroke-width: 2px !important;
     filter: drop-shadow(0 0 8px var(--accent-glow));
@@ -318,10 +308,10 @@ const htmlTemplate = `<!DOCTYPE html>
   #mermaid-container .active polygon,
   #mermaid-container .active ellipse,
   #mermaid-container .active path {
-    fill: #1a4a7a !important;
+    fill: var(--focus-fill) !important;
     stroke: var(--success) !important;
     stroke-width: 2.5px !important;
-    filter: drop-shadow(0 0 12px rgba(78, 205, 196, 0.4));
+    filter: drop-shadow(0 0 12px var(--focus-glow));
   }
 
   #mermaid-container .flowchart-link.animated,
@@ -391,25 +381,17 @@ let currentStep = 0;
 let initialized = false;
 let diagramNaturalW = 0; // natural pixel width of the current diagram SVG; captured before any transform
 
-mermaid.initialize({
-  startOnLoad: false,
-  theme: 'dark',
-  themeVariables: {
-    primaryColor: '#1a2744',
-    primaryTextColor: '#e8eaf0',
-    primaryBorderColor: '#2a3a5a',
-    lineColor: '#4a5568',
-    secondaryColor: '#1a1d27',
-    tertiaryColor: '#1a1d27',
-    background: '#0f1117',
-    mainBkg: '#1a2744',
-    nodeBorder: '#2a3a5a',
-    clusterBkg: '#1a1d27',
-    titleColor: '#e8eaf0',
-    edgeLabelBackground: '#1a1d27',
-    fontFamily: 'Inter, system-ui, sans-serif'
-  }
-});
+[[.MermaidConfigJS]]
+mermaid.initialize(arielMermaidConfig());
+
+// reapplyTheme re-initializes Mermaid with the current OS color scheme and
+// re-renders the active section+step. Wired to a prefers-color-scheme listener
+// only in auto mode; a no-op reference otherwise.
+async function reapplyTheme() {
+  mermaid.initialize(arielMermaidConfig());
+  await initSection(currentSection);
+  renderStep();
+}
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -451,6 +433,8 @@ initSection(startSection).then(() => {
   initialized = true;
   document.getElementById('ariel-ready').style.display = 'block';
 });
+
+[[.ThemeListener]]
 
 function buildNodeMap() {
   const svg = document.querySelector('#mermaid-container svg');

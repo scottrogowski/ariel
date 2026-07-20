@@ -26,6 +26,7 @@ Output formats:
 const generateFlagOutputHelp = "output path (default: input path with format extension)"
 const generateFlagFormatHelp = "output format: html, svg, or mp4 (default: html)"
 const generateFlagStepDurationHelp = "seconds per step (mp4 only)"
+const generateFlagThemeHelp = "color theme: auto, dark, or light (auto follows the OS in HTML; bakes dark for SVG/MP4)"
 
 const watchShort = "Serve a live-reloading browser preview of a walkthrough file"
 const watchFlagPortHelp = "port to bind"

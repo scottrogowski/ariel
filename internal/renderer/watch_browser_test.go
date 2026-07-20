@@ -11,6 +11,7 @@ import (
 	"github.com/scottrogowski/ariel/internal/browsertest"
 	"github.com/scottrogowski/ariel/internal/dsl"
 	"github.com/scottrogowski/ariel/internal/renderer"
+	"github.com/scottrogowski/ariel/internal/theme"
 )
 
 // parseWalkthrough parses a fixture into a Walkthrough, failing on any error-severity issue.
@@ -69,12 +70,12 @@ func TestWatch_UpdateRerendersDiagram(t *testing.T) {
 	updated := parseWalkthrough(t, "../../testdata/overflows.ariel.yaml")
 
 	port := freePort(t)
-	initialHTML, err := renderer.RenderWatch(initial, port)
+	initialHTML, err := renderer.RenderWatch(initial, port, theme.ModeDark)
 	if err != nil {
 		t.Fatalf("renderer.RenderWatch: %v", err)
 	}
 
-	srv := renderer.NewWatchServer("../../testdata/fits.ariel.yaml", port, initialHTML)
+	srv := renderer.NewWatchServer("../../testdata/fits.ariel.yaml", port, initialHTML, theme.ModeDark)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() { _ = srv.Start(ctx) }()

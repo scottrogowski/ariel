@@ -8,12 +8,14 @@ import (
 
 	"github.com/scottrogowski/ariel/internal/dsl"
 	"github.com/scottrogowski/ariel/internal/renderer"
+	"github.com/scottrogowski/ariel/internal/theme"
 	"github.com/spf13/cobra"
 )
 
 var generateOutput string
 var generateFormat string
 var generateStepDuration int
+var generateTheme string
 
 var generateCmd = &cobra.Command{
 	Use:   "generate <file.ariel.yaml>",
@@ -35,13 +37,19 @@ var generateCmd = &cobra.Command{
 			os.Exit(2)
 		}
 
+		mode, err := theme.ParseMode(generateTheme)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "generate: %v\n", err)
+			os.Exit(1)
+		}
+
 		switch generateFormat {
 		case "mp4":
 			outPath := generateOutput
 			if outPath == "" {
 				outPath = replaceExt(path, ".mp4")
 			}
-			if err := renderer.GenerateMP4(w, outPath, generateStepDuration); err != nil {
+			if err := renderer.GenerateMP4(w, outPath, generateStepDuration, mode); err != nil {
 				fmt.Fprintf(os.Stderr, "generate: %v\n", err)
 				os.Exit(1)
 			}
@@ -52,7 +60,7 @@ var generateCmd = &cobra.Command{
 			if outPath == "" {
 				outPath = replaceExt(path, ".svg")
 			}
-			if err := renderer.GenerateSVG(w, outPath); err != nil {
+			if err := renderer.GenerateSVG(w, outPath, mode); err != nil {
 				fmt.Fprintf(os.Stderr, "generate: %v\n", err)
 				os.Exit(1)
 			}
@@ -63,7 +71,7 @@ var generateCmd = &cobra.Command{
 			if outPath == "" {
 				outPath = replaceExt(path, ".html")
 			}
-			html, err := renderer.Generate(w)
+			html, err := renderer.Generate(w, mode)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "generate: %v\n", err)
 				os.Exit(1)
@@ -87,6 +95,7 @@ func init() {
 	generateCmd.Flags().StringVarP(&generateOutput, "output", "o", "", generateFlagOutputHelp)
 	generateCmd.Flags().StringVar(&generateFormat, "format", "html", generateFlagFormatHelp)
 	generateCmd.Flags().IntVar(&generateStepDuration, "step-duration", renderer.DefaultStepDuration, generateFlagStepDurationHelp)
+	generateCmd.Flags().StringVar(&generateTheme, "theme", string(theme.ModeAuto), generateFlagThemeHelp)
 	rootCmd.AddCommand(generateCmd)
 }
 

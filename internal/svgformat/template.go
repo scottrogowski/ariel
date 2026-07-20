@@ -4,19 +4,24 @@ import (
 	"bytes"
 	"encoding/json"
 	"text/template"
+
+	"github.com/scottrogowski/ariel/internal/theme"
 )
 
 var extractionTmpl = template.Must(
 	template.New("svg-extract").Delims("[[", "]]").Parse(extractionHTMLTemplate),
 )
 
-func renderExtractionHTML(mermaidDiagram string, nodeLabels map[string]string) string {
+func renderExtractionHTML(p theme.Palette, mermaidDiagram string, nodeLabels map[string]string) string {
 	labelsJSON, _ := json.Marshal(nodeLabels)
 	var buf bytes.Buffer
 	if err := extractionTmpl.Execute(&buf, struct {
-		MermaidDiagram string
-		NodeLabelsJSON string
-	}{mermaidDiagram, string(labelsJSON)}); err != nil {
+		MermaidDiagram  string
+		NodeLabelsJSON  string
+		MermaidInit     string
+		DiagramColorsJS string
+		BodyBg          string
+	}{mermaidDiagram, string(labelsJSON), p.MermaidInit(), p.DiagramColorsJS(), p.Bg}); err != nil {
 		panic("svgformat: extraction template: " + err.Error())
 	}
 	return buf.String()
@@ -33,7 +38,7 @@ const extractionHTMLTemplate = `<!DOCTYPE html>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #0f1117; }
+  body { background: [[.BodyBg]]; }
   #mermaid-container { width: 900px; }
   /* Let the SVG render at its natural Mermaid size so getDimensions() returns the
      true natural width and height. The output SVG scales it up to 2× in CSS. */
@@ -46,25 +51,8 @@ const extractionHTMLTemplate = `<!DOCTYPE html>
 </div>
 <div id="ready" style="display:none"></div>
 <script>
-mermaid.initialize({
-  startOnLoad: false,
-  theme: 'dark',
-  themeVariables: {
-    primaryColor: '#1a2744',
-    primaryTextColor: '#e8eaf0',
-    primaryBorderColor: '#2a3a5a',
-    lineColor: '#4a5568',
-    secondaryColor: '#1a1d27',
-    tertiaryColor: '#1a1d27',
-    background: '#0f1117',
-    mainBkg: '#1a2744',
-    nodeBorder: '#2a3a5a',
-    clusterBkg: '#1a1d27',
-    titleColor: '#e8eaf0',
-    edgeLabelBackground: '#1a1d27',
-    fontFamily: 'Inter, system-ui, sans-serif'
-  }
-});
+[[.MermaidInit]]
+[[.DiagramColorsJS]]
 
 let nodeMap = {}, edgeMap = {};
 const nodeLabels = [[.NodeLabelsJSON]];
@@ -151,13 +139,12 @@ function buildNodeMap(svg) {
       toMove.forEach(el => svg.appendChild(el));
     }
   }
-  // Bug fix: SVG spec says inheritable properties (including fill) use the referencing
-  // element's value as the initial value inside marker content. Active message lines have
-  // inline fill:none which overrides the CSS fill:lightgrey on the marker path, making
-  // arrowheads invisible. Explicit inline fill takes precedence over CSS inheritance.
+  // Inheritable properties (including fill) use the referencing element's value as the
+  // initial value inside marker content, so a message line's inline fill:none would make
+  // its arrowhead invisible. Setting fill inline on the marker takes precedence.
   svg.querySelectorAll('marker path, marker polygon').forEach(el => {
-    el.style.setProperty('fill', 'lightgrey', 'important');
-    el.style.setProperty('stroke', 'lightgrey', 'important');
+    el.style.setProperty('fill', ARIEL_COLORS.arrowHead, 'important');
+    el.style.setProperty('stroke', ARIEL_COLORS.arrowHead, 'important');
   });
 }
 
@@ -222,15 +209,15 @@ function applyStep(highlightNodes, focusNodes) {
       if (focusSet.has(id)) {
         group.style.opacity = '1';
         group.querySelectorAll('rect,circle,polygon,ellipse,path').forEach(el => {
-          el.style.setProperty('fill', '#1a4a7a', 'important');
-          el.style.setProperty('stroke', '#4ecdc4', 'important');
+          el.style.setProperty('fill', ARIEL_COLORS.focusFill, 'important');
+          el.style.setProperty('stroke', ARIEL_COLORS.focusStroke, 'important');
           el.style.setProperty('stroke-width', '2.5px', 'important');
         });
       } else if (activeSet.has(id)) {
         group.style.opacity = '1';
         group.querySelectorAll('rect,circle,polygon,ellipse,path').forEach(el => {
-          el.style.setProperty('fill', '#1e3a6e', 'important');
-          el.style.setProperty('stroke', '#5b8dee', 'important');
+          el.style.setProperty('fill', ARIEL_COLORS.highlightFill, 'important');
+          el.style.setProperty('stroke', ARIEL_COLORS.highlightStroke, 'important');
           el.style.setProperty('stroke-width', '2px', 'important');
         });
       } else {
@@ -242,7 +229,7 @@ function applyStep(highlightNodes, focusNodes) {
         if (isTopActorBox) {
           group.style.opacity = '1';
           group.querySelectorAll('rect.actor').forEach(el => {
-            el.style.setProperty('fill', '#111520', 'important');
+            el.style.setProperty('fill', ARIEL_COLORS.dimFill, 'important');
             el.style.setProperty('stroke-opacity', '0.2', 'important');
           });
           group.querySelectorAll('text.actor').forEach(el => {
@@ -266,7 +253,7 @@ function applyStep(highlightNodes, focusNodes) {
             ? [el]
             : (el.tagName.toLowerCase() === 'g' ? Array.from(el.querySelectorAll('path')) : [el]);
           targets.forEach(target => {
-            target.style.setProperty('stroke', '#5b8dee', 'important');
+            target.style.setProperty('stroke', ARIEL_COLORS.edgeStroke, 'important');
             target.style.setProperty('stroke-width', '2.5px', 'important');
             target.style.setProperty('stroke-dasharray', '10 5', 'important');
             // SMIL animate survives GitHub's SVG sanitizer; CSS @keyframes do not.

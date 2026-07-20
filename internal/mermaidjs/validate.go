@@ -147,9 +147,9 @@ function getValidateResult() {
 `
 
 var (
-	compiled     *goja.Program
-	compileOnce  sync.Once
-	compileErr   error
+	compiled    *goja.Program
+	compileOnce sync.Once
+	compileErr  error
 )
 
 // getCompiled compiles the combined Mermaid+shim JS once and caches the result;

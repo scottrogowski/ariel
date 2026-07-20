@@ -12,6 +12,7 @@ import (
 
 	"github.com/scottrogowski/ariel/internal/dsl"
 	"github.com/scottrogowski/ariel/internal/logo"
+	"github.com/scottrogowski/ariel/internal/theme"
 )
 
 var mdLinkRe = regexp.MustCompile(`\[([^\]]+)\]\((https?://[^)]+)\)`)
@@ -52,12 +53,15 @@ type jsSection struct {
 }
 
 type templateData struct {
-	Title         string
-	GitHubURL     string
-	SectionsJSON  string
-	LogoSVG       string
-	FaviconBase64 string
-	WSSnippet     string // empty for generate, populated for watch
+	Title           string
+	GitHubURL       string
+	SectionsJSON    string
+	LogoSVG         string
+	FaviconBase64   string
+	ThemeCSS        string // :root palette variables (+ light @media in auto mode)
+	MermaidConfigJS string // arielMermaidConfig() definition
+	ThemeListener   string // prefers-color-scheme listener (auto mode only)
+	WSSnippet       string // empty for generate, populated for watch
 }
 
 var tmpl = template.Must(
@@ -65,19 +69,19 @@ var tmpl = template.Must(
 )
 
 // Generate renders a Walkthrough to a self-contained, server-free HTML string.
-func Generate(w *dsl.Walkthrough) (string, error) {
-	return render(w, "")
+func Generate(w *dsl.Walkthrough, mode theme.Mode) (string, error) {
+	return render(w, "", mode)
 }
 
 // RenderWatch renders a Walkthrough with the WebSocket client snippet injected.
-func RenderWatch(w *dsl.Walkthrough, port int) (string, error) {
+func RenderWatch(w *dsl.Walkthrough, port int, mode theme.Mode) (string, error) {
 	srv := &WatchServer{port: port}
-	return render(w, srv.wsSnippet())
+	return render(w, srv.wsSnippet(), mode)
 }
 
 // render is the shared path for Generate and RenderWatch: serializes sections to JSON
 // and executes the HTML template.
-func render(w *dsl.Walkthrough, wsSnippet string) (string, error) {
+func render(w *dsl.Walkthrough, wsSnippet string, mode theme.Mode) (string, error) {
 	sections := w.ToSections()
 	jsSections := make([]jsSection, len(sections))
 
@@ -109,12 +113,15 @@ func render(w *dsl.Walkthrough, wsSnippet string) (string, error) {
 	}
 
 	data := templateData{
-		Title:         w.Title,
-		GitHubURL:     "https://github.com/scottrogowski/ariel",
-		SectionsJSON:  strings.TrimRight(jsonBuf.String(), "\n"),
-		LogoSVG:       logo.SVG,
-		FaviconBase64: logo.FaviconBase64(),
-		WSSnippet:     wsSnippet,
+		Title:           w.Title,
+		GitHubURL:       "https://github.com/scottrogowski/ariel",
+		SectionsJSON:    strings.TrimRight(jsonBuf.String(), "\n"),
+		LogoSVG:         logo.SVG,
+		FaviconBase64:   logo.FaviconBase64(),
+		ThemeCSS:        theme.HTMLRootCSS(mode),
+		MermaidConfigJS: theme.HTMLMermaidConfigJS(mode),
+		ThemeListener:   theme.HTMLThemeListenerJS(mode),
+		WSSnippet:       wsSnippet,
 	}
 
 	var buf bytes.Buffer

@@ -14,10 +14,12 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/scottrogowski/ariel/internal/dsl"
 	"github.com/scottrogowski/ariel/internal/renderer"
+	"github.com/scottrogowski/ariel/internal/theme"
 	"github.com/spf13/cobra"
 )
 
 var watchPort int
+var watchTheme string
 
 var watchCmd = &cobra.Command{
 	Use:   "watch <file.ariel.yaml>",
@@ -32,10 +34,16 @@ var watchCmd = &cobra.Command{
 			os.Exit(2)
 		}
 
-		// Initial load — print errors but don't refuse to start.
-		initialHTML := loadForWatch(path, name, watchPort)
+		mode, err := theme.ParseMode(watchTheme)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "watch: %v\n", err)
+			os.Exit(1)
+		}
 
-		srv := renderer.NewWatchServer(path, watchPort, initialHTML)
+		// Initial load — print errors but don't refuse to start.
+		initialHTML := loadForWatch(path, name, watchPort, mode)
+
+		srv := renderer.NewWatchServer(path, watchPort, initialHTML, mode)
 
 		watcher, err := fsnotify.NewWatcher()
 		if err != nil {
@@ -77,6 +85,7 @@ var watchCmd = &cobra.Command{
 
 func init() {
 	watchCmd.Flags().IntVarP(&watchPort, "port", "p", 2313, watchFlagPortHelp)
+	watchCmd.Flags().StringVar(&watchTheme, "theme", string(theme.ModeAuto), generateFlagThemeHelp)
 	rootCmd.AddCommand(watchCmd)
 }
 
@@ -136,7 +145,7 @@ func handleFileChange(path, name string, srv *renderer.WatchServer) {
 
 // loadForWatch parses and renders the file for the initial watch page load.
 // On error it returns an error-state HTML page so the browser shows something.
-func loadForWatch(path, name string, port int) string {
+func loadForWatch(path, name string, port int, mode theme.Mode) string {
 	w, issues, err := dsl.ParseFile(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", name, err)
@@ -156,7 +165,7 @@ func loadForWatch(path, name string, port int) string {
 		printIssues(name, issues)
 	}
 
-	html, rerr := renderer.RenderWatch(w, port)
+	html, rerr := renderer.RenderWatch(w, port, mode)
 	if rerr != nil {
 		fmt.Fprintf(os.Stderr, "%s: render error: %v\n", name, rerr)
 		return errorHTML(fmt.Sprintf("render error: %v", rerr))

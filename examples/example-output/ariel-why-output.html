@@ -9,14 +9,52 @@
 <style>
   :root {
     --bg: #0f1117;
-    --surface: #1a1d27;
     --border: #2a2d3a;
-    --accent: #5b8dee;
-    --accent-glow: rgba(91, 141, 238, 0.3);
-    --success: #4ecdc4;
+    --border-subtle: #1e2130;
     --text: #e8eaf0;
     --muted: #6b7280;
+    --accent: #5b8dee;
+    --accent-hover: #4a7de0;
+    --accent-bright: #7da9f0;
+    --link-hover: #7aaaf5;
+    --success: #4ecdc4;
+    --dot-hover: #4a5a7a;
     --narration-bg: #141720;
+    --on-accent: white;
+    --node-fill: #1a2744;
+    --highlight-fill: #1e3a6e;
+    --focus-fill: #1a4a7a;
+    --dim-fill: #111520;
+    --accent-glow: rgba(91, 141, 238, 0.3);
+    --success-glow: rgba(78, 205, 196, 0.3);
+    --focus-glow: rgba(78, 205, 196, 0.4);
+    --cta-overlay: rgba(15, 17, 23, 0.45);
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #ffffff;
+      --border: #d8dbe2;
+      --border-subtle: #e5e7ec;
+      --text: #1a1d27;
+      --muted: #5a6270;
+      --accent: #3b6fd6;
+      --accent-hover: #2f5cbf;
+      --accent-bright: #5b8dee;
+      --link-hover: #2f5cbf;
+      --success: #1a9d94;
+      --dot-hover: #a8b0c0;
+      --narration-bg: #f0f2f5;
+      --on-accent: white;
+      --node-fill: #eaf0fb;
+      --highlight-fill: #cfe0fb;
+      --focus-fill: #b3d3f5;
+      --dim-fill: #f0f2f5;
+      --accent-glow: rgba(59, 111, 214, 0.3);
+      --success-glow: rgba(26, 157, 148, 0.3);
+      --focus-glow: rgba(26, 157, 148, 0.4);
+      --cta-overlay: rgba(255, 255, 255, 0.45);
+    }
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -147,7 +185,7 @@
     text-underline-offset: 3px;
   }
 
-  .narration-text a:hover { color: #7aaaf5; }
+  .narration-text a:hover { color: var(--link-hover); }
 
   .progress-track {
     display: flex;
@@ -208,7 +246,7 @@
 
   .section-dot.active {
     background: var(--success);
-    box-shadow: 0 0 8px rgba(78, 205, 196, 0.3);
+    box-shadow: 0 0 8px var(--success-glow);
     width: 24px;
     border-radius: 3px;
   }
@@ -246,12 +284,12 @@
 
   .btn-next {
     background: var(--accent);
-    color: white;
+    color: var(--on-accent);
     flex: 1;
   }
 
   .btn-next:hover:not(:disabled) {
-    background: #4a7de0;
+    background: var(--accent-hover);
     box-shadow: 0 0 16px var(--accent-glow);
   }
 
@@ -289,7 +327,7 @@
   /* Top actor box groups must stay opaque so the lifeline behind them doesn't show through.
      Use dimmed-actor instead of dimmed: keeps group opacity at 1 but darkens fill/text. */
   #mermaid-container .dimmed-actor rect.actor {
-    fill: #111520 !important;
+    fill: var(--dim-fill) !important;
     stroke-opacity: 0.2 !important;
     transition: fill 0.35s ease;
   }
@@ -303,7 +341,7 @@
   #mermaid-container .highlighted polygon,
   #mermaid-container .highlighted ellipse,
   #mermaid-container .highlighted path {
-    fill: #1e3a6e !important;
+    fill: var(--highlight-fill) !important;
     stroke: var(--accent) !important;
     stroke-width: 2px !important;
     filter: drop-shadow(0 0 8px var(--accent-glow));
@@ -314,10 +352,10 @@
   #mermaid-container .active polygon,
   #mermaid-container .active ellipse,
   #mermaid-container .active path {
-    fill: #1a4a7a !important;
+    fill: var(--focus-fill) !important;
     stroke: var(--success) !important;
     stroke-width: 2.5px !important;
-    filter: drop-shadow(0 0 12px rgba(78, 205, 196, 0.4));
+    filter: drop-shadow(0 0 12px var(--focus-glow));
   }
 
   #mermaid-container .flowchart-link.animated,
@@ -414,7 +452,27 @@ let currentStep = 0;
 let initialized = false;
 let diagramNaturalW = 0; // natural pixel width of the current diagram SVG; captured before any transform
 
-mermaid.initialize({
+function arielMermaidConfig() {
+  var light = {
+  startOnLoad: false,
+  theme: 'base',
+  themeVariables: {
+    primaryColor: '#eaf0fb',
+    primaryTextColor: '#1a1d27',
+    primaryBorderColor: '#b9cdf0',
+    lineColor: '#8a93a6',
+    secondaryColor: '#f5f6f8',
+    tertiaryColor: '#f5f6f8',
+    background: '#ffffff',
+    mainBkg: '#eaf0fb',
+    nodeBorder: '#b9cdf0',
+    clusterBkg: '#f5f6f8',
+    titleColor: '#1a1d27',
+    edgeLabelBackground: '#f5f6f8',
+    fontFamily: 'Inter, system-ui, sans-serif'
+  }
+};
+  var dark = {
   startOnLoad: false,
   theme: 'dark',
   themeVariables: {
@@ -432,7 +490,19 @@ mermaid.initialize({
     edgeLabelBackground: '#1a1d27',
     fontFamily: 'Inter, system-ui, sans-serif'
   }
-});
+};
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? light : dark;
+}
+mermaid.initialize(arielMermaidConfig());
+
+// reapplyTheme re-initializes Mermaid with the current OS color scheme and
+// re-renders the active section+step. Wired to a prefers-color-scheme listener
+// only in auto mode; a no-op reference otherwise.
+async function reapplyTheme() {
+  mermaid.initialize(arielMermaidConfig());
+  await initSection(currentSection);
+  renderStep();
+}
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -474,6 +544,8 @@ initSection(startSection).then(() => {
   initialized = true;
   document.getElementById('ariel-ready').style.display = 'block';
 });
+
+window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', reapplyTheme);
 
 function buildNodeMap() {
   const svg = document.querySelector('#mermaid-container svg');

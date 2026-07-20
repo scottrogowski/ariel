@@ -139,6 +139,7 @@ Render a walkthrough to HTML, SVG, or MP4.
 - `--output <path>` — output path (default: input filename with format extension)
 - `--format <html|svg|mp4>` — output format (default: `html`)
 - `--step-duration <n>` — seconds each step is held in MP4 output (default: `2`, mp4 only)
+- `--theme <auto|dark|light>` — color theme (default: `auto`; see Theming)
 
 **HTML output:** Highly interactive diagram. Best experience. Single self-contained file, no server required.
 
@@ -196,7 +197,11 @@ Complete examples: `internal/guide/single-diagram-example.ariel.yaml` and `inter
 
 ### Mermaid
 
-Mermaid is used as the diagram renderer. A single pinned version is used across all output formats to ensure consistent rendering. Theme: dark.
+Mermaid is used as the diagram renderer. A single pinned version is used across all output formats to ensure consistent rendering.
+
+### Theming
+
+Colors come from a single palette source (`internal/theme`) with a dark and a light palette; `--theme` selects `auto` (default), `dark`, or `light`. HTML honors `auto` at view time via `prefers-color-scheme`, re-rendering the diagram when the OS theme changes. SVG and MP4 are static artifacts, so they bake one palette and resolve `auto` to dark.
 
 ### Node identification
 
@@ -253,7 +258,7 @@ Nodes appearing in any step's `highlight_nodes` or `focus_nodes` are navigable (
 
 ### Layout
 
-Two-pane: diagram left, narration + controls right. Dark theme.
+Two-pane: diagram left, narration + controls right.
 
 Header: walkthrough title centered; logo top-right.
 

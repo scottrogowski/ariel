@@ -8,6 +8,7 @@ import (
 	"github.com/scottrogowski/ariel/internal/browsertest"
 	"github.com/scottrogowski/ariel/internal/dsl"
 	"github.com/scottrogowski/ariel/internal/renderer"
+	"github.com/scottrogowski/ariel/internal/theme"
 )
 
 const centerTolerance = 5.0 // acceptable pixel error for bbox centering
@@ -29,7 +30,7 @@ func generateHTML(t *testing.T, fixturePath string) string {
 			t.Fatalf("fixture has error: %v", iss.Message)
 		}
 	}
-	html, err := renderer.Generate(w)
+	html, err := renderer.Generate(w, theme.ModeDark)
 	if err != nil {
 		t.Fatalf("renderer.Generate: %v", err)
 	}

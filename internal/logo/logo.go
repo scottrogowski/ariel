@@ -3,8 +3,8 @@
 package logo
 
 import (
-	"encoding/base64"
 	_ "embed"
+	"encoding/base64"
 	"strings"
 )
 

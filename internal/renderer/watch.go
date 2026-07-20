@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/scottrogowski/ariel/internal/dsl"
+	"github.com/scottrogowski/ariel/internal/theme"
 )
 
 // wsMessage is the JSON structure sent to browser clients.
@@ -24,6 +25,7 @@ type wsMessage struct {
 type WatchServer struct {
 	port     int
 	filePath string
+	mode     theme.Mode
 
 	mu      sync.RWMutex
 	html    string // current rendered HTML (includes WS snippet)
@@ -33,10 +35,11 @@ type WatchServer struct {
 }
 
 // NewWatchServer creates a WatchServer ready to serve the given file on the given port.
-func NewWatchServer(filePath string, port int, initialHTML string) *WatchServer {
+func NewWatchServer(filePath string, port int, initialHTML string, mode theme.Mode) *WatchServer {
 	return &WatchServer{
 		port:     port,
 		filePath: filePath,
+		mode:     mode,
 		html:     initialHTML,
 		clients:  make(map[*websocket.Conn]struct{}),
 		upgrader: websocket.Upgrader{
@@ -48,7 +51,7 @@ func NewWatchServer(filePath string, port int, initialHTML string) *WatchServer 
 // UpdateContent re-renders the walkthrough, stores it for the next page load, and
 // tells connected clients to reload so they fetch the fresh HTML.
 func (s *WatchServer) UpdateContent(w *dsl.Walkthrough) {
-	html, err := render(w, s.wsSnippet())
+	html, err := render(w, s.wsSnippet(), s.mode)
 	if err != nil {
 		s.broadcastError(fmt.Sprintf("render error: %v", err))
 		return

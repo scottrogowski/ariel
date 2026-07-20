@@ -61,6 +61,9 @@ ariel generate my-system.ariel.yaml
 
 # Render to interactive SVG (for embedding in GitHub PRs and READMEs)
 ariel generate --format svg my-system.ariel.yaml
+
+# Force a color theme (auto, the default, follows the OS in HTML)
+ariel generate --theme light my-system.ariel.yaml
 ```
 
 ## Development

@@ -17,16 +17,7 @@ const sectionHTMLTemplate = `<!DOCTYPE html>
     padding: 0;
   }
 
-  :root {
-    --bg: #0f1117;
-    --border: #2a2d3a;
-    --accent: #5b8dee;
-    --accent-glow: rgba(91, 141, 238, 0.3);
-    --success: #4ecdc4;
-    --text: #e8eaf0;
-    --muted: #6b7280;
-    --narration-bg: #141720;
-  }
+  [[.ThemeCSS]]
 
   html, body {
     width: 100%;
@@ -122,7 +113,7 @@ const sectionHTMLTemplate = `<!DOCTYPE html>
   #mermaid-container .node.highlighted polygon,
   #mermaid-container .node.highlighted ellipse,
   #mermaid-container .node.highlighted path {
-    fill: #1e3a6e !important;
+    fill: var(--highlight-fill) !important;
     stroke: var(--accent) !important;
     stroke-width: 2px !important;
     filter: drop-shadow(0 0 8px var(--accent-glow));
@@ -133,10 +124,10 @@ const sectionHTMLTemplate = `<!DOCTYPE html>
   #mermaid-container .node.active polygon,
   #mermaid-container .node.active ellipse,
   #mermaid-container .node.active path {
-    fill: #1a4a7a !important;
+    fill: var(--focus-fill) !important;
     stroke: var(--success) !important;
     stroke-width: 2.5px !important;
-    filter: drop-shadow(0 0 12px rgba(78, 205, 196, 0.4));
+    filter: drop-shadow(0 0 12px var(--focus-glow));
   }
 
   #mermaid-container .flowchart-link.animated {
@@ -163,25 +154,7 @@ const sectionHTMLTemplate = `<!DOCTYPE html>
 </div>
 <div id="ready" style="display:none"></div>
 <script>
-mermaid.initialize({
-  startOnLoad: false,
-  theme: 'dark',
-  themeVariables: {
-    primaryColor: '#1a2744',
-    primaryTextColor: '#e8eaf0',
-    primaryBorderColor: '#2a3a5a',
-    lineColor: '#4a5568',
-    secondaryColor: '#1a1d27',
-    tertiaryColor: '#1a1d27',
-    background: '#0f1117',
-    mainBkg: '#1a2744',
-    nodeBorder: '#2a3a5a',
-    clusterBkg: '#1a1d27',
-    titleColor: '#e8eaf0',
-    edgeLabelBackground: '#1a1d27',
-    fontFamily: 'Inter, system-ui, sans-serif'
-  }
-});
+[[.MermaidInit]]
 
 let nodeMap = {}, edgeMap = {};
 

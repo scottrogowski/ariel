@@ -16,6 +16,7 @@ import (
 	"github.com/chromedp/chromedp"
 
 	"github.com/scottrogowski/ariel/internal/dsl"
+	"github.com/scottrogowski/ariel/internal/theme"
 )
 
 const (
@@ -34,6 +35,8 @@ var sectionTmpl = template.Must(
 type sectionData struct {
 	Title          string
 	MermaidDiagram string
+	ThemeCSS       string
+	MermaidInit    string
 }
 
 type frame struct {
@@ -41,17 +44,19 @@ type frame struct {
 }
 
 // Generate renders a Walkthrough as an MP4 video file at outPath. Requires ffmpeg on PATH.
-func Generate(w *dsl.Walkthrough, outPath string, stepDuration int) error {
+// MP4 is baked pixels, so auto resolves to the dark palette.
+func Generate(w *dsl.Walkthrough, outPath string, stepDuration int, mode theme.Mode) error {
 	if err := checkFFmpeg(); err != nil {
 		return err
 	}
+	palette := mode.Baked()
 	tmpDir, err := os.MkdirTemp("", "ariel-mp4-*")
 	if err != nil {
 		return fmt.Errorf("create temp dir: %w", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	frames, err := captureFrames(w, tmpDir)
+	frames, err := captureFrames(palette, w, tmpDir)
 	if err != nil {
 		return fmt.Errorf("capture frames: %w", err)
 	}
@@ -88,7 +93,7 @@ func checkFFmpeg() error {
 
 // captureFrames iterates sections and screenshots each step into tmpDir,
 // returning the ordered list of frame paths.
-func captureFrames(w *dsl.Walkthrough, tmpDir string) ([]frame, error) {
+func captureFrames(palette theme.Palette, w *dsl.Walkthrough, tmpDir string) ([]frame, error) {
 	ctx, cancel := newBrowserCtx()
 	defer cancel()
 
@@ -97,7 +102,7 @@ func captureFrames(w *dsl.Walkthrough, tmpDir string) ([]frame, error) {
 
 	for secIdx, sec := range sections {
 		htmlPath := filepath.Join(tmpDir, fmt.Sprintf("section%d.html", secIdx))
-		if err := os.WriteFile(htmlPath, []byte(buildSectionHTML(w.Title, sec)), 0644); err != nil {
+		if err := os.WriteFile(htmlPath, []byte(buildSectionHTML(palette, w.Title, sec)), 0644); err != nil {
 			return nil, fmt.Errorf("section %d: write HTML: %w", secIdx, err)
 		}
 		if err := chromedp.Run(ctx,
@@ -165,11 +170,13 @@ func newBrowserCtx() (context.Context, context.CancelFunc) {
 }
 
 // buildSectionHTML renders the per-section static screenshot HTML from the section template.
-func buildSectionHTML(title string, sec dsl.Section) string {
+func buildSectionHTML(palette theme.Palette, title string, sec dsl.Section) string {
 	var buf bytes.Buffer
 	if err := sectionTmpl.Execute(&buf, sectionData{
 		Title:          title,
 		MermaidDiagram: strings.TrimRight(sec.MermaidDiagram, "\n"),
+		ThemeCSS:       palette.RootBlock(),
+		MermaidInit:    palette.MermaidInit(),
 	}); err != nil {
 		panic(fmt.Sprintf("section HTML template: %v", err))
 	}
@@ -201,64 +208,6 @@ func strSlice(s []string) []string {
 		return []string{}
 	}
 	return s
-}
-
-// GenerateGIF renders a Walkthrough as an animated GIF at outPath. Requires ffmpeg on PATH.
-// Uses a two-pass palette approach for accurate colours. Output is scaled to 960px wide.
-func GenerateGIF(w *dsl.Walkthrough, outPath string, stepDuration int) error {
-	if err := checkFFmpeg(); err != nil {
-		return err
-	}
-	tmpDir, err := os.MkdirTemp("", "ariel-gif-*")
-	if err != nil {
-		return fmt.Errorf("create temp dir: %w", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	frames, err := captureFrames(w, tmpDir)
-	if err != nil {
-		return fmt.Errorf("capture frames: %w", err)
-	}
-	if err := assembleGIF(frames, stepDuration, outPath, tmpDir); err != nil {
-		return err
-	}
-	warnIfLarge(outPath)
-	return nil
-}
-
-// assembleGIF encodes frames into an animated GIF using ffmpeg's two-pass palette pipeline.
-// Pass 1 generates an optimal palette; pass 2 encodes the GIF using it.
-// Scaled to 960px wide (lanczos) to keep file sizes reasonable.
-func assembleGIF(frames []frame, stepDuration int, outPath, tmpDir string) error {
-	if len(frames) == 0 {
-		return fmt.Errorf("no frames to assemble")
-	}
-	inputPattern := filepath.Join(tmpDir, "frame%04d.png")
-	palettePath := filepath.Join(tmpDir, "palette.png")
-	fps := fmt.Sprintf("1/%d", stepDuration)
-	scale := "scale=960:-1:flags=lanczos"
-
-	pass1 := exec.Command("ffmpeg", "-y",
-		"-framerate", fps,
-		"-i", inputPattern,
-		"-vf", scale+",palettegen=stats_mode=full",
-		palettePath,
-	)
-	if out, err := pass1.CombinedOutput(); err != nil {
-		return fmt.Errorf("ffmpeg palettegen failed: %w\n%s", err, out)
-	}
-
-	pass2 := exec.Command("ffmpeg", "-y",
-		"-framerate", fps,
-		"-i", inputPattern,
-		"-i", palettePath,
-		"-lavfi", "[0:v]"+scale+"[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=5",
-		outPath,
-	)
-	if out, err := pass2.CombinedOutput(); err != nil {
-		return fmt.Errorf("ffmpeg paletteuse failed: %w\n%s", err, out)
-	}
-	return nil
 }
 
 // assemble encodes frames named frame0000.png, frame0001.png, … in tmpDir into an MP4.

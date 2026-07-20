@@ -14,12 +14,13 @@ import (
 	"github.com/chromedp/chromedp"
 	"github.com/scottrogowski/ariel/internal/dsl"
 	"github.com/scottrogowski/ariel/internal/logo"
+	"github.com/scottrogowski/ariel/internal/theme"
 )
 
 const (
 	narrationWidth   = 300
 	diagAreaW        = 900
-	diagAreaH        = 686 // pageHeader(60) + diagAreaH(686) + overhead(104=narr-header+nav) = totalH(850)
+	diagAreaH        = 686                        // pageHeader(60) + diagAreaH(686) + overhead(104=narr-header+nav) = totalH(850)
 	totalW           = diagAreaW + narrationWidth // 1200
 	totalH           = 850
 	pageHeaderHeight = 60
@@ -60,7 +61,8 @@ type nodeBBox struct {
 // The initial "Click for walkthrough" CTA (shown at s0) is a one-way entry point:
 // the Back button and all dot navigation start from s1, making s0 unreachable once
 // the user has clicked through.
-func Generate(w *dsl.Walkthrough, outPath string) error {
+func Generate(w *dsl.Walkthrough, outPath string, mode theme.Mode) error {
+	palette := mode.Baked()
 	sections := w.ToSections()
 
 	tmpDir, err := os.MkdirTemp("", "ariel-svg-*")
@@ -94,7 +96,7 @@ func Generate(w *dsl.Walkthrough, outPath string) error {
 		secsMeta[si] = sectionMeta{title: sec.Title, start: globalIdx, count: len(sec.Steps)}
 
 		nodeLabels, _ := dsl.ExtractGraph(sec.MermaidDiagram)
-		if err := os.WriteFile(htmlPath, []byte(renderExtractionHTML(sec.MermaidDiagram, nodeLabels)), 0644); err != nil {
+		if err := os.WriteFile(htmlPath, []byte(renderExtractionHTML(palette, sec.MermaidDiagram, nodeLabels)), 0644); err != nil {
 			return fmt.Errorf("write extraction HTML: %w", err)
 		}
 
@@ -172,7 +174,7 @@ func Generate(w *dsl.Walkthrough, outPath string) error {
 		}
 	}
 
-	out := buildOutputSVG(w.Title, stepSVGs, narrations, stepHeaders,
+	out := buildOutputSVG(palette, w.Title, stepSVGs, narrations, stepHeaders,
 		stepSecIdx, secsMeta, naturalWs, naturalHs, transforms)
 	return os.WriteFile(outPath, []byte(out), 0644)
 }
@@ -197,7 +199,7 @@ func formatStepHeader(sectionTitle string, secStepIdx, secTotal int, stepLabel s
 	return h
 }
 
-func buildOutputSVG(title string, stepSVGs, narrations, stepHeaders []string,
+func buildOutputSVG(palette theme.Palette, title string, stepSVGs, narrations, stepHeaders []string,
 	stepSecIdx []int, secsMeta []sectionMeta,
 	naturalWs, naturalHs []int, transforms []stepTransform) string {
 
@@ -210,11 +212,11 @@ func buildOutputSVG(title string, stepSVGs, narrations, stepHeaders []string,
 	fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d">`+"\n", totalW, totalH)
 	fmt.Fprintf(&b, `<foreignObject width="%d" height="%d">`+"\n", totalW, totalH)
 	// position:relative is required so the cta-overlay label can be positioned absolutely over the full area.
-	fmt.Fprintf(&b, `<div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:%dpx;height:%dpx;display:flex;flex-direction:column;font-family:Inter,system-ui,sans-serif;background:#0f1117;">`+"\n",
+	fmt.Fprintf(&b, `<div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:%dpx;height:%dpx;display:flex;flex-direction:column;font-family:Inter,system-ui,sans-serif;background:var(--bg);">`+"\n",
 		totalW, totalH)
 
 	b.WriteString("<style>\n")
-	b.WriteString(buildNavCSS(n, stepSecIdx, secsMeta, naturalWs, naturalHs, transforms))
+	b.WriteString(buildNavCSS(palette, n, stepSecIdx, secsMeta, naturalWs, naturalHs, transforms))
 	b.WriteString("</style>\n")
 
 	// Radio inputs must precede all elements they control via the ~ combinator.
@@ -338,20 +340,21 @@ func buildOutputSVG(title string, stepSVGs, narrations, stepHeaders []string,
 
 // buildNavCSS generates all CSS for the SVG output: layout, theming, and the
 // :checked-based rules that drive step navigation, dot highlighting, and section titles.
-func buildNavCSS(n int, stepSecIdx []int, secsMeta []sectionMeta,
+func buildNavCSS(palette theme.Palette, n int, stepSecIdx []int, secsMeta []sectionMeta,
 	naturalWs, naturalHs []int, transforms []stepTransform) string {
 	var b strings.Builder
 	multiSection := len(secsMeta) > 1
 
+	b.WriteString(palette.RootBlock() + "\n")
 	b.WriteString(`*{box-sizing:border-box;margin:0;padding:0;}` + "\n")
 	b.WriteString(`input[type="radio"]{display:none;}` + "\n")
 
 	// Page header.
-	b.WriteString(`.page-header{position:relative;flex-shrink:0;height:60px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid #1e2130;}` + "\n")
-	b.WriteString(`.page-title{font-size:22px;font-weight:600;color:#e8eaf0;text-align:center;}` + "\n")
+	b.WriteString(`.page-header{position:relative;flex-shrink:0;height:60px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--border-subtle);}` + "\n")
+	b.WriteString(`.page-title{font-size:22px;font-weight:600;color:var(--text);text-align:center;}` + "\n")
 	if multiSection {
-		b.WriteString(`.page-sep{margin:0 10px;color:#6b7280;font-weight:300;}` + "\n")
-		b.WriteString(`.sec-title{display:none;font-size:22px;font-weight:400;color:#e8eaf0;}` + "\n")
+		b.WriteString(`.page-sep{margin:0 10px;color:var(--muted);font-weight:300;}` + "\n")
+		b.WriteString(`.sec-title{display:none;font-size:22px;font-weight:400;color:var(--text);}` + "\n")
 		// Show the current section's title span in the header (s0=CTA shows section 0's title).
 		if n > 1 {
 			fmt.Fprintf(&b, `#s0:checked~.page-header .sec-title-0{display:inline;}`+"\n")
@@ -363,7 +366,7 @@ func buildNavCSS(n int, stepSecIdx []int, secsMeta []sectionMeta,
 		}
 	}
 	// Logo.
-	b.WriteString(`.ariel-link{position:absolute;right:32px;opacity:0.7;text-decoration:none;color:#6b7280;}` + "\n")
+	b.WriteString(`.ariel-link{position:absolute;right:32px;opacity:0.7;text-decoration:none;color:var(--muted);}` + "\n")
 	b.WriteString(`.ariel-link:hover{opacity:1;}` + "\n")
 	b.WriteString(`.ariel-logo{display:block;width:160px;height:auto;}` + "\n")
 	b.WriteString(`.ariel-logo svg{display:block;width:160px;height:auto;}` + "\n")
@@ -391,7 +394,7 @@ func buildNavCSS(n int, stepSecIdx []int, secsMeta []sectionMeta,
 	}
 
 	// Narration column: flex column; controls pin to bottom via margin-top:auto.
-	b.WriteString(`.narrations{display:flex;flex-direction:column;background:#141720;border-left:1px solid #1e2130;}` + "\n")
+	b.WriteString(`.narrations{display:flex;flex-direction:column;background:var(--narration-bg);border-left:1px solid var(--border-subtle);}` + "\n")
 	// .narration takes natural height (no flex:1) so progress dots flow right below the text.
 	b.WriteString(`.narration{display:none;flex-direction:column;}` + "\n")
 	// n==1: s0 also shows n-1 (no CTA, s0 IS the only visible state).
@@ -403,10 +406,10 @@ func buildNavCSS(n int, stepSecIdx []int, secsMeta []sectionMeta,
 		j := i + 1
 		fmt.Fprintf(&b, `#s%d:checked~.content .n-%d{display:flex;}`+"\n", j, j)
 	}
-	b.WriteString(`.narr-header{flex-shrink:0;padding:16px 20px;font-size:11px;font-weight:600;color:#5b8dee;letter-spacing:0.05em;text-transform:uppercase;border-bottom:1px solid #1e2130;}` + "\n")
+	b.WriteString(`.narr-header{flex-shrink:0;padding:16px 20px;font-size:11px;font-weight:600;color:var(--accent);letter-spacing:0.05em;text-transform:uppercase;border-bottom:1px solid var(--border-subtle);}` + "\n")
 	// narr-text: cap height so long narrations don't push dots/controls out of view.
 	maxNarrTextH := totalH - pageHeaderHeight - navHeight - 120 // subtract header, controls, approx progress+narr-header
-	fmt.Fprintf(&b, `.narr-text{padding:20px;font-size:17px;line-height:1.65;color:#e8eaf0;overflow-y:auto;max-height:%dpx;}`+"\n", maxNarrTextH)
+	fmt.Fprintf(&b, `.narr-text{padding:20px;font-size:17px;line-height:1.65;color:var(--text);overflow-y:auto;max-height:%dpx;}`+"\n", maxNarrTextH)
 
 	// Progress area: flows immediately below narration text (dots are inside each .narration div).
 	b.WriteString(`.progress-area{padding:12px 20px;display:flex;flex-direction:column;gap:8px;}` + "\n")
@@ -414,16 +417,16 @@ func buildNavCSS(n int, stepSecIdx []int, secsMeta []sectionMeta,
 	// Section dots (multi-section only). Clicking navigates to that section's first real step.
 	if multiSection {
 		b.WriteString(`.section-track{display:flex;gap:8px;align-items:center;}` + "\n")
-		b.WriteString(`.sec-dot{width:8px;height:8px;border-radius:50%;background:#2a2d3a;cursor:pointer;display:inline-block;transition:all 0.3s;}` + "\n")
-		b.WriteString(`.sec-dot:hover{background:#4ecdc4;opacity:0.6;}` + "\n")
+		b.WriteString(`.sec-dot{width:8px;height:8px;border-radius:50%;background:var(--border);cursor:pointer;display:inline-block;transition:all 0.3s;}` + "\n")
+		b.WriteString(`.sec-dot:hover{background:var(--success);opacity:0.6;}` + "\n")
 		// Active section dot: teal pill matching HTML's .section-dot.active.
 		if n > 1 {
-			fmt.Fprintf(&b, `#s0:checked~.content .sec-dot-0{background:#4ecdc4;width:24px;border-radius:3px;}`+"\n")
+			fmt.Fprintf(&b, `#s0:checked~.content .sec-dot-0{background:var(--success);width:24px;border-radius:3px;}`+"\n")
 		}
 		for i := 0; i < n; i++ {
 			j := i + 1
 			si := stepSecIdx[i]
-			fmt.Fprintf(&b, `#s%d:checked~.content .sec-dot-%d{background:#4ecdc4;width:24px;border-radius:3px;}`+"\n", j, si)
+			fmt.Fprintf(&b, `#s%d:checked~.content .sec-dot-%d{background:var(--success);width:24px;border-radius:3px;}`+"\n", j, si)
 		}
 	}
 
@@ -434,10 +437,10 @@ func buildNavCSS(n int, stepSecIdx []int, secsMeta []sectionMeta,
 		si := stepSecIdx[i]
 		fmt.Fprintf(&b, `#s%d:checked~.content .sec-steps-%d{display:flex;}`+"\n", j, si)
 	}
-	b.WriteString(`.dot{width:6px;height:6px;border-radius:50%;background:#2a2d3a;cursor:pointer;display:inline-block;transition:all 0.3s;}` + "\n")
-	b.WriteString(`.dot:hover{background:#4a5a7a;}` + "\n")
+	b.WriteString(`.dot{width:6px;height:6px;border-radius:50%;background:var(--border);cursor:pointer;display:inline-block;transition:all 0.3s;}` + "\n")
+	b.WriteString(`.dot:hover{background:var(--dot-hover);}` + "\n")
 	// Intro dot (first visible dot of each section): accent color, slightly transparent.
-	b.WriteString(`.intro-dot{background:#5b8dee;opacity:0.3;}` + "\n")
+	b.WriteString(`.intro-dot{background:var(--accent);opacity:0.3;}` + "\n")
 	// Active step dot per step. s0 (CTA state) has no dot; s1..sN map to dots dot-1..dot-N.
 	for i := 0; i < n; i++ {
 		j := i + 1 // radio button index
@@ -446,23 +449,23 @@ func buildNavCSS(n int, stepSecIdx []int, secsMeta []sectionMeta,
 		isIntro := j == firstDot
 		if isIntro {
 			// Active intro dot: stays circular, full opacity.
-			fmt.Fprintf(&b, `#s%d:checked~.content .dot-%d{background:#5b8dee;opacity:1;width:6px;border-radius:50%%;}`+"\n", j, j)
+			fmt.Fprintf(&b, `#s%d:checked~.content .dot-%d{background:var(--accent);opacity:1;width:6px;border-radius:50%%;}`+"\n", j, j)
 		} else {
 			// Active regular dot: pill shape.
-			fmt.Fprintf(&b, `#s%d:checked~.content .dot-%d{background:#5b8dee;opacity:1;width:20px;border-radius:3px;}`+"\n", j, j)
+			fmt.Fprintf(&b, `#s%d:checked~.content .dot-%d{background:var(--accent);opacity:1;width:20px;border-radius:3px;}`+"\n", j, j)
 		}
 	}
 
 	// Nav controls: pinned to bottom of narrations column via margin-top:auto.
-	b.WriteString(`.controls{flex-shrink:0;margin-top:auto;height:60px;border-top:1px solid #1e2130;padding:0 20px;display:flex;align-items:center;gap:12px;}` + "\n")
+	b.WriteString(`.controls{flex-shrink:0;margin-top:auto;height:60px;border-top:1px solid var(--border-subtle);padding:0 20px;display:flex;align-items:center;gap:12px;}` + "\n")
 	b.WriteString(`.nav-next{flex:1;}` + "\n")
 	b.WriteString(`.prev,.next{display:none;padding:10px 20px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;}` + "\n")
-	b.WriteString(`.prev{background:transparent;color:#6b7280;border:1px solid #2a2d3a;}` + "\n")
-	b.WriteString(`.prev:hover{color:#e8eaf0;border-color:#6b7280;}` + "\n")
-	b.WriteString(`.next{background:#5b8dee;color:white;width:100%;text-align:center;}` + "\n")
-	b.WriteString(`.next:hover{background:#4a7de0;}` + "\n")
+	b.WriteString(`.prev{background:transparent;color:var(--muted);border:1px solid var(--border);}` + "\n")
+	b.WriteString(`.prev:hover{color:var(--text);border-color:var(--muted);}` + "\n")
+	b.WriteString(`.next{background:var(--accent);color:var(--on-accent);width:100%;text-align:center;}` + "\n")
+	b.WriteString(`.next:hover{background:var(--accent-hover);}` + "\n")
 	b.WriteString(`.next-done{opacity:0.3;cursor:not-allowed;}` + "\n")
-	b.WriteString(`.next-done:hover{background:#5b8dee;}` + "\n")
+	b.WriteString(`.next-done:hover{background:var(--accent);}` + "\n")
 	// s0 (CTA): no Back or Next CSS (CTA overlay handles navigation).
 	// s1 (overview): Next only; s2..sN-1: Back and Next; sN: Back and Done.
 	// n==1 special case: s0 IS the user-facing state, so show Done at s0.
@@ -482,12 +485,12 @@ func buildNavCSS(n int, stepSecIdx []int, secsMeta []sectionMeta,
 	}
 
 	// CTA overlay.
-	b.WriteString(`.cta-overlay{position:absolute;top:0;left:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;cursor:pointer;background:rgba(15,17,23,0.45);}` + "\n")
+	b.WriteString(`.cta-overlay{position:absolute;top:0;left:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;cursor:pointer;background:var(--cta-overlay);}` + "\n")
 	if n > 1 {
 		b.WriteString(`#s0:checked~.cta-overlay{display:flex;}` + "\n")
 	}
-	b.WriteString(`.cta-btn{background:#0f1117;border:2px solid #5b8dee;border-radius:12px;padding:32px 72px;font-size:24px;font-weight:700;color:#5b8dee;letter-spacing:0.03em;}` + "\n")
-	b.WriteString(`.cta-overlay:hover .cta-btn{background:#1a2744;border-color:#7da9f0;color:#7da9f0;}` + "\n")
+	b.WriteString(`.cta-btn{background:var(--bg);border:2px solid var(--accent);border-radius:12px;padding:32px 72px;font-size:24px;font-weight:700;color:var(--accent);letter-spacing:0.03em;}` + "\n")
+	b.WriteString(`.cta-overlay:hover .cta-btn{background:var(--node-fill);border-color:var(--accent-bright);color:var(--accent-bright);}` + "\n")
 
 	return b.String()
 }
