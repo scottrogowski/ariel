@@ -96,10 +96,45 @@ const htmlTemplate = `<!DOCTYPE html>
     align-items: center;
     justify-content: center;
     transition: opacity 0.2s ease;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
   }
 
   #mermaid-container svg {
     display: block;
+  }
+
+  #mermaid-container.is-dragging,
+  #mermaid-container.is-dragging * {
+    cursor: grabbing !important;
+  }
+
+  .diagram-zoom-controls {
+    position: absolute;
+    right: 20px;
+    bottom: 20px;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .diagram-zoom-button {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    background: var(--narration-bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    font-size: 22px;
+    line-height: 1;
+    box-shadow: 0 4px 12px rgb(0 0 0 / 25%);
+  }
+
+  .diagram-zoom-button:hover {
+    background: var(--bg);
+    border-color: var(--muted);
   }
 
   .side-pane {
@@ -353,6 +388,10 @@ const htmlTemplate = `<!DOCTYPE html>
 <div class="main">
   <div class="diagram-pane">
     <div id="mermaid-container"></div>
+    <div class="diagram-zoom-controls" role="group" aria-label="Diagram zoom controls">
+      <button type="button" class="diagram-zoom-button" id="btn-zoom-in" aria-label="Zoom in">+</button>
+      <button type="button" class="diagram-zoom-button" id="btn-zoom-out" aria-label="Zoom out">−</button>
+    </div>
   </div>
 
   <div class="side-pane">
@@ -380,6 +419,10 @@ let currentSection = 0;
 let currentStep = 0;
 let initialized = false;
 let diagramNaturalW = 0; // natural pixel width of the current diagram SVG; captured before any transform
+let diagramViewport = null;
+let dragState = null;
+let suppressNodeClick = false;
+const zoomButtonFactor = 1.25;
 
 [[.MermaidConfigJS]]
 mermaid.initialize(arielMermaidConfig());
@@ -399,6 +442,7 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 async function initSection(idx) {
   const sec = sections[idx];
   const container = document.getElementById('mermaid-container');
+  diagramViewport = null;
   container.innerHTML = '<div class="mermaid">' + sec.mermaid_diagram + '</div>';
   await mermaid.run({ nodes: [container.querySelector('.mermaid')] });
   // viewBox.baseVal.width is the true natural coordinate width mermaid always sets.
@@ -781,9 +825,19 @@ function prevStep() {
 }
 
 document.addEventListener('keydown', e => {
+  if (e.target instanceof Element && e.target.closest('button, a, input, textarea, select, [contenteditable="true"]')) return;
   if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextStep(); }
   if (e.key === 'ArrowLeft') { e.preventDefault(); prevStep(); }
 });
+
+function setDiagramViewport(width, height, translateX = 0, translateY = 0) {
+  const svg = document.querySelector('#mermaid-container svg');
+  if (!svg) return;
+
+  diagramViewport = { width, height, translateX, translateY };
+  svg.style.cssText = 'display:block;width:' + width + 'px;height:' + height +
+    'px;max-width:none;transform:translate(' + translateX + 'px,' + translateY + 'px);';
+}
 
 function applyPanZoom(step) {
   const svg = document.querySelector('#mermaid-container svg');
@@ -804,7 +858,7 @@ function applyPanZoom(step) {
 
   if (fits) {
     // Diagram fits at natural scale: show at natural size, centered. No change between steps.
-    svg.style.cssText = 'display:block;width:' + diagramNaturalW.toFixed(1) + 'px;height:' + naturalH.toFixed(1) + 'px;max-width:none;';
+    setDiagramViewport(diagramNaturalW, naturalH);
     return;
   }
 
@@ -813,7 +867,7 @@ function applyPanZoom(step) {
     const scale = Math.min(availW * 0.8 / diagramNaturalW, availH * 0.8 / naturalH);
     const w = diagramNaturalW * scale;
     const h = naturalH * scale;
-    svg.style.cssText = 'display:block;width:' + w.toFixed(1) + 'px;height:' + h.toFixed(1) + 'px;max-width:none;';
+    setDiagramViewport(w, h);
     return;
   }
 
@@ -856,7 +910,7 @@ function applyPanZoom(step) {
     const scale = Math.min(availW / diagramNaturalW, availH / naturalH);
     const w = diagramNaturalW * scale;
     const h = naturalH * scale;
-    svg.style.cssText = 'display:block;width:' + w.toFixed(1) + 'px;height:' + h.toFixed(1) + 'px;max-width:none;';
+    setDiagramViewport(w, h);
     return;
   }
 
@@ -883,8 +937,98 @@ function applyPanZoom(step) {
   const tx = svgW / 2 - cxPx;
   const ty = svgH / 2 - cyPx;
 
-  svg.style.cssText = 'display:block;width:' + svgW.toFixed(1) + 'px;height:' + svgH.toFixed(1) + 'px;max-width:none;transform:translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px);';
+  setDiagramViewport(svgW, svgH, tx, ty);
 }
+
+function panDiagram(deltaX, deltaY) {
+  if (!diagramViewport) return;
+  setDiagramViewport(
+    diagramViewport.width,
+    diagramViewport.height,
+    diagramViewport.translateX + deltaX,
+    diagramViewport.translateY + deltaY
+  );
+}
+
+function zoomDiagramAt(clientX, clientY, factor) {
+  if (!diagramViewport || !Number.isFinite(factor) || factor <= 0) return;
+
+  const container = document.getElementById('mermaid-container');
+  const rect = container.getBoundingClientRect();
+  const pointerX = clientX - rect.left - rect.width / 2;
+  const pointerY = clientY - rect.top - rect.height / 2;
+  const nextWidth = diagramViewport.width * factor;
+  const nextHeight = diagramViewport.height * factor;
+  const nextTranslateX = factor * diagramViewport.translateX + (1 - factor) * pointerX;
+  const nextTranslateY = factor * diagramViewport.translateY + (1 - factor) * pointerY;
+  const values = [nextWidth, nextHeight, nextTranslateX, nextTranslateY];
+  if (nextWidth <= 0 || nextHeight <= 0 || values.some(value => !Number.isFinite(value))) return;
+
+  setDiagramViewport(nextWidth, nextHeight, nextTranslateX, nextTranslateY);
+}
+
+const diagramContainer = document.getElementById('mermaid-container');
+
+function zoomDiagramFromCenter(factor) {
+  const rect = diagramContainer.getBoundingClientRect();
+  zoomDiagramAt(rect.left + rect.width / 2, rect.top + rect.height / 2, factor);
+}
+
+document.getElementById('btn-zoom-in').addEventListener('click', () => {
+  zoomDiagramFromCenter(zoomButtonFactor);
+});
+
+document.getElementById('btn-zoom-out').addEventListener('click', () => {
+  zoomDiagramFromCenter(1 / zoomButtonFactor);
+});
+
+diagramContainer.addEventListener('pointerdown', event => {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  dragState = {
+    pointerId: event.pointerId,
+    captureTarget: event.target,
+    x: event.clientX,
+    y: event.clientY
+  };
+  diagramContainer.classList.add('is-dragging');
+  try { dragState.captureTarget.setPointerCapture(event.pointerId); } catch (_) {}
+});
+
+diagramContainer.addEventListener('pointermove', event => {
+  if (!dragState || event.pointerId !== dragState.pointerId) return;
+  const deltaX = event.clientX - dragState.x;
+  const deltaY = event.clientY - dragState.y;
+  if (deltaX === 0 && deltaY === 0) return;
+  dragState.x = event.clientX;
+  dragState.y = event.clientY;
+  suppressNodeClick = true;
+  panDiagram(deltaX, deltaY);
+});
+
+function finishDiagramDrag(event) {
+  if (!dragState || event.pointerId !== dragState.pointerId) return;
+  const captureTarget = dragState.captureTarget;
+  dragState = null;
+  diagramContainer.classList.remove('is-dragging');
+  try { captureTarget.releasePointerCapture(event.pointerId); } catch (_) {}
+  setTimeout(() => { suppressNodeClick = false; }, 0);
+}
+
+diagramContainer.addEventListener('pointerup', finishDiagramDrag);
+diagramContainer.addEventListener('pointercancel', finishDiagramDrag);
+diagramContainer.addEventListener('click', event => {
+  if (!suppressNodeClick) return;
+  event.preventDefault();
+  event.stopPropagation();
+  suppressNodeClick = false;
+}, true);
+
+diagramContainer.addEventListener('wheel', event => {
+  if (!event.ctrlKey) return;
+  event.preventDefault();
+  zoomDiagramAt(event.clientX, event.clientY, Math.exp(-event.deltaY * 0.01));
+}, { passive: false });
 </script>
 [[.WSSnippet]]</body>
 </html>

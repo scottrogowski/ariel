@@ -220,9 +220,9 @@ Edges between any two nodes in the combined set of `highlight_nodes` and `focus_
 
 ### Diagram viewport (pan and zoom)
 
-The diagram column has a fixed pixel area and clips its content (`overflow: hidden`). The diagram is never scaled up beyond its natural Mermaid rendering size (scale 1.0). Mermaid renders node labels at ~16px; narration text is 17px — so scale 1.0 is the ceiling that keeps diagram text ≤ narration text.
+The diagram column has fixed dimensions and clips its content (`overflow: hidden`). Automatic framing never exceeds natural Mermaid size (scale 1.0). Mermaid node labels use approximately 16 pixels. Narration text uses 17 pixels. Natural scale keeps diagram text no larger than narration text.
 
-**Condition for pan/zoom:** Pan and zoom are only active when the diagram's natural rendering (scale 1.0) exceeds the container in at least one dimension. If the diagram fits at natural scale, it is shown at natural size and centered for every step — no panning or zooming, even on highlight steps.
+**Condition for automatic pan/zoom:** Automatic pan and zoom only apply when natural rendering exceeds the container. If the diagram fits at natural scale, automatic framing shows it at natural size and centers it for every step.
 
 **When the diagram fits at natural scale** (naturalW ≤ containerW and naturalH ≤ containerH): all steps show the diagram at natural size, centered. No visual change between steps except highlighting.
 
@@ -235,9 +235,11 @@ The diagram column has a fixed pixel area and clips its content (`overflow: hidd
   2. Target scale: `min(1.0, scale_to_fit_bbox)`, where `scale_to_fit_bbox` is the largest scale at which the combined bounding box (with 15% margin) still fits within the container.
   3. Translate so the center of the combined bounding box is centered in the container.
 
-**SVG output:** transforms are precomputed per step at generation time via bounding box queries in the headless browser, then baked into per-step CSS. No JavaScript is present in the output SVG.
+**HTML manual pan/zoom:** the diagram uses a grab cursor. Pointer dragging pans the diagram. A macOS trackpad pinch continuously zooms around the gesture position without fixed scale limits. The `+` button zooms 1.25 times around the diagram center. The `−` button applies the reciprocal factor. The buttons float at bottom-right, with `+` above `−` and an 8-pixel gap. The group uses 20-pixel right and bottom insets. Every step change restores that step's automatic framing before manual interaction. Browser refresh restores the initial automatic framing. Manual viewport state is not persisted.
 
-**HTML output:** transforms are computed dynamically in JavaScript after each `applyStep()` call, using live `getBBox()` results, and applied as inline styles on the diagram SVG element.
+**SVG output:** automatic transforms use headless-browser bounding-box queries during generation. Generation stores each transform in per-step CSS. Manual pan and zoom are unavailable because no JavaScript is present in the output SVG.
+
+**HTML output:** automatic transforms are computed dynamically in JavaScript after each `applyStep()` call, using live `getBBox()` results. Manual transforms update the same diagram viewport.
 
 ### Click-for-walkthrough CTA
 

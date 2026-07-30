@@ -99,6 +99,105 @@ func (s *Session) Back() {
 	s.exec("prevStep()")
 }
 
+// Reload refreshes the page and waits for Ariel to finish rendering.
+func (s *Session) Reload() {
+	s.t.Helper()
+	if err := chromedp.Run(s.ctx,
+		chromedp.Reload(),
+		chromedp.WaitVisible("#ariel-ready", chromedp.ByID),
+	); err != nil {
+		s.t.Fatalf("browsertest.Reload: %v", err)
+	}
+}
+
+// DragDiagram drags the diagram by the supplied pixel deltas.
+func (s *Session) DragDiagram(deltaX, deltaY float64) {
+	s.t.Helper()
+	s.exec(fmt.Sprintf(`(function() {
+		var c = document.getElementById('mermaid-container');
+		c.dispatchEvent(new PointerEvent('pointerdown', {
+			pointerId: 1, button: 0, clientX: 100, clientY: 100, bubbles: true
+		}));
+		c.dispatchEvent(new PointerEvent('pointermove', {
+			pointerId: 1, buttons: 1, clientX: %f, clientY: %f, bubbles: true
+		}));
+		c.dispatchEvent(new PointerEvent('pointerup', {
+			pointerId: 1, button: 0, clientX: %f, clientY: %f, bubbles: true
+		}));
+	})()`, 100+deltaX, 100+deltaY, 100+deltaX, 100+deltaY))
+}
+
+// PinchDiagramAt sends one macOS trackpad pinch delta at viewport coordinates.
+func (s *Session) PinchDiagramAt(deltaY, clientX, clientY float64) {
+	s.t.Helper()
+	s.exec(fmt.Sprintf(`(function() {
+		var c = document.getElementById('mermaid-container');
+		c.dispatchEvent(new WheelEvent('wheel', {
+			clientX: %f,
+			clientY: %f,
+			deltaY: %f,
+			ctrlKey: true,
+			bubbles: true,
+			cancelable: true
+		}));
+	})()`, clientX, clientY, deltaY))
+}
+
+// ElementCenter returns the element's viewport center.
+func (s *Session) ElementCenter(selector string) (float64, float64) {
+	s.t.Helper()
+	selectorJSON, err := json.Marshal(selector)
+	if err != nil {
+		s.t.Fatalf("browsertest.ElementCenter: marshal selector: %v", err)
+	}
+	raw := s.evalString(fmt.Sprintf(`(function() {
+		var element = document.querySelector(%s);
+		if (!element) return JSON.stringify({found:false});
+		var rect = element.getBoundingClientRect();
+		return JSON.stringify({found:true, x:rect.left + rect.width / 2, y:rect.top + rect.height / 2});
+	})()`, selectorJSON))
+	var center struct {
+		Found bool    `json:"found"`
+		X     float64 `json:"x"`
+		Y     float64 `json:"y"`
+	}
+	if err := json.Unmarshal([]byte(raw), &center); err != nil {
+		s.t.Fatalf("browsertest.ElementCenter: unmarshal %q: %v", raw, err)
+	}
+	if !center.Found {
+		s.t.Fatalf("browsertest.ElementCenter: selector %q not found", selector)
+	}
+	return center.X, center.Y
+}
+
+// ClickFlowchartNode clicks a rendered flowchart node.
+func (s *Session) ClickFlowchartNode(nodeID string) {
+	s.t.Helper()
+	s.ClickElement(fmt.Sprintf(`[id^="flowchart-%s-"]`, nodeID))
+}
+
+// ClickElement clicks an element matching selector.
+func (s *Session) ClickElement(selector string) {
+	s.t.Helper()
+	if err := chromedp.Run(s.ctx,
+		chromedp.Click(selector, chromedp.ByQuery),
+		chromedp.Sleep(50*time.Millisecond),
+	); err != nil {
+		s.t.Fatalf("browsertest.ClickElement %q: %v", selector, err)
+	}
+}
+
+// PressElement sends keys to an element matching selector.
+func (s *Session) PressElement(selector, keys string) {
+	s.t.Helper()
+	if err := chromedp.Run(s.ctx,
+		chromedp.SendKeys(selector, keys, chromedp.ByQuery),
+		chromedp.Sleep(50*time.Millisecond),
+	); err != nil {
+		s.t.Fatalf("browsertest.PressElement %q: %v", selector, err)
+	}
+}
+
 // GoToStep jumps directly to step n (zero-based) in the current section.
 func (s *Session) GoToStep(n int) {
 	s.t.Helper()
