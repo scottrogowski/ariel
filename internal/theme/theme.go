@@ -17,20 +17,27 @@ type Palette struct {
 	MermaidBase string
 
 	// Chrome.
-	Bg           string
-	Surface      string
-	Border       string
-	BorderSubtle string
-	Text         string
-	Muted        string
-	Accent       string
-	AccentHover  string
-	AccentBright string
-	LinkHover    string
-	Success      string
-	DotHover     string
-	NarrationBg  string
-	OnAccent     string
+	Bg               string
+	Surface          string
+	Border           string
+	BorderSubtle     string
+	HeaderBg         string
+	LogoOpacity      string
+	Text             string
+	Muted            string
+	Accent           string
+	AccentHover      string
+	AccentBright     string
+	LinkHover        string
+	Success          string
+	DotHover         string
+	DotFill          string
+	DotBorder        string
+	NarrationBg      string
+	OnAccent         string
+	DimOpacity       string
+	DimBorderOpacity string
+	DimTextOpacity   string
 
 	// Diagram.
 	NodeFill      string
@@ -73,55 +80,69 @@ func (m Mode) Baked() Palette {
 
 // Dark is ariel's default palette.
 var Dark = Palette{
-	MermaidBase:   "dark",
-	Bg:            "#0f1117",
-	Surface:       "#1a1d27",
-	Border:        "#2a2d3a",
-	BorderSubtle:  "#1e2130",
-	Text:          "#e8eaf0",
-	Muted:         "#6b7280",
-	Accent:        "#5b8dee",
-	AccentHover:   "#4a7de0",
-	AccentBright:  "#7da9f0",
-	LinkHover:     "#7aaaf5",
-	Success:       "#4ecdc4",
-	DotHover:      "#4a5a7a",
-	NarrationBg:   "#141720",
-	OnAccent:      "white",
-	NodeFill:      "#1a2744",
-	NodeBorder:    "#2a3a5a",
-	Edge:          "#4a5568",
-	ArrowHead:     "lightgrey",
-	HighlightFill: "#1e3a6e",
-	FocusFill:     "#1a4a7a",
-	DimFill:       "#111520",
+	MermaidBase:      "dark",
+	Bg:               "#0f1117",
+	Surface:          "#1a1d27",
+	Border:           "#2a2d3a",
+	BorderSubtle:     "#1e2130",
+	HeaderBg:         "#0f1117",
+	LogoOpacity:      "0.7",
+	Text:             "#e8eaf0",
+	Muted:            "#6b7280",
+	Accent:           "#5b8dee",
+	AccentHover:      "#4a7de0",
+	AccentBright:     "#7da9f0",
+	LinkHover:        "#7aaaf5",
+	Success:          "#4ecdc4",
+	DotHover:         "#4a5a7a",
+	DotFill:          "#2a2d3a",
+	DotBorder:        "transparent",
+	NarrationBg:      "#141720",
+	OnAccent:         "white",
+	DimOpacity:       "0.4",
+	DimBorderOpacity: "0.2",
+	DimTextOpacity:   "0.15",
+	NodeFill:         "#1a2744",
+	NodeBorder:       "#2a3a5a",
+	Edge:             "#4a5568",
+	ArrowHead:        "lightgrey",
+	HighlightFill:    "#1e3a6e",
+	FocusFill:        "#1a4a7a",
+	DimFill:          "#111520",
 }
 
 // Light is the light-mode palette. Mermaid extends the "base" theme (not "dark")
 // so unspecified diagram elements resolve to light defaults.
 var Light = Palette{
-	MermaidBase:   "base",
-	Bg:            "#ffffff",
-	Surface:       "#f5f6f8",
-	Border:        "#d8dbe2",
-	BorderSubtle:  "#e5e7ec",
-	Text:          "#1a1d27",
-	Muted:         "#5a6270",
-	Accent:        "#3b6fd6",
-	AccentHover:   "#2f5cbf",
-	AccentBright:  "#5b8dee",
-	LinkHover:     "#2f5cbf",
-	Success:       "#1a9d94",
-	DotHover:      "#a8b0c0",
-	NarrationBg:   "#f0f2f5",
-	OnAccent:      "white",
-	NodeFill:      "#eaf0fb",
-	NodeBorder:    "#b9cdf0",
-	Edge:          "#8a93a6",
-	ArrowHead:     "#8a93a6",
-	HighlightFill: "#cfe0fb",
-	FocusFill:     "#b3d3f5",
-	DimFill:       "#f0f2f5",
+	MermaidBase:      "base",
+	Bg:               "#ffffff",
+	Surface:          "#f6f8fa",
+	Border:           "#d0d7de",
+	BorderSubtle:     "#d8dee4",
+	HeaderBg:         "#eaeef2",
+	LogoOpacity:      "1",
+	Text:             "#1f2328",
+	Muted:            "#656d76",
+	Accent:           "#0969da",
+	AccentHover:      "#0550ae",
+	AccentBright:     "#218bff",
+	LinkHover:        "#0550ae",
+	Success:          "#1a7f37",
+	DotHover:         "#eaeef2",
+	DotFill:          "#ffffff",
+	DotBorder:        "#8c959f",
+	NarrationBg:      "#f6f8fa",
+	OnAccent:         "white",
+	DimOpacity:       "0.55",
+	DimBorderOpacity: "0.75",
+	DimTextOpacity:   "0.55",
+	NodeFill:         "#ddf4ff",
+	NodeBorder:       "#218bff",
+	Edge:             "#57606a",
+	ArrowHead:        "#57606a",
+	HighlightFill:    "#b6e3ff",
+	FocusFill:        "#aceebb",
+	DimFill:          "#f6f8fa",
 }
 
 // cssVars returns the ordered CSS custom properties for a :root block. Glows and
@@ -131,6 +152,8 @@ func (p Palette) cssVars() [][2]string {
 		{"--bg", p.Bg},
 		{"--border", p.Border},
 		{"--border-subtle", p.BorderSubtle},
+		{"--header-bg", p.HeaderBg},
+		{"--logo-opacity", p.LogoOpacity},
 		{"--text", p.Text},
 		{"--muted", p.Muted},
 		{"--accent", p.Accent},
@@ -139,8 +162,13 @@ func (p Palette) cssVars() [][2]string {
 		{"--link-hover", p.LinkHover},
 		{"--success", p.Success},
 		{"--dot-hover", p.DotHover},
+		{"--dot-fill", p.DotFill},
+		{"--dot-border", p.DotBorder},
 		{"--narration-bg", p.NarrationBg},
 		{"--on-accent", p.OnAccent},
+		{"--dim-opacity", p.DimOpacity},
+		{"--dim-border-opacity", p.DimBorderOpacity},
+		{"--dim-text-opacity", p.DimTextOpacity},
 		{"--node-fill", p.NodeFill},
 		{"--highlight-fill", p.HighlightFill},
 		{"--focus-fill", p.FocusFill},
@@ -237,8 +265,9 @@ func (p Palette) mermaidConfigObject() string {
 // the SVG extraction page applies inline. Inline styles let each extracted SVG
 // stay self-contained (and survive GitHub's SVG sanitizer).
 func (p Palette) DiagramColorsJS() string {
-	return fmt.Sprintf(`const ARIEL_COLORS = {focusFill:'%s',focusStroke:'%s',highlightFill:'%s',highlightStroke:'%s',dimFill:'%s',edgeStroke:'%s',arrowHead:'%s'};`,
-		p.FocusFill, p.Success, p.HighlightFill, p.Accent, p.DimFill, p.Accent, p.ArrowHead)
+	return fmt.Sprintf(`const ARIEL_COLORS = {focusFill:'%s',focusStroke:'%s',highlightFill:'%s',highlightStroke:'%s',dimFill:'%s',dimOpacity:%s,dimBorderOpacity:%s,dimTextOpacity:%s,edgeStroke:'%s',arrowHead:'%s'};`,
+		p.FocusFill, p.Success, p.HighlightFill, p.Accent, p.DimFill, p.DimOpacity,
+		p.DimBorderOpacity, p.DimTextOpacity, p.Accent, p.ArrowHead)
 }
 
 // rgba converts "#rrggbb" to "rgba(r, g, b, a)". Panics on malformed input so a

@@ -230,13 +230,13 @@ function applyStep(highlightNodes, focusNodes) {
           group.style.opacity = '1';
           group.querySelectorAll('rect.actor').forEach(el => {
             el.style.setProperty('fill', ARIEL_COLORS.dimFill, 'important');
-            el.style.setProperty('stroke-opacity', '0.2', 'important');
+            el.style.setProperty('stroke-opacity', ARIEL_COLORS.dimBorderOpacity, 'important');
           });
           group.querySelectorAll('text.actor').forEach(el => {
-            el.style.setProperty('opacity', '0.15', 'important');
+            el.style.setProperty('opacity', ARIEL_COLORS.dimTextOpacity, 'important');
           });
         } else {
-          group.style.opacity = '0.4';
+          group.style.opacity = ARIEL_COLORS.dimOpacity;
         }
       }
     });

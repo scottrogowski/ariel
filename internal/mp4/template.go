@@ -29,9 +29,11 @@ const sectionHTMLTemplate = `<!DOCTYPE html>
   }
 
   header {
+    position: relative;
     height: 64px;
     padding: 0 32px;
     border-bottom: 1px solid var(--border);
+    background: var(--header-bg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -42,6 +44,27 @@ const sectionHTMLTemplate = `<!DOCTYPE html>
     font-weight: 600;
     color: var(--text);
   }
+
+  .ariel-logo {
+    position: absolute;
+    right: 32px;
+    display: block;
+    width: 160px;
+    height: auto;
+    opacity: var(--logo-opacity);
+  }
+
+  .ariel-logo svg {
+    display: block;
+    width: 160px;
+    height: auto;
+  }
+
+  .ariel-logo rect,
+  .ariel-logo line { stroke: var(--accent); }
+
+  .ariel-logo polygon,
+  .ariel-logo text { fill: var(--accent); }
 
   .main {
     display: grid;
@@ -103,7 +126,7 @@ const sectionHTMLTemplate = `<!DOCTYPE html>
     color: var(--text);
   }
 
-  #mermaid-container.has-highlights .node { opacity: 0.25; }
+  #mermaid-container.has-highlights .node { opacity: var(--dim-opacity); }
 
   #mermaid-container.has-highlights .node.highlighted,
   #mermaid-container.has-highlights .node.active { opacity: 1; }
@@ -138,7 +161,7 @@ const sectionHTMLTemplate = `<!DOCTYPE html>
 </style>
 </head>
 <body>
-<header><h1 class="page-title">[[.Title]]</h1></header>
+<header><h1 class="page-title">[[.Title]]</h1><span class="ariel-logo">[[.LogoSVG]]</span></header>
 <div class="main">
   <div class="diagram-pane">
     <div id="mermaid-container">

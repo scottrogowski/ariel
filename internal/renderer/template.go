@@ -28,6 +28,7 @@ const htmlTemplate = `<!DOCTYPE html>
   header {
     padding: 20px 32px;
     border-bottom: 1px solid var(--border);
+    background: var(--header-bg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -56,7 +57,7 @@ const htmlTemplate = `<!DOCTYPE html>
   .ariel-link {
     position: absolute;
     right: 32px;
-    opacity: 0.7;
+    opacity: var(--logo-opacity);
     transition: opacity 0.15s ease;
     text-decoration: none;
     color: var(--muted);
@@ -75,6 +76,12 @@ const htmlTemplate = `<!DOCTYPE html>
     width: 160px;
     height: auto;
   }
+
+  .ariel-logo rect,
+  .ariel-logo line { stroke: var(--accent); }
+
+  .ariel-logo polygon,
+  .ariel-logo text { fill: var(--accent); }
 
   .main {
     flex: 1;
@@ -188,23 +195,26 @@ const htmlTemplate = `<!DOCTYPE html>
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--border);
+    background: var(--dot-fill);
+    border: 1px solid var(--dot-border);
     transition: all 0.3s ease;
     cursor: pointer;
   }
 
   .progress-dot.active {
     background: var(--accent);
+    border-color: transparent;
     box-shadow: 0 0 8px var(--accent-glow);
     width: 20px;
     border-radius: 3px;
   }
 
-  .progress-dot.visited { background: var(--muted); }
+  .progress-dot.visited { background: var(--muted); border-color: transparent; }
 
   /* Intro dot (first step of each section) stays circular, uses accent color */
   .progress-dot.intro-dot {
     background: var(--accent);
+    border-color: transparent;
     opacity: 0.3;
   }
 
@@ -230,19 +240,21 @@ const htmlTemplate = `<!DOCTYPE html>
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: var(--border);
+    background: var(--dot-fill);
+    border: 1px solid var(--dot-border);
     transition: all 0.3s ease;
     cursor: pointer;
   }
 
   .section-dot.active {
     background: var(--success);
+    border-color: transparent;
     box-shadow: 0 0 8px var(--success-glow);
     width: 24px;
     border-radius: 3px;
   }
 
-  .section-dot.visited { background: var(--muted); }
+  .section-dot.visited { background: var(--muted); border-color: transparent; }
 
   .controls {
     padding: 24px 32px;
@@ -311,7 +323,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
   /* Dimming: applied per-element when any highlighted/active nodes exist on the current step */
   #mermaid-container .dimmed {
-    opacity: 0.4;
+    opacity: var(--dim-opacity);
     transition: opacity 0.35s ease;
   }
 
@@ -319,11 +331,11 @@ const htmlTemplate = `<!DOCTYPE html>
      Use dimmed-actor instead of dimmed: keeps group opacity at 1 but darkens fill/text. */
   #mermaid-container .dimmed-actor rect.actor {
     fill: var(--dim-fill) !important;
-    stroke-opacity: 0.2 !important;
+    stroke-opacity: var(--dim-border-opacity) !important;
     transition: fill 0.35s ease;
   }
   #mermaid-container .dimmed-actor text.actor {
-    opacity: 0.15;
+    opacity: var(--dim-text-opacity);
     transition: opacity 0.35s ease;
   }
 

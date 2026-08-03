@@ -16,6 +16,7 @@ import (
 	"github.com/chromedp/chromedp"
 
 	"github.com/scottrogowski/ariel/internal/dsl"
+	"github.com/scottrogowski/ariel/internal/logo"
 	"github.com/scottrogowski/ariel/internal/theme"
 )
 
@@ -37,6 +38,7 @@ type sectionData struct {
 	MermaidDiagram string
 	ThemeCSS       string
 	MermaidInit    string
+	LogoSVG        string
 }
 
 type frame struct {
@@ -177,6 +179,7 @@ func buildSectionHTML(palette theme.Palette, title string, sec dsl.Section) stri
 		MermaidDiagram: strings.TrimRight(sec.MermaidDiagram, "\n"),
 		ThemeCSS:       palette.RootBlock(),
 		MermaidInit:    palette.MermaidInit(),
+		LogoSVG:        logo.SVG,
 	}); err != nil {
 		panic(fmt.Sprintf("section HTML template: %v", err))
 	}

@@ -350,7 +350,7 @@ func buildNavCSS(palette theme.Palette, n int, stepSecIdx []int, secsMeta []sect
 	b.WriteString(`input[type="radio"]{display:none;}` + "\n")
 
 	// Page header.
-	b.WriteString(`.page-header{position:relative;flex-shrink:0;height:60px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--border-subtle);}` + "\n")
+	b.WriteString(`.page-header{position:relative;flex-shrink:0;height:60px;display:flex;align-items:center;justify-content:center;background:var(--header-bg);border-bottom:1px solid var(--border-subtle);}` + "\n")
 	b.WriteString(`.page-title{font-size:22px;font-weight:600;color:var(--text);text-align:center;}` + "\n")
 	if multiSection {
 		b.WriteString(`.page-sep{margin:0 10px;color:var(--muted);font-weight:300;}` + "\n")
@@ -366,10 +366,12 @@ func buildNavCSS(palette theme.Palette, n int, stepSecIdx []int, secsMeta []sect
 		}
 	}
 	// Logo.
-	b.WriteString(`.ariel-link{position:absolute;right:32px;opacity:0.7;text-decoration:none;color:var(--muted);}` + "\n")
+	b.WriteString(`.ariel-link{position:absolute;right:32px;opacity:var(--logo-opacity);text-decoration:none;color:var(--muted);}` + "\n")
 	b.WriteString(`.ariel-link:hover{opacity:1;}` + "\n")
 	b.WriteString(`.ariel-logo{display:block;width:160px;height:auto;}` + "\n")
 	b.WriteString(`.ariel-logo svg{display:block;width:160px;height:auto;}` + "\n")
+	b.WriteString(`.ariel-logo rect,.ariel-logo line{stroke:var(--accent);}` + "\n")
+	b.WriteString(`.ariel-logo polygon,.ariel-logo text{fill:var(--accent);}` + "\n")
 
 	// Content row.
 	b.WriteString(`.content{flex:1;display:flex;flex-direction:row;overflow:hidden;}` + "\n")
@@ -417,16 +419,16 @@ func buildNavCSS(palette theme.Palette, n int, stepSecIdx []int, secsMeta []sect
 	// Section dots (multi-section only). Clicking navigates to that section's first real step.
 	if multiSection {
 		b.WriteString(`.section-track{display:flex;gap:8px;align-items:center;}` + "\n")
-		b.WriteString(`.sec-dot{width:8px;height:8px;border-radius:50%;background:var(--border);cursor:pointer;display:inline-block;transition:all 0.3s;}` + "\n")
+		b.WriteString(`.sec-dot{box-sizing:border-box;width:8px;height:8px;border-radius:50%;background:var(--dot-fill);border:1px solid var(--dot-border);cursor:pointer;display:inline-block;transition:all 0.3s;}` + "\n")
 		b.WriteString(`.sec-dot:hover{background:var(--success);opacity:0.6;}` + "\n")
 		// Active section dot: teal pill matching HTML's .section-dot.active.
 		if n > 1 {
-			fmt.Fprintf(&b, `#s0:checked~.content .sec-dot-0{background:var(--success);width:24px;border-radius:3px;}`+"\n")
+			fmt.Fprintf(&b, `#s0:checked~.content .sec-dot-0{background:var(--success);border-color:transparent;width:24px;border-radius:3px;}`+"\n")
 		}
 		for i := 0; i < n; i++ {
 			j := i + 1
 			si := stepSecIdx[i]
-			fmt.Fprintf(&b, `#s%d:checked~.content .sec-dot-%d{background:var(--success);width:24px;border-radius:3px;}`+"\n", j, si)
+			fmt.Fprintf(&b, `#s%d:checked~.content .sec-dot-%d{background:var(--success);border-color:transparent;width:24px;border-radius:3px;}`+"\n", j, si)
 		}
 	}
 
@@ -437,10 +439,10 @@ func buildNavCSS(palette theme.Palette, n int, stepSecIdx []int, secsMeta []sect
 		si := stepSecIdx[i]
 		fmt.Fprintf(&b, `#s%d:checked~.content .sec-steps-%d{display:flex;}`+"\n", j, si)
 	}
-	b.WriteString(`.dot{width:6px;height:6px;border-radius:50%;background:var(--border);cursor:pointer;display:inline-block;transition:all 0.3s;}` + "\n")
+	b.WriteString(`.dot{box-sizing:border-box;width:6px;height:6px;border-radius:50%;background:var(--dot-fill);border:1px solid var(--dot-border);cursor:pointer;display:inline-block;transition:all 0.3s;}` + "\n")
 	b.WriteString(`.dot:hover{background:var(--dot-hover);}` + "\n")
 	// Intro dot (first visible dot of each section): accent color, slightly transparent.
-	b.WriteString(`.intro-dot{background:var(--accent);opacity:0.3;}` + "\n")
+	b.WriteString(`.intro-dot{background:var(--accent);border-color:transparent;opacity:0.3;}` + "\n")
 	// Active step dot per step. s0 (CTA state) has no dot; s1..sN map to dots dot-1..dot-N.
 	for i := 0; i < n; i++ {
 		j := i + 1 // radio button index
@@ -449,10 +451,10 @@ func buildNavCSS(palette theme.Palette, n int, stepSecIdx []int, secsMeta []sect
 		isIntro := j == firstDot
 		if isIntro {
 			// Active intro dot: stays circular, full opacity.
-			fmt.Fprintf(&b, `#s%d:checked~.content .dot-%d{background:var(--accent);opacity:1;width:6px;border-radius:50%%;}`+"\n", j, j)
+			fmt.Fprintf(&b, `#s%d:checked~.content .dot-%d{background:var(--accent);border-color:transparent;opacity:1;width:6px;border-radius:50%%;}`+"\n", j, j)
 		} else {
 			// Active regular dot: pill shape.
-			fmt.Fprintf(&b, `#s%d:checked~.content .dot-%d{background:var(--accent);opacity:1;width:20px;border-radius:3px;}`+"\n", j, j)
+			fmt.Fprintf(&b, `#s%d:checked~.content .dot-%d{background:var(--accent);border-color:transparent;opacity:1;width:20px;border-radius:3px;}`+"\n", j, j)
 		}
 	}
 
