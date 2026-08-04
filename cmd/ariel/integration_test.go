@@ -95,6 +95,25 @@ steps:
 	}
 }
 
+// This test prevents warning output or exit behavior from disconnecting from label verification.
+func TestCLI_VerifyLongPlainLabelWarning(t *testing.T) {
+	yaml := `mermaid_diagram: |
+  flowchart TD
+    A[This plain node label contains more than fifty characters and should warn]
+steps:
+  - label: "Overview"
+    narration: "Full diagram."
+`
+	f := writeTempYAML(t, yaml)
+	stdout, _, exitCode := run("verify", f)
+	if exitCode != 0 {
+		t.Fatalf("expected exit 0 for warning, got %d; output: %s", exitCode, stdout)
+	}
+	if !strings.Contains(stdout, `warning: node "A" has a plain label longer than`) {
+		t.Errorf("expected long-label warning, got: %q", stdout)
+	}
+}
+
 // TestCLI_SingleDiagramExampleVerifies confirms that the built-in single-diagram
 // example YAML is self-consistent: it must parse and verify without errors.
 func TestCLI_SingleDiagramExampleVerifies(t *testing.T) {

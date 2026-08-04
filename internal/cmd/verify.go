@@ -98,6 +98,12 @@ func verifyWalkthrough(w *dsl.Walkthrough) []dsl.Issue {
 			continue
 		}
 		nodes, edges := dsl.ExtractGraph(sec.MermaidDiagram)
+		for _, issue := range dsl.VerifyFlowchartLabels(sec.MermaidDiagram) {
+			if multi {
+				issue.Message = fmt.Sprintf("section %d: %s", i+1, issue.Message)
+			}
+			issues = append(issues, issue)
+		}
 		for _, issue := range dsl.Verify(sec.Steps, nodes, edges) {
 			if multi {
 				issue.Message = fmt.Sprintf("section %d: %s", i+1, issue.Message)

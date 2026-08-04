@@ -50,6 +50,9 @@ NODE IDs
     A[(text)]     cylinder
     A((text))     circle
 
+  Wrap long flowchart labels in Markdown strings so Mermaid can wrap them
+  automatically: A["`Long label text that Mermaid should wrap`"]
+
   For sequenceDiagram, participant IDs are the short IDs, not the aliases:
     participant HP as Human Prompter  →  node ID is "HP"
 
@@ -72,6 +75,9 @@ OUTPUT FORMATS
   mp4   — non-interactive video; requires ffmpeg on PATH
 
 AUTHORING TIPS
+  Use an invisible link (A ~~~ B) when B should appear after A without a visible edge.
+  Use invisible links often between subgraph identifiers to control the order of disconnected subgraphs.
+
   Step sequencing:
     1. Overview step — no highlights, lets the viewer see the full diagram
     2. Entry point — first human-initiated action

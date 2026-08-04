@@ -1,6 +1,12 @@
 package dsl
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+	"unicode/utf8"
+)
+
+const longPlainLabelCharacterLimit = 50
 
 // Verify runs semantic checks against the extracted graph.
 // The caller supplies nodes and edges — this does not re-parse the diagram.
@@ -31,6 +37,55 @@ func Verify(steps []Step, nodes map[string]string, edges [][2]string) []Issue {
 	}
 
 	return issues
+}
+
+// VerifyFlowchartLabels warns when a plain label is long enough to impair diagram readability.
+func VerifyFlowchartLabels(diagram string) []Issue {
+	if detectDiagramType(diagram) != "flowchart" {
+		return nil
+	}
+
+	labels := make(map[string]string)
+	var nodeIDs []string
+	for _, match := range nodeShapeRe.FindAllStringSubmatch(diagram, -1) {
+		id := match[1]
+		if _, exists := labels[id]; !exists {
+			nodeIDs = append(nodeIDs, id)
+		}
+		labels[id] = extractShapeLabel(match[0], id)
+	}
+
+	var issues []Issue
+	for _, id := range nodeIDs {
+		label := labels[id]
+		if !isLongPlainLabel(label) {
+			continue
+		}
+
+		issues = append(issues, Issue{
+			Severity: SeverityWarning,
+			Message: fmt.Sprintf(
+				"node %q has a plain label longer than %d characters; use a Markdown label to enable wrapping",
+				id,
+				longPlainLabelCharacterLimit,
+			),
+		})
+	}
+	return issues
+}
+
+func isLongPlainLabel(label string) bool {
+	label = strings.TrimSpace(label)
+	if strings.Contains(strings.ToLower(label), "<br") {
+		return false
+	}
+	if strings.HasPrefix(label, "\"`") && strings.HasSuffix(label, "`\"") {
+		return false
+	}
+	if strings.HasPrefix(label, `"`) && strings.HasSuffix(label, `"`) {
+		label = strings.TrimSuffix(strings.TrimPrefix(label, `"`), `"`)
+	}
+	return utf8.RuneCountInString(label) > longPlainLabelCharacterLimit
 }
 
 // verifyNodeRefs reports an error for each ID in ids that does not exist in nodes.

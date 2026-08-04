@@ -1,6 +1,7 @@
 package dsl
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -72,6 +73,71 @@ func TestVerify_EmptyStepWarning(t *testing.T) {
 	issues := Verify(w.Steps, nodes, edges)
 	if len(issues) != 1 || issues[0].Severity != SeverityWarning {
 		t.Errorf("expected 1 warning, got %+v", issues)
+	}
+}
+
+// This test prevents long plain labels from silently expanding flowchart nodes.
+func TestVerifyFlowchartLabels(t *testing.T) {
+	tests := []struct {
+		name        string
+		label       string
+		wantWarning bool
+	}{
+		{
+			name:        "accepts plain label at character limit",
+			label:       strings.Repeat("a", longPlainLabelCharacterLimit),
+			wantWarning: false,
+		},
+		{
+			name:        "accepts quoted plain label at character limit",
+			label:       `"` + strings.Repeat("a", longPlainLabelCharacterLimit) + `"`,
+			wantWarning: false,
+		},
+		{
+			name:        "warns for plain label over character limit",
+			label:       strings.Repeat("a", longPlainLabelCharacterLimit+1),
+			wantWarning: true,
+		},
+		{
+			name:        "accepts long Markdown label",
+			label:       "\"`" + strings.Repeat("a", longPlainLabelCharacterLimit+1) + "`\"",
+			wantWarning: false,
+		},
+		{
+			name:        "warns for plain label containing backtick",
+			label:       strings.Repeat("a", 25) + "`" + strings.Repeat("b", 26),
+			wantWarning: true,
+		},
+		{
+			name:        "accepts long label with explicit break",
+			label:       strings.Repeat("a", 30) + "<br>" + strings.Repeat("b", 30),
+			wantWarning: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			diagram := fmt.Sprintf("flowchart TD\n  A[%s]", tt.label)
+			issues := VerifyFlowchartLabels(diagram)
+			if gotWarning := len(issues) == 1; gotWarning != tt.wantWarning {
+				t.Fatalf("VerifyFlowchartLabels() issues = %+v, want warning %t", issues, tt.wantWarning)
+			}
+			if tt.wantWarning && issues[0].Severity != SeverityWarning {
+				t.Errorf("VerifyFlowchartLabels() severity = %q, want %q", issues[0].Severity, SeverityWarning)
+			}
+		})
+	}
+}
+
+// This test prevents obsolete node labels from producing warnings.
+func TestVerifyFlowchartLabelsUsesLastNodeLabel(t *testing.T) {
+	diagram := fmt.Sprintf(
+		"flowchart TD\n  A[%s]\n  A[Short]",
+		strings.Repeat("a", longPlainLabelCharacterLimit+1),
+	)
+
+	if issues := VerifyFlowchartLabels(diagram); len(issues) != 0 {
+		t.Errorf("VerifyFlowchartLabels() issues = %+v, want none", issues)
 	}
 }
 
