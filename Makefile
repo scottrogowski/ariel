@@ -1,11 +1,11 @@
 BIN := ./ariel
 
-.PHONY: build examples test lint sync-skill
+.PHONY: build examples test lint reconcile
 build:
 	go build -o $(BIN) ./cmd/ariel
 
-sync-skill:
-	go run ./internal/skillsync/gen
+reconcile:
+	python3 tools/reconcile/reconcile.py
 
 examples: build
 	$(BIN) generate --output examples/example-output/ariel-why-output.html examples/example-input/ariel-why.ariel.yaml
@@ -20,9 +20,11 @@ examples: build
 
 test:
 	go test ./...
+	python3 -m unittest discover -s tools/ci -p '*_test.py'
+	python3 -m unittest discover -s tools/reconcile -p '*_test.py'
 	@echo ""
 	@echo "Tests pass. Run 'make examples' and inspect HTML/MP4 to validate visual output."
 
 lint:
 	go vet ./...
-
+	python3 -m compileall -q tools

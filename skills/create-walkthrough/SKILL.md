@@ -22,7 +22,7 @@ The `ariel` command is provided by this plugin and builds from source on first u
 
 ## DSL reference
 
-<!-- BEGIN GENERATED: ariel guide — regenerate with `make sync-skill`; do not edit by hand -->
+<!-- BEGIN GENERATED: ariel guide — regenerate with `make reconcile`; do not edit by hand -->
 
 ```
 ariel DSL reference — read this before authoring a walkthrough file.

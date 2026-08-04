@@ -7,6 +7,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var releaseVersion string
+
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: versionShort,
@@ -17,6 +19,9 @@ var versionCmd = &cobra.Command{
 }
 
 func arielVersion() string {
+	if releaseVersion != "" {
+		return releaseVersion
+	}
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		return "unknown"

@@ -1,0 +1,36 @@
+name: Pull request checks
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        with:
+          go-version-file: go.mod
+      - name: Validate release version
+        run: python3 tools/ci/version_check.py
+      - name: Lint
+        run: make lint
+      - name: Test
+        run: make test
+      - name: Validate reconciled files
+        run: |
+          make reconcile
+          git diff --exit-code
+      - name: Validate generated examples
+        run: |
+          make examples
+          git diff --exit-code

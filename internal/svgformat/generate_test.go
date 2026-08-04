@@ -2,6 +2,17 @@ package svgformat
 
 import "testing"
 
+// This test prevents Mermaid timestamp identifiers from changing generated examples on each run.
+func TestNormalizeMermaidIDs(t *testing.T) {
+	input := `<svg id="mermaid-1785876143985"><style>#mermaid-1785876143985{marker-end:url(#mermaid-1785876143846_flowchart-pointEnd)}</style><marker id="mermaid-1785876143846_flowchart-pointEnd"/><text>mermaid-1785876143985 #mermaid-1785876143985</text></svg>`
+	want := `<svg id="mermaid-1"><style>#mermaid-1{marker-end:url(#mermaid-2_flowchart-pointEnd)}</style><marker id="mermaid-2_flowchart-pointEnd"/><text>mermaid-1785876143985 #mermaid-1785876143985</text></svg>`
+
+	got := normalizeMermaidIDs(input)
+	if got != want {
+		t.Fatalf("normalizeMermaidIDs() = %q; want %q", got, want)
+	}
+}
+
 func TestFormatStepHeader(t *testing.T) {
 	cases := []struct {
 		sectionTitle string

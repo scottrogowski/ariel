@@ -72,7 +72,7 @@ Ariel follows spec-driven-development. Read spec/ariel-spec.md. If you are an ag
 
 After every code change that could alter the output rendering (which is almost every code change), run `make examples`. This is also NOT optional. Almost every commit should have modifications to the examples.
 
-After merging updates, bump the git tag per semver, e.g. `git tag v1.1.1 && git push --tags`.
+Set `.claude-plugin/plugin.json` to the next release version in every pull request. Minor releases add real features. Patch releases contain only bug fixes or aesthetic updates. Merging to `main` publishes the matching Git tag, GitHub Release, and binaries.
 
 ## Testing
 
