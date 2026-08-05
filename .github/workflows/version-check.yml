@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+env:
+  GOFLAGS: -p=1
+
 jobs:
   validate:
     runs-on: ubuntu-latest
