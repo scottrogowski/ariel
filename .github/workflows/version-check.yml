@@ -35,5 +35,5 @@ jobs:
           git diff --exit-code
       - name: Validate generated examples
         run: |
-          make examples
+          make examples-ci
           git diff --exit-code

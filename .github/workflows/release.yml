@@ -39,7 +39,7 @@ jobs:
           git diff --exit-code
       - name: Validate generated examples
         run: |
-          make examples
+          make examples-ci
           git diff --exit-code
       - name: Install GoReleaser
         uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7.0.0
