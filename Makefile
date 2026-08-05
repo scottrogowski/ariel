@@ -1,6 +1,6 @@
 BIN := ./ariel
 
-.PHONY: build examples examples-ci test lint reconcile
+.PHONY: build examples examples-ci test test-ci lint reconcile
 build:
 	go build -o $(BIN) ./cmd/ariel
 
@@ -21,11 +21,14 @@ examples-ci: build
 	$(BIN) generate --theme light --format svg --output examples/example-output/ariel-what-output.svg examples/example-input/ariel-what.ariel.yaml
 
 test:
-	go test ./...
+	go test $(if $(GO_TEST_SKIP),-skip='$(GO_TEST_SKIP)') ./...
 	python3 -m unittest discover -s tools/ci -p '*_test.py'
 	python3 -m unittest discover -s tools/reconcile -p '*_test.py'
 	@echo ""
 	@echo "Tests pass. Run 'make examples' and inspect HTML/MP4 to validate visual output."
+
+test-ci:
+	$(MAKE) test GO_TEST_SKIP='^(TestCLI_GenerateSVG|TestPanZoom_|TestWatch_)'
 
 lint:
 	go vet ./...
