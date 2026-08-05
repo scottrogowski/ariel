@@ -33,7 +33,7 @@ jobs:
         run: |
           make reconcile
           git diff --exit-code
-      - name: Validate generated examples
+      - name: Validate generated HTML
         run: |
           make examples-ci
           git diff --exit-code
