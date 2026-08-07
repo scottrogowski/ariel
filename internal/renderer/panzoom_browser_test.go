@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/scottrogowski/ariel/internal/browsertest"
 	"github.com/scottrogowski/ariel/internal/dsl"
 	"github.com/scottrogowski/ariel/internal/renderer"
 	"github.com/scottrogowski/ariel/internal/theme"
+	browsertest "github.com/scottrogowski/ariel/tools/e2e-tests"
 )
 
 const centerTolerance = 5.0 // acceptable pixel error for bbox centering

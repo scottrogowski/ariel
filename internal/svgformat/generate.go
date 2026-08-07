@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -176,7 +177,37 @@ func Generate(w *dsl.Walkthrough, outPath string, mode theme.Mode) error {
 
 	out := buildOutputSVG(palette, w.Title, stepSVGs, narrations, stepHeaders,
 		stepSecIdx, secsMeta, naturalWs, naturalHs, transforms)
+	out = normalizeMermaidIDs(out)
 	return os.WriteFile(outPath, []byte(out), 0644)
+}
+
+var (
+	mermaidTimestampIDPattern = regexp.MustCompile(`id="(mermaid-[0-9]{10,})`)
+	styleElementPattern       = regexp.MustCompile(`(?s)<style>.*?</style>`)
+)
+
+func normalizeMermaidIDs(svg string) string {
+	normalizedIDs := make(map[string]string)
+	nextID := 1
+
+	for _, match := range mermaidTimestampIDPattern.FindAllStringSubmatch(svg, -1) {
+		timestampID := match[1]
+		if _, exists := normalizedIDs[timestampID]; exists {
+			continue
+		}
+
+		normalizedIDs[timestampID] = fmt.Sprintf("mermaid-%d", nextID)
+		nextID++
+	}
+
+	for timestampID, normalizedID := range normalizedIDs {
+		svg = strings.ReplaceAll(svg, `id="`+timestampID, `id="`+normalizedID)
+		svg = strings.ReplaceAll(svg, `url(#`+timestampID, `url(#`+normalizedID)
+		svg = styleElementPattern.ReplaceAllStringFunc(svg, func(style string) string {
+			return strings.ReplaceAll(style, "#"+timestampID, "#"+normalizedID)
+		})
+	}
+	return svg
 }
 
 // formatStepHeader returns the narration panel header for a step.
