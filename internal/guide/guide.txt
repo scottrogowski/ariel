@@ -2,7 +2,7 @@ ariel DSL reference — read this before authoring a walkthrough file.
 
 See also: `ariel single-diagram-example` and/or `ariel multiple-diagram-example`
 
-FILE STRUCTURE — single diagram
+FILE STRUCTURE OPTION 1 — single diagram
   title: "My Walkthrough"          # optional
   mermaid_diagram: |               # required; valid Mermaid syntax
     graph TD
@@ -16,7 +16,7 @@ FILE STRUCTURE — single diagram
       highlight_nodes: [A]         # optional; node IDs to dim everything else (context)
       focus_nodes: [B]             # optional; node IDs for primary actor (stronger emphasis)
 
-FILE STRUCTURE — multiple diagrams
+FILE STRUCTURE OPTION 2 — multiple diagrams
   title: "My Walkthrough"
   sections:
     - title: "Overview"            # optional section title
@@ -31,9 +31,6 @@ FILE STRUCTURE — multiple diagrams
           ...
       steps:
         - narration: "Section two."
-
-  Use "sections" for multi-diagram walkthroughs. Use "mermaid_diagram"+"steps"
-  for single-diagram. The two formats cannot be combined in one file.
 
   Each step must have at least one of: narration, label, highlight_nodes,
   focus_nodes. Unknown fields at any level are errors.
@@ -80,14 +77,16 @@ AUTHORING TIPS
 
   Step sequencing:
     1. Overview step — no highlights, lets the viewer see the full diagram
-    2. Entry point — first human-initiated action
+    2. Entry point — first action
     3. Happy path — follow the primary flow from start to finish
     4. Failure path — cover error branches after the happy path
     5. "What to scrutinize" — final step identifying what deserves review
 
-  For multi-diagram files, use sections to progress from simple to detailed:
-    - Section 1: high-level overview (few nodes, major components only)
-    - Section 2+: drill into subsystems or failure paths
+  When to use multiple diagrams:
+    - If you are explaining different concerns. E.g. conceptual overview, system diagram, business logic, and the state machine should all go in separate sections
+    - If a diagram is sufficiently complicated, use separate sections to progress from simple to detailed:
+      - Section 1: high-level overview (few nodes, major components only)
+      - Section 2+: drill into subsystems or failure paths
 
   What to narrate:
     - Decision points (forks where the system chooses between paths)
@@ -108,7 +107,7 @@ AUTHORING TIPS
 
   Where should the ariel.yaml file live:
     Sometimes it makes sense to commit the ariel.yaml file. Most of the time
-    (e.g. generating SVGs for PRs or brief explanations), you can save the
+    (e.g. generating SVGs for PRs or brief explanations), save the
     file under the `/tmp` directory.
 
   How do I embed the SVGs in Github PR summaries?
