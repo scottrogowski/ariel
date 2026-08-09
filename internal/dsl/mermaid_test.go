@@ -232,6 +232,82 @@ func TestExtractGraph_SequenceImplicitParticipants(t *testing.T) {
 	}
 }
 
+// This test prevents class syntax from producing missing or spurious walkthrough nodes.
+func TestExtractGraph_ClassNodes(t *testing.T) {
+	diagram := "" +
+		"classDiagram\n" +
+		"  class Service {\n" +
+		"    +Run() error\n" +
+		"  }\n" +
+		"  class Store[\"Data Store\"]\n" +
+		"  Store : +Save() error\n" +
+		"  Queue : +Push(item Item)\n" +
+		"  Service --> Store : writes\n" +
+		"  Cache ..> Store : reads\n" +
+		"  class `Job Runner`\n" +
+		"  class List~Item~\n" +
+		"  <<interface>> Repository\n" +
+		"  namespace data {\n" +
+		"    class Record\n" +
+		"  }\n" +
+		"  note for Service \"Coordinates work\"\n" +
+		"  direction LR\n"
+
+	nodes, _ := ExtractGraph(diagram)
+	want := map[string]string{
+		"Service":    "Service",
+		"Store":      "Data Store",
+		"Queue":      "Queue",
+		"Cache":      "Cache",
+		"Job Runner": "Job Runner",
+		"List":       "List",
+		"Repository": "Repository",
+		"Record":     "Record",
+	}
+	if len(nodes) != len(want) {
+		t.Fatalf("ExtractGraph() nodes = %#v, want %#v", nodes, want)
+	}
+	for id, wantLabel := range want {
+		if got := nodes[id]; got != wantLabel {
+			t.Errorf("node %q label = %q, want %q", id, got, wantLabel)
+		}
+	}
+}
+
+// This test prevents supported class relationship forms from breaking connectivity checks.
+func TestExtractGraph_ClassRelationships(t *testing.T) {
+	tests := []struct {
+		name     string
+		relation string
+		source   string
+		target   string
+	}{
+		{name: "inheritance", relation: "Animal <|-- Duck", source: "Animal", target: "Duck"},
+		{name: "composition", relation: "Company *-- Department", source: "Company", target: "Department"},
+		{name: "aggregation", relation: "Pond o-- Duck", source: "Pond", target: "Duck"},
+		{name: "association", relation: "Owner -- Pet", source: "Owner", target: "Pet"},
+		{name: "dependency", relation: "Service ..> Store", source: "Service", target: "Store"},
+		{name: "realization", relation: "Service ..|> Runner", source: "Service", target: "Runner"},
+		{name: "bidirectional", relation: "A <--> B", source: "A", target: "B"},
+		{name: "lollipop", relation: "Service --() Port", source: "Service", target: "Port"},
+		{name: "cardinality and label", relation: `Customer "1" --> "*" Order : places`, source: "Customer", target: "Order"},
+		{name: "no spaces", relation: "Source-->Target", source: "Source", target: "Target"},
+		{name: "backtick names", relation: "`Job Runner` --> `Data Store`", source: "Job Runner", target: "Data Store"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, edges := ExtractGraph("classDiagram\n  " + tt.relation)
+			if len(edges) != 1 {
+				t.Fatalf("ExtractGraph() edges = %#v, want one edge", edges)
+			}
+			if edges[0] != [2]string{tt.source, tt.target} {
+				t.Errorf("ExtractGraph() edge = %#v, want %q -> %q", edges[0], tt.source, tt.target)
+			}
+		})
+	}
+}
+
 func TestDetectDiagramType(t *testing.T) {
 	cases := []struct {
 		diagram string
@@ -242,7 +318,8 @@ func TestDetectDiagramType(t *testing.T) {
 		{"flowchart LR\n  A-->B", "flowchart"},
 		{"%% comment\nsequenceDiagram\n  A->>B: hi", "sequence"},
 		{"pie title Pets\n  \"Dogs\" : 386", "unsupported"},
-		{"classDiagram\n  class Foo", "unsupported"},
+		{"classDiagram\n  class Foo", "class"},
+		{"classDiagram-v2\n  class Foo", "class"},
 		{"stateDiagram-v2\n  s1 --> s2", "unsupported"},
 		{"erDiagram\n  FOO ||--o{ BAR : has", "unsupported"},
 		{"gantt\n  title A", "unsupported"},

@@ -1,0 +1,38 @@
+title: Request Processing Classes
+mermaid_diagram: |
+  classDiagram-v2
+    direction LR
+    class Handler["HTTP Handler"]
+    Handler : +Handle(request Request) Response
+    class Service
+    Service : -repository Repository
+    Service : +Execute(command Command) Result
+    class Repository
+    Repository : +Save(result Result) error
+    <<interface>> Repository
+    class SQLStore["PostgreSQL Store"]
+    SQLStore : +Save(result Result) error
+    class Cache
+    Cache : +Get(key string) Result
+    class Metrics
+    Metrics : +Record(name string)
+    Handler --> Service : executes
+    Service --> Repository : persists
+    SQLStore ..|> Repository : implements
+    Service --> Cache : reads
+    Service --> Metrics : records
+steps:
+  - label: Overview
+    narration: The diagram shows request processing classes and their relationships.
+  - label: Request entry
+    narration: The handler delegates each validated request to the service.
+    highlight_nodes: [Handler]
+    focus_nodes: [Service]
+  - label: Persistence contract
+    narration: The service depends on the repository interface.
+    highlight_nodes: [Service]
+    focus_nodes: [Repository]
+  - label: Storage implementation
+    narration: The PostgreSQL store implements the repository contract.
+    highlight_nodes: [Repository]
+    focus_nodes: [SQLStore]

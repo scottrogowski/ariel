@@ -80,10 +80,15 @@ NODE IDs
   For sequenceDiagram, participant IDs are the short IDs, not the aliases:
     participant HP as Human Prompter  →  node ID is "HP"
 
+  For classDiagram, class IDs are class names, not labels or members:
+    class Store["Data Store"]  →  node ID is "Store"
+    Store : +Save() error       →  "Save" is not a node ID
+
 VISUAL EMPHASIS
-  highlight_nodes and focus_nodes are supported for two diagram types only:
+  highlight_nodes and focus_nodes are supported for three diagram types only:
     - flowchart / graph (e.g. "graph TD", "flowchart LR")
     - sequenceDiagram
+    - classDiagram / classDiagram-v2
   Using these fields with any other Mermaid diagram type is a verify error.
 
   highlight_nodes — dims all other nodes; highlighted nodes show a blue tint.
@@ -91,7 +96,7 @@ VISUAL EMPHASIS
   If a node appears in both, focus takes precedence.
 
   Edges between highlighted and focused nodes are animated automatically for
-  flowchart diagrams. Edge animation is not supported for sequenceDiagram.
+  flowchart and class diagrams. Edge animation is not supported for sequenceDiagram.
 
 OUTPUT FORMATS
   html  — highly interactive diagram; best experience (default)

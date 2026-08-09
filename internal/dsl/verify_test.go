@@ -195,7 +195,7 @@ func TestVerifyHighlightSupport_UnsupportedType(t *testing.T) {
 	}
 
 	// Supported types must return no issues.
-	for _, dtype := range []string{"flowchart", "sequence"} {
+	for _, dtype := range []string{"flowchart", "sequence", "class"} {
 		if issues := VerifyHighlightSupport(dtype, steps); len(issues) != 0 {
 			t.Errorf("type %q: expected no issues, got %+v", dtype, issues)
 		}
@@ -218,6 +218,24 @@ func TestVerifyHighlightSupport_UnsupportedType(t *testing.T) {
 	// Steps with no visual fields must not trigger the error.
 	if issues := VerifyHighlightSupport("unsupported", []Step{{Narration: "ok"}}); len(issues) != 0 {
 		t.Errorf("no-visual steps: expected no issues, got %+v", issues)
+	}
+}
+
+// This test prevents class members and labels from becoming valid walkthrough targets.
+func TestVerify_ClassTargets(t *testing.T) {
+	diagram := "classDiagram\n  class Store[\"Data Store\"] {\n    +Save() error\n  }"
+	nodes, edges := ExtractGraph(diagram)
+
+	validIssues := Verify([]Step{{Label: "Overview"}, {FocusNodes: []string{"Store"}}}, nodes, edges)
+	if len(validIssues) != 0 {
+		t.Fatalf("Verify() valid class target issues = %+v, want none", validIssues)
+	}
+
+	for _, invalidID := range []string{"Data Store", "Save"} {
+		issues := Verify([]Step{{Label: "Overview"}, {FocusNodes: []string{invalidID}}}, nodes, edges)
+		if len(issues) != 1 || issues[0].Severity != SeverityError {
+			t.Errorf("Verify() target %q issues = %+v, want one error", invalidID, issues)
+		}
 	}
 }
 

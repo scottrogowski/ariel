@@ -12,6 +12,7 @@
 package main_test
 
 import (
+	"bytes"
 	"encoding/xml"
 	"os"
 	"os/exec"
@@ -63,6 +64,17 @@ func TestCLI_VerifyKnownGoodFile(t *testing.T) {
 	}
 	if strings.Contains(stdout, ": error:") {
 		t.Errorf("expected no error lines in output, got: %q", stdout)
+	}
+}
+
+// This test prevents class diagrams from bypassing public CLI verification.
+func TestCLI_VerifyClassDiagram(t *testing.T) {
+	stdout, _, exitCode := run("verify", "../../testdata/class-diagram.ariel.yaml")
+	if exitCode != 0 {
+		t.Fatalf("expected exit 0, got %d; output: %s", exitCode, stdout)
+	}
+	if !strings.Contains(stdout, "6 nodes, 5 edges") {
+		t.Errorf("class verification summary = %q, want node and edge counts", stdout)
 	}
 }
 
@@ -257,6 +269,75 @@ func TestCLI_GenerateSVG(t *testing.T) {
 	// inside foreignObject; if they aren't made self-closing the file is broken.
 	if err := xml.Unmarshal(data, new(interface{})); err != nil {
 		t.Errorf("generated SVG is not valid XML: %v", err)
+	}
+}
+
+// This test prevents class emphasis from disappearing in generated SVG artifacts.
+func TestCLI_ClassDiagramSVG(t *testing.T) {
+	outPath := filepath.Join(t.TempDir(), "class.svg")
+	stdout, stderr, exitCode := run(
+		"generate",
+		"--theme", "dark",
+		"--format", "svg",
+		"--output", outPath,
+		"../../testdata/class-diagram.ariel.yaml",
+	)
+	if exitCode != 0 {
+		t.Fatalf("generate class SVG: exit %d\nstdout: %s\nstderr: %s", exitCode, stdout, stderr)
+	}
+
+	data, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("read class SVG: %v", err)
+	}
+	svg := string(data)
+	for _, nodeID := range []string{"Handler", "Service", "Repository", "SQLStore", "Cache", "Metrics"} {
+		attribute := `data-ariel-node-id="` + nodeID + `"`
+		if count := strings.Count(svg, attribute); count != 4 {
+			t.Errorf("%s count = %d, want one per step", attribute, count)
+		}
+	}
+	for _, expected := range []string{
+		`fill: rgb(30, 58, 110) !important`,
+		`fill: rgb(26, 74, 122) !important`,
+		`style="opacity: 0.4;"`,
+		`data-ariel-edge-source="Handler"`,
+		`<animate attributeName="stroke-dashoffset"`,
+		`interface`,
+	} {
+		if !strings.Contains(svg, expected) {
+			t.Errorf("generated class SVG missing %q", expected)
+		}
+	}
+	if err := xml.Unmarshal(data, new(interface{})); err != nil {
+		t.Errorf("generated class SVG is not valid XML: %v", err)
+	}
+}
+
+// This test prevents class walkthroughs from failing during MP4 assembly.
+func TestCLI_ClassDiagramMP4(t *testing.T) {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		t.Skip("ffmpeg is not installed")
+	}
+	outPath := filepath.Join(t.TempDir(), "class.mp4")
+	stdout, stderr, exitCode := run(
+		"generate",
+		"--theme", "dark",
+		"--format", "mp4",
+		"--step-duration", "1",
+		"--output", outPath,
+		"../../testdata/class-diagram.ariel.yaml",
+	)
+	if exitCode != 0 {
+		t.Fatalf("generate class MP4: exit %d\nstdout: %s\nstderr: %s", exitCode, stdout, stderr)
+	}
+
+	data, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("read class MP4: %v", err)
+	}
+	if len(data) < 1000 || !bytes.Contains(data[:min(len(data), 64)], []byte("ftyp")) {
+		t.Errorf("generated class MP4 is not a valid-looking video: %d bytes", len(data))
 	}
 }
 

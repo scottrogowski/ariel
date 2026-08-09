@@ -151,11 +151,11 @@ func disconnectedHighlightWarning(step Step, stepNum int, nodes map[string]strin
 	return nil
 }
 
-// VerifyHighlightSupport returns an error if any step uses visual fields (highlight_nodes
-// or focus_nodes) on an unsupported diagram type.
-// Only "flowchart" and "sequence" diagrams support highlighting.
+// VerifyHighlightSupport returns an error if a diagram family does not support visual fields.
 func VerifyHighlightSupport(diagramType string, steps []Step) []Issue {
-	if diagramType != "unsupported" {
+	if diagramType == string(DiagramKindFlowchart) ||
+		diagramType == string(DiagramKindSequence) ||
+		diagramType == string(DiagramKindClass) {
 		return nil
 	}
 	for i, step := range steps {
@@ -163,7 +163,7 @@ func VerifyHighlightSupport(diagramType string, steps []Step) []Issue {
 			return []Issue{{
 				Severity: SeverityError,
 				Message: fmt.Sprintf(
-					"step %d: highlight_nodes and focus_nodes are only supported for flowchart and sequenceDiagram",
+					"step %d: highlight_nodes and focus_nodes are only supported for flowchart, sequenceDiagram, and classDiagram",
 					i+1,
 				),
 			}}

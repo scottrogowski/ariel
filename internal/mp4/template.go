@@ -126,34 +126,35 @@ const sectionHTMLTemplate = `<!DOCTYPE html>
     color: var(--text);
   }
 
-  #mermaid-container.has-highlights .node { opacity: var(--dim-opacity); }
+  #mermaid-container.has-highlights [data-ariel-node-id] { opacity: var(--dim-opacity); }
 
-  #mermaid-container.has-highlights .node.highlighted,
-  #mermaid-container.has-highlights .node.active { opacity: 1; }
+  #mermaid-container.has-highlights [data-ariel-node-id].highlighted,
+  #mermaid-container.has-highlights [data-ariel-node-id].active { opacity: 1; }
 
-  #mermaid-container .node.highlighted rect,
-  #mermaid-container .node.highlighted circle,
-  #mermaid-container .node.highlighted polygon,
-  #mermaid-container .node.highlighted ellipse,
-  #mermaid-container .node.highlighted path {
+  #mermaid-container [data-ariel-node-id].highlighted rect,
+  #mermaid-container [data-ariel-node-id].highlighted circle,
+  #mermaid-container [data-ariel-node-id].highlighted polygon,
+  #mermaid-container [data-ariel-node-id].highlighted ellipse,
+  #mermaid-container [data-ariel-node-id].highlighted path {
     fill: var(--highlight-fill) !important;
     stroke: var(--accent) !important;
     stroke-width: 2px !important;
     filter: drop-shadow(0 0 8px var(--accent-glow));
   }
 
-  #mermaid-container .node.active rect,
-  #mermaid-container .node.active circle,
-  #mermaid-container .node.active polygon,
-  #mermaid-container .node.active ellipse,
-  #mermaid-container .node.active path {
+  #mermaid-container [data-ariel-node-id].active rect,
+  #mermaid-container [data-ariel-node-id].active circle,
+  #mermaid-container [data-ariel-node-id].active polygon,
+  #mermaid-container [data-ariel-node-id].active ellipse,
+  #mermaid-container [data-ariel-node-id].active path {
     fill: var(--focus-fill) !important;
     stroke: var(--success) !important;
     stroke-width: 2.5px !important;
     filter: drop-shadow(0 0 12px var(--focus-glow));
   }
 
-  #mermaid-container .flowchart-link.animated {
+  #mermaid-container .flowchart-link.animated,
+  #mermaid-container .relation.animated {
     stroke: var(--accent) !important;
     stroke-width: 2.5px !important;
     stroke-dasharray: 8 4;
@@ -178,38 +179,39 @@ const sectionHTMLTemplate = `<!DOCTYPE html>
 <div id="ready" style="display:none"></div>
 <script>
 [[.MermaidInit]]
+[[.RenderAdapter]]
 
 let nodeMap = {}, edgeMap = {};
+const diagramKind = [[printf "%q" .DiagramKind]];
+const nodeLabels = [[.NodeLabelsJSON]];
+const animateEdges = [[.AnimateEdges]];
 
 async function init() {
   await mermaid.run({ nodes: [document.querySelector('.mermaid')] });
   const svg = document.querySelector('#mermaid-container svg');
-  svg.querySelectorAll('.node').forEach(group => {
-    const m = group.id.match(/^flowchart-(\w+)-\d+$/);
-    if (m) nodeMap[m[1]] = group;
-  });
-  svg.querySelectorAll('.flowchart-link').forEach(el => {
-    const cls = Array.from(el.classList);
-    const srcCls = cls.find(c => c.startsWith('LS-'));
-    const dstCls = cls.find(c => c.startsWith('LE-'));
-    if (!srcCls || !dstCls) return;
-    const key = srcCls.slice(3) + '-' + dstCls.slice(3);
-    if (!edgeMap[key]) edgeMap[key] = [];
-    edgeMap[key].push(el);
-  });
+  const elementMap = buildArielElementMap(svg, diagramKind, nodeLabels);
+  nodeMap = elementMap.nodeMap;
+  edgeMap = elementMap.edgeMap;
   document.getElementById('ready').style.display = 'block';
 }
 
 function applyStep(highlightNodes, focusNodes, label, narration) {
   const svg = document.querySelector('#mermaid-container svg');
-  svg.querySelectorAll('.node').forEach(n => n.classList.remove('highlighted', 'active'));
-  svg.querySelectorAll('.flowchart-link').forEach(e => e.classList.remove('animated'));
+  svg.querySelectorAll('[data-ariel-node-id]').forEach(element => element.classList.remove('highlighted', 'active'));
+  svg.querySelectorAll('[data-ariel-edge-source]').forEach(element => element.classList.remove('animated'));
   const container = document.getElementById('mermaid-container');
   const hasHighlights = highlightNodes.length > 0 || focusNodes.length > 0;
   container.classList.toggle('has-highlights', hasHighlights);
   const focusSet = new Set(focusNodes);
-  highlightNodes.forEach(id => { if (nodeMap[id] && !focusSet.has(id)) nodeMap[id].classList.add('highlighted'); });
-  focusNodes.forEach(id => { if (nodeMap[id]) nodeMap[id].classList.add('active'); });
+  highlightNodes.forEach(id => {
+    if (!focusSet.has(id)) (nodeMap[id] || []).forEach(element => element.classList.add('highlighted'));
+  });
+  focusNodes.forEach(id => (nodeMap[id] || []).forEach(element => element.classList.add('active')));
+  if (!animateEdges) {
+    document.getElementById('step-label').textContent = label;
+    document.getElementById('narration').textContent = narration;
+    return;
+  }
   const allNodes = [...new Set([...highlightNodes, ...focusNodes])];
   for (let i = 0; i < allNodes.length; i++) {
     for (let j = 0; j < allNodes.length; j++) {

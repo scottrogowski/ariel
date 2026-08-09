@@ -54,9 +54,9 @@ func runVerify(path, displayName string, printResult bool) int {
 		sections := w.ToSections()
 		var totalNodes, totalEdges, totalSteps int
 		for _, sec := range sections {
-			nodes, edges := dsl.ExtractGraph(sec.MermaidDiagram)
-			totalNodes += len(nodes)
-			totalEdges += len(edges)
+			analysis := dsl.AnalyzeDiagram(sec.MermaidDiagram)
+			totalNodes += len(analysis.Nodes)
+			totalEdges += len(analysis.Edges)
 			totalSteps += len(sec.Steps)
 		}
 		if len(sections) > 1 {
@@ -78,7 +78,7 @@ func verifyWalkthrough(w *dsl.Walkthrough) []dsl.Issue {
 	multi := len(sections) > 1
 	var issues []dsl.Issue
 	for i, sec := range sections {
-		diagramType := dsl.DiagramType(sec.MermaidDiagram)
+		analysis := dsl.AnalyzeDiagram(sec.MermaidDiagram)
 		if err := mermaidjs.Validate(sec.MermaidDiagram); err != nil {
 			msg := fmt.Sprintf("mermaid_diagram: %v", err)
 			if multi {
@@ -88,7 +88,7 @@ func verifyWalkthrough(w *dsl.Walkthrough) []dsl.Issue {
 		}
 		// If the diagram type doesn't support visual fields, report that and skip
 		// node/edge verification — node extraction is not defined for this type.
-		if typeIssues := dsl.VerifyHighlightSupport(diagramType, sec.Steps); len(typeIssues) > 0 {
+		if typeIssues := dsl.VerifyHighlightSupport(string(analysis.Kind), sec.Steps); len(typeIssues) > 0 {
 			for _, issue := range typeIssues {
 				if multi {
 					issue.Message = fmt.Sprintf("section %d: %s", i+1, issue.Message)
@@ -97,14 +97,13 @@ func verifyWalkthrough(w *dsl.Walkthrough) []dsl.Issue {
 			}
 			continue
 		}
-		nodes, edges := dsl.ExtractGraph(sec.MermaidDiagram)
 		for _, issue := range dsl.VerifyFlowchartLabels(sec.MermaidDiagram) {
 			if multi {
 				issue.Message = fmt.Sprintf("section %d: %s", i+1, issue.Message)
 			}
 			issues = append(issues, issue)
 		}
-		for _, issue := range dsl.Verify(sec.Steps, nodes, edges) {
+		for _, issue := range dsl.Verify(sec.Steps, analysis.Nodes, analysis.Edges) {
 			if multi {
 				issue.Message = fmt.Sprintf("section %d: %s", i+1, issue.Message)
 			}

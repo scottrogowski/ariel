@@ -12,6 +12,7 @@ import (
 
 	"github.com/scottrogowski/ariel/internal/dsl"
 	"github.com/scottrogowski/ariel/internal/logo"
+	"github.com/scottrogowski/ariel/internal/renderadapter"
 	"github.com/scottrogowski/ariel/internal/theme"
 )
 
@@ -48,6 +49,7 @@ type jsStep struct {
 type jsSection struct {
 	Title          string            `json:"title"`
 	MermaidDiagram string            `json:"mermaid_diagram"`
+	DiagramType    string            `json:"diagram_type"`
 	NodeLabels     map[string]string `json:"node_labels"`
 	Steps          []jsStep          `json:"steps"`
 }
@@ -60,6 +62,7 @@ type templateData struct {
 	FaviconBase64   string
 	ThemeCSS        string // :root palette variables (+ light @media in auto mode)
 	MermaidConfigJS string // arielMermaidConfig() definition
+	RenderAdapterJS string // shared Mermaid element mapping
 	ThemeListener   string // prefers-color-scheme listener (auto mode only)
 	WSSnippet       string // empty for generate, populated for watch
 }
@@ -96,11 +99,12 @@ func render(w *dsl.Walkthrough, wsSnippet string, mode theme.Mode) (string, erro
 			}
 		}
 
-		nodeLabels, _ := dsl.ExtractGraph(sec.MermaidDiagram)
+		analysis := dsl.AnalyzeDiagram(sec.MermaidDiagram)
 		jsSections[i] = jsSection{
 			Title:          sec.Title,
 			MermaidDiagram: strings.TrimRight(sec.MermaidDiagram, "\n"),
-			NodeLabels:     nodeLabels,
+			DiagramType:    string(analysis.Kind),
+			NodeLabels:     analysis.Nodes,
 			Steps:          steps,
 		}
 	}
@@ -120,6 +124,7 @@ func render(w *dsl.Walkthrough, wsSnippet string, mode theme.Mode) (string, erro
 		FaviconBase64:   logo.FaviconBase64(),
 		ThemeCSS:        theme.HTMLRootCSS(mode),
 		MermaidConfigJS: theme.HTMLMermaidConfigJS(mode),
+		RenderAdapterJS: renderadapter.InlineJavaScript(),
 		ThemeListener:   theme.HTMLThemeListenerJS(mode),
 		WSSnippet:       wsSnippet,
 	}
