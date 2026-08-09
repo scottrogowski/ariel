@@ -11,8 +11,11 @@ GUIDE_PATH = REPOSITORY_ROOT / "internal" / "guide" / "guide.txt"
 SKILL_PATH = REPOSITORY_ROOT / "skills" / "create-walkthrough" / "SKILL.md"
 CLAUDE_MANIFEST_PATH = REPOSITORY_ROOT / ".claude-plugin" / "plugin.json"
 CODEX_MANIFEST_PATH = REPOSITORY_ROOT / ".codex-plugin" / "plugin.json"
+CODEX_MARKETPLACE_PATH = REPOSITORY_ROOT / ".agents" / "plugins" / "marketplace.json"
 BEGIN_MARKER = "<!-- BEGIN GENERATED: ariel guide — regenerate with `make reconcile`; do not edit by hand -->"
 END_MARKER = "<!-- END GENERATED: ariel guide -->"
+CODEX_DISPLAY_NAME = "Ariel"
+CODEX_CATEGORY = "Productivity"
 SHARED_MANIFEST_FIELDS = (
     "name",
     "version",
@@ -64,17 +67,40 @@ def render_codex_manifest(claude_manifest: dict[str, object]) -> str:
         {
             "skills": "./skills/",
             "interface": {
-                "displayName": "Ariel",
+                "displayName": CODEX_DISPLAY_NAME,
                 "shortDescription": "Create guided Mermaid diagram walkthroughs.",
                 "longDescription": "Ariel teaches Codex to create and render narrated Mermaid diagram walkthroughs.",
                 "developerName": author["name"],
-                "category": "Productivity",
+                "category": CODEX_CATEGORY,
                 "capabilities": ["Command-line", "Visualization"],
-                "defaultPrompt": "Create an Ariel walkthrough for this system.",
+                "defaultPrompt": ["Create an Ariel walkthrough for this system."],
             },
         }
     )
     return json.dumps(manifest, indent=2) + "\n"
+
+
+def render_codex_marketplace(claude_manifest: dict[str, object]) -> str:
+    """Render the generated Codex marketplace."""
+    plugin_name = claude_manifest["name"]
+    if not isinstance(plugin_name, str):
+        raise ValueError(f"{CLAUDE_MANIFEST_PATH} has no plugin name")
+    marketplace = {
+        "name": plugin_name,
+        "interface": {"displayName": CODEX_DISPLAY_NAME},
+        "plugins": [
+            {
+                "name": plugin_name,
+                "source": {"source": "local", "path": "./"},
+                "policy": {
+                    "installation": "AVAILABLE",
+                    "authentication": "ON_INSTALL",
+                },
+                "category": CODEX_CATEGORY,
+            }
+        ],
+    }
+    return json.dumps(marketplace, indent=2) + "\n"
 
 
 def reconcile() -> None:
@@ -83,8 +109,11 @@ def reconcile() -> None:
     skill = SKILL_PATH.read_text(encoding="utf-8")
     updated = replace_block(skill, render_block(guide))
     SKILL_PATH.write_text(updated, encoding="utf-8")
-    codex_manifest = render_codex_manifest(read_claude_manifest())
+    claude_manifest = read_claude_manifest()
+    codex_manifest = render_codex_manifest(claude_manifest)
     CODEX_MANIFEST_PATH.write_text(codex_manifest, encoding="utf-8")
+    codex_marketplace = render_codex_marketplace(claude_manifest)
+    CODEX_MARKETPLACE_PATH.write_text(codex_marketplace, encoding="utf-8")
 
 
 def main() -> int:

@@ -27,6 +27,8 @@
       "Command-line",
       "Visualization"
     ],
-    "defaultPrompt": "Create an Ariel walkthrough for this system."
+    "defaultPrompt": [
+      "Create an Ariel walkthrough for this system."
+    ]
   }
 }

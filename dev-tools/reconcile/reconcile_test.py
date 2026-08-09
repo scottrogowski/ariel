@@ -20,6 +20,12 @@ class ReconcileTest(unittest.TestCase):
         actual = reconcile.CODEX_MANIFEST_PATH.read_text(encoding="utf-8")
         self.assertEqual(actual, expected)
 
+    # Prevent marketplace metadata from drifting from the plugin manifest.
+    def test_codex_marketplace_matches_claude_manifest(self) -> None:
+        expected = reconcile.render_codex_marketplace(reconcile.read_claude_manifest())
+        actual = reconcile.CODEX_MARKETPLACE_PATH.read_text(encoding="utf-8")
+        self.assertEqual(actual, expected)
+
     def test_replace_block_rejects_missing_markers(self) -> None:
         with self.assertRaises(ValueError):
             reconcile.replace_block("unmanaged content", "generated content")
