@@ -18,7 +18,7 @@ description: >-
    - `ariel generate <file>` — self-contained HTML file.
    - `ariel generate --format svg <file>` — interactive SVG for embedding in GitHub PRs and READMEs.
 
-The `ariel` command is provided by this plugin and builds from source on first use, so Go must be installed.
+Resolve the plugin root as two directories above this file. Use `ariel` when available; otherwise, run `<plugin-root>/bin/ariel`. The launcher requires Go.
 
 ## DSL reference
 

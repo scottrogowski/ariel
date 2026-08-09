@@ -9,7 +9,7 @@ import (
 	"github.com/scottrogowski/ariel/internal/dsl"
 	"github.com/scottrogowski/ariel/internal/renderer"
 	"github.com/scottrogowski/ariel/internal/theme"
-	browsertest "github.com/scottrogowski/ariel/tools/e2e-tests"
+	browsertest "github.com/scottrogowski/ariel/dev-tools/e2e-tests"
 )
 
 const centerTolerance = 5.0 // acceptable pixel error for bbox centering

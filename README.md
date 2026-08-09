@@ -13,9 +13,9 @@ _If a picture is worth 1000 words, is a walkthrough worth 10,000?_
 
 ## Example SVGs
 
-[![ariel-why walkthrough](examples/example-output/ariel-why-output.svg)](examples/example-output/ariel-why-output.svg)
+[![ariel-why walkthrough](https://raw.githubusercontent.com/scottrogowski/ariel/refs/heads/main/examples/example-output/ariel-why-output.svg)](https://raw.githubusercontent.com/scottrogowski/ariel/refs/heads/main/examples/example-output/ariel-why-output.svg)
 
-[![ariel-what walkthrough](examples/example-output/ariel-what-output.svg)](examples/example-output/ariel-what-output.svg)
+[![ariel-what walkthrough](https://raw.githubusercontent.com/scottrogowski/ariel/refs/heads/main/examples/example-output/ariel-what-output.svg)](https://raw.githubusercontent.com/scottrogowski/ariel/refs/heads/main/examples/example-output/ariel-what-output.svg)
 
 ## Install
 
@@ -25,6 +25,13 @@ Gives your agent the `ariel` command and teaches it the workflow in one step:
 ```sh
 /plugin marketplace add scottrogowski/ariel
 /plugin install ariel
+```
+
+**Codex plugin (recommended)**
+
+```sh
+codex plugin marketplace add scottrogowski/ariel
+codex plugin add ariel@ariel
 ```
 
 **Go install**
@@ -72,7 +79,7 @@ Ariel follows spec-driven-development. Read spec/ariel-spec.md. If you are an ag
 
 After every code change that could alter the output rendering (which is almost every code change), run `make examples`. This is also NOT optional. Almost every commit should have modifications to the examples.
 
-Set `.claude-plugin/plugin.json` to the next release version in every pull request. Minor releases add real features. Patch releases contain only bug fixes or aesthetic updates. Merging to `main` publishes the matching Git tag, GitHub Release, and binaries.
+Set `.claude-plugin/plugin.json` to the next release version in every pull request. `make reconcile` copies it to the Codex manifest. Minor releases add features. Patch releases contain only fixes or aesthetic updates. Merging to `main` publishes the matching Git tag, GitHub Release, and binaries.
 
 ## Testing
 

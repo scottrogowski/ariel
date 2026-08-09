@@ -24,7 +24,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Validate release version
-        run: python3 tools/ci/version_check.py
+        run: python3 dev-tools/ci/version_check.py
       - name: Lint
         run: make lint
       - name: Test

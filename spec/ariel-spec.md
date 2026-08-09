@@ -28,20 +28,20 @@ Ariel addresses this by turning a system description into a guided, animated wal
 - **Implementation language:** Go
 - **Output:** Single static binary, cross-compiled for macOS (arm64, amd64), Linux (amd64), Windows (amd64)
 - **Build tooling:** GoReleaser + GitHub Actions
-- **Distribution:** Claude Code plugin (primary path for agents, see below), `go install github.com/scottrogowski/ariel/cmd/ariel@latest`, and GitHub Releases pre-built binaries.
+- **Distribution:** Claude Code and Codex plugins (primary path for agents, see below), `go install github.com/scottrogowski/ariel/cmd/ariel@latest`, and GitHub Releases pre-built binaries.
 - **Runtime dependencies:** None for the binary itself. `ffmpeg` must be on PATH when using `--format mp4`. Chromium (managed by chromedp) is used for `--format mp4` and `--format svg`.
 
 ---
 
-## Claude Code Plugin
+## Agent Plugins
 
-Ariel ships as a Claude Code plugin so that other engineers' agents both install it and learn to use it in a single step. The plugin solves the two distribution problems together: installation without PATH setup, and discovery of the DSL.
+Ariel ships as Claude Code and Codex plugins so that agents install it and learn to use it in one step. Both plugins share one skill and one launcher.
 
-- **Installation without PATH setup.** The plugin bundles ariel's source and a `bin/` wrapper that Claude Code adds to the Bash tool's PATH while the plugin is enabled. The wrapper builds the binary on first use and rebuilds it when the source changes, so the agent invokes `ariel` as a bare command regardless of the user's shell configuration. This sidesteps the failure mode of a bare `go install`, whose `~/go/bin` target is absent from the Bash tool's PATH (it reads `.zshenv`, not `.zshrc`).
+- **Installation without PATH setup.** Each plugin bundles ariel's source and a `bin/` wrapper. The wrapper builds the binary on first use and rebuilds it when the source changes. Claude Code adds the wrapper to the Bash tool's PATH. The Codex skill uses the wrapper when `ariel` is not already on PATH.
 - **Discovery.** The plugin bundles a skill that teaches the agent the workflow — read the DSL reference, author a `.ariel.yaml`, verify, then watch or generate. The skill embeds the reference inline so the agent reads it when the skill loads rather than depending on remembering to run `ariel guide`. `internal/guide/guide.txt` stays the single authored source; `make reconcile` regenerates the embedded copy from it and a test fails on drift.
 - **Why build from source.** Building on the user's machine keeps the plugin clone tiny (~1MB) and native to any architecture, whereas vendoring prebuilt binaries would force every user to download all supported architectures at once (a plugin install is a full git clone). It also keeps all executed code inspectable in the repository, which matters for community-marketplace safety screening.
 - **Requirements.** A Go toolchain builds the binary on first use; `ffmpeg` remains required only for MP4 output.
-- **Marketplace.** The repository is its own single-plugin marketplace; users add it with `/plugin marketplace add scottrogowski/ariel` and install with `/plugin install`.
+- **Marketplaces.** The repository provides Claude Code metadata in `.claude-plugin/` and Codex metadata in `.agents/plugins/` and `.codex-plugin/`.
 
 ---
 
@@ -173,7 +173,7 @@ The watch output is identical to the HTML generate output.
 
 ### `ariel version`
 
-Print the installed version. Release binaries receive the manifest version during compilation. Module installations report the selected Git tag. Local builds report their Go module build version. `.claude-plugin/plugin.json` is the release version source. Pull requests require a version above every existing semantic Git tag. Each `main` push revalidates and publishes that version. Also exposed as the `--version` flag.
+Print the installed version. Release binaries receive the manifest version during compilation. Module installations report the selected Git tag. Local builds report their Go module build version. `.claude-plugin/plugin.json` is the release version source. `make reconcile` copies it to the Codex manifest. Pull requests require a version above every existing semantic Git tag. Each `main` push revalidates and publishes that version. Also exposed as the `--version` flag.
 
 **Flags:** None. **Exit codes:** 0 always.
 
