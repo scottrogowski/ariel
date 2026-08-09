@@ -26,7 +26,7 @@ jobs:
       - name: Validate release version
         id: version
         run: |
-          release_tag="$(python3 tools/ci/version_check.py)"
+          release_tag="$(python3 dev-tools/ci/version_check.py)"
           echo "tag=$release_tag" >> "$GITHUB_OUTPUT"
           echo "version=${release_tag#v}" >> "$GITHUB_OUTPUT"
       - name: Lint

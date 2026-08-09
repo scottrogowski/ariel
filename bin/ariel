@@ -1,7 +1,6 @@
 #!/bin/sh
-# Plugin wrapper: builds the ariel CLI from the bundled source on first use, then
-# execs it. Resolves the plugin root from this script's own path so it does not
-# depend on ${CLAUDE_PLUGIN_ROOT} being exported to bin/ commands.
+# Plugin launcher: builds the bundled ariel CLI on first use, then executes it.
+# The script resolves the plugin root without depending on the current directory.
 set -e
 
 script_dir=$(cd "$(dirname "$0")" && pwd)

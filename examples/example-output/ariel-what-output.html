@@ -8,34 +8,67 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
 <style>
   :root {
-    --bg: #ffffff;
-    --border: #d0d7de;
-    --border-subtle: #d8dee4;
-    --header-bg: #eaeef2;
-    --logo-opacity: 1;
-    --text: #1f2328;
-    --muted: #656d76;
-    --accent: #0969da;
-    --accent-hover: #0550ae;
-    --accent-bright: #218bff;
-    --link-hover: #0550ae;
-    --success: #1a7f37;
-    --dot-hover: #eaeef2;
-    --dot-fill: #ffffff;
-    --dot-border: #8c959f;
-    --narration-bg: #f6f8fa;
+    --bg: #0f1117;
+    --border: #2a2d3a;
+    --border-subtle: #1e2130;
+    --header-bg: #0f1117;
+    --logo-opacity: 0.7;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --accent: #5b8dee;
+    --accent-hover: #4a7de0;
+    --accent-bright: #7da9f0;
+    --link-hover: #7aaaf5;
+    --success: #4ecdc4;
+    --dot-hover: #4a5a7a;
+    --dot-fill: #2a2d3a;
+    --dot-border: transparent;
+    --narration-bg: #141720;
     --on-accent: white;
-    --dim-opacity: 0.55;
-    --dim-border-opacity: 0.75;
-    --dim-text-opacity: 0.55;
-    --node-fill: #ddf4ff;
-    --highlight-fill: #b6e3ff;
-    --focus-fill: #aceebb;
-    --dim-fill: #f6f8fa;
-    --accent-glow: rgba(9, 105, 218, 0.3);
-    --success-glow: rgba(26, 127, 55, 0.3);
-    --focus-glow: rgba(26, 127, 55, 0.4);
-    --cta-overlay: rgba(255, 255, 255, 0.45);
+    --dim-opacity: 0.4;
+    --dim-border-opacity: 0.2;
+    --dim-text-opacity: 0.15;
+    --node-fill: #1a2744;
+    --highlight-fill: #1e3a6e;
+    --focus-fill: #1a4a7a;
+    --dim-fill: #111520;
+    --accent-glow: rgba(91, 141, 238, 0.3);
+    --success-glow: rgba(78, 205, 196, 0.3);
+    --focus-glow: rgba(78, 205, 196, 0.4);
+    --cta-overlay: rgba(15, 17, 23, 0.45);
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #ffffff;
+      --border: #d0d7de;
+      --border-subtle: #d8dee4;
+      --header-bg: #eaeef2;
+      --logo-opacity: 1;
+      --text: #1f2328;
+      --muted: #656d76;
+      --accent: #0969da;
+      --accent-hover: #0550ae;
+      --accent-bright: #218bff;
+      --link-hover: #0550ae;
+      --success: #1a7f37;
+      --dot-hover: #eaeef2;
+      --dot-fill: #ffffff;
+      --dot-border: #8c959f;
+      --narration-bg: #f6f8fa;
+      --on-accent: white;
+      --dim-opacity: 0.55;
+      --dim-border-opacity: 0.75;
+      --dim-text-opacity: 0.55;
+      --node-fill: #ddf4ff;
+      --highlight-fill: #b6e3ff;
+      --focus-fill: #aceebb;
+      --dim-fill: #f6f8fa;
+      --accent-glow: rgba(9, 105, 218, 0.3);
+      --success-glow: rgba(26, 127, 55, 0.3);
+      --focus-glow: rgba(26, 127, 55, 0.4);
+      --cta-overlay: rgba(255, 255, 255, 0.45);
+    }
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -488,7 +521,8 @@ let dragState = null;
 let suppressNodeClick = false;
 const zoomButtonFactor = 1.25;
 
-function arielMermaidConfig() { return {
+function arielMermaidConfig() {
+  var light = {
   startOnLoad: false,
   theme: 'base',
   themeVariables: {
@@ -506,7 +540,28 @@ function arielMermaidConfig() { return {
     edgeLabelBackground: '#f6f8fa',
     fontFamily: 'Inter, system-ui, sans-serif'
   }
-}; }
+};
+  var dark = {
+  startOnLoad: false,
+  theme: 'dark',
+  themeVariables: {
+    primaryColor: '#1a2744',
+    primaryTextColor: '#e8eaf0',
+    primaryBorderColor: '#2a3a5a',
+    lineColor: '#4a5568',
+    secondaryColor: '#1a1d27',
+    tertiaryColor: '#1a1d27',
+    background: '#0f1117',
+    mainBkg: '#1a2744',
+    nodeBorder: '#2a3a5a',
+    clusterBkg: '#1a1d27',
+    titleColor: '#e8eaf0',
+    edgeLabelBackground: '#1a1d27',
+    fontFamily: 'Inter, system-ui, sans-serif'
+  }
+};
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? light : dark;
+}
 mermaid.initialize(arielMermaidConfig());
 
 // reapplyTheme re-initializes Mermaid with the current OS color scheme and
@@ -560,7 +615,7 @@ initSection(startSection).then(() => {
   document.getElementById('ariel-ready').style.display = 'block';
 });
 
-
+window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', reapplyTheme);
 
 function buildNodeMap() {
   const svg = document.querySelector('#mermaid-container svg');

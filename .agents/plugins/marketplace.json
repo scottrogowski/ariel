@@ -1,0 +1,20 @@
+{
+  "name": "ariel",
+  "interface": {
+    "displayName": "Ariel"
+  },
+  "plugins": [
+    {
+      "name": "ariel",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
