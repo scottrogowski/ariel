@@ -106,6 +106,7 @@ Lint a walkthrough file. Runs automatically as part of `generate` and `watch`.
 
 *Semantic:*
 - All node IDs in `highlight_nodes`, `focus_nodes` exist in the diagram
+- Sequence participant display aliases are unique
 - At least one step per section
 - The first step of each section may only use `label` and `narration` — `highlight_nodes` and `focus_nodes` on step 1 are errors (see DSL section)
 - Steps with no content are warnings
