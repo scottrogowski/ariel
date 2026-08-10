@@ -25,7 +25,7 @@ func TestClassDiagramBrowserBehavior(t *testing.T) {
 
 // This test prevents sequence mapping from mixing SVG and screen coordinates.
 func TestSequenceDiagramElementMapping(t *testing.T) {
-	htmlPath := generateHTML(t, "../../examples/example-input/ariel-what.ariel.yaml")
+	htmlPath := generateHTML(t, "../../examples/example-input/how-ariel-works.ariel.yaml")
 	session := browsertest.Open(t, htmlPath)
 
 	if got := session.Eval(`Object.values(nodeMap).every(elements => elements.length === 2).toString()`); got != "true" {

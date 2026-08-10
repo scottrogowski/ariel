@@ -129,7 +129,7 @@ input[type="radio"]{display:none;}
 <input type="radio" name="s" id="s6"/>
 <input type="radio" name="s" id="s7"/>
 <div class="page-header">
-<div class="page-title">The problem ariel solves</div>
+<div class="page-title">What is Ariel</div>
 <a class="ariel-link" href="https://github.com/scottrogowski/ariel"><span class="ariel-logo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 688 256" width="688" height="256">
   <rect x="8" y="80" width="96" height="96" rx="6" fill="none" stroke="#5b8dee" stroke-width="6"/>
   <rect x="152" y="80" width="96" height="96" rx="6" fill="none" stroke="#5b8dee" stroke-width="6"/>
@@ -187,7 +187,7 @@ input[type="radio"]{display:none;}
 </div>
 <div class="narrations" style="width:300px;">
 <div class="narration n-1">
-<div class="narr-header">The problem ariel solves</div>
+<div class="narr-header">What is Ariel</div>
 <div class="narr-text">Ariel generates step-by-step diagram walkthroughs to help humans understand complex systems.</div>
 <div class="progress-area">
 <div class="step-track sec-steps-0">

@@ -1,4 +1,4 @@
-title: "The problem ariel solves"
+title: "What is Ariel"
 
 mermaid_diagram: |
   flowchart TD
@@ -9,7 +9,7 @@ mermaid_diagram: |
     WM -->|yes| Model[Mental Model]
     Model --> Decision[Good Decision]
 steps:
-  - label: "The problem ariel solves"
+  - label: "What is Ariel"
     narration: "Ariel generates step-by-step diagram walkthroughs to help humans understand complex systems."
 
   - label: "The problem"

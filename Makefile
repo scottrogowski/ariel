@@ -8,16 +8,16 @@ reconcile:
 	python3 dev-tools/reconcile/reconcile.py
 
 examples: examples-ci
-	$(BIN) generate --format svg --output examples/example-output/ariel-why-output.svg examples/example-input/ariel-why.ariel.yaml
-	$(BIN) generate --format mp4 --output examples/example-output/ariel-why-output.mp4 examples/example-input/ariel-why.ariel.yaml
-	$(BIN) generate --format svg --output examples/example-output/ariel-what-output.svg examples/example-input/ariel-what.ariel.yaml
-	$(BIN) generate --format mp4 --output examples/example-output/ariel-what-output.mp4 examples/example-input/ariel-what.ariel.yaml
+	$(BIN) generate --format svg --output examples/example-output/what-is-ariel.svg examples/example-input/what-is-ariel.ariel.yaml
+	$(BIN) generate --format mp4 --output examples/example-output/what-is-ariel.mp4 examples/example-input/what-is-ariel.ariel.yaml
+	$(BIN) generate --format svg --output examples/example-output/how-ariel-works.svg examples/example-input/how-ariel-works.ariel.yaml
+	$(BIN) generate --format mp4 --output examples/example-output/how-ariel-works.mp4 examples/example-input/how-ariel-works.ariel.yaml
 
 examples-ci: build
-	$(BIN) generate --output examples/example-output/ariel-why-output.html examples/example-input/ariel-why.ariel.yaml
+	$(BIN) generate --output docs/index.html examples/example-input/what-is-ariel.ariel.yaml
 	# Its section 3 step 8 (live reload loop) intentionally triggers a connectivity warning —
 	# FSWatch and Parse are shown together to illustrate the reload cycle.
-	$(BIN) generate --output examples/example-output/ariel-what-output.html examples/example-input/ariel-what.ariel.yaml
+	$(BIN) generate --output docs/how-ariel-works.html examples/example-input/how-ariel-works.ariel.yaml
 
 test:
 	go test $(if $(GO_TEST_SKIP),-skip='$(GO_TEST_SKIP)') ./...

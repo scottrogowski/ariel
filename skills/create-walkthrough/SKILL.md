@@ -12,10 +12,11 @@ description: >-
 1. Read the DSL reference below before authoring — it is authoritative and short (`ariel guide` prints the identical text).
 2. Author a `.ariel.yaml` file describing the diagram and the narrated steps.
 3. Run `ariel verify <file>` and fix any reported issues.
-4. Render or preview:
+4. Render:
    - `ariel watch <file>` — live-reloading browser preview while iterating (best for working with the user).
    - `ariel generate <file>` — self-contained HTML file.
    - `ariel generate --format svg <file>` — interactive SVG for embedding in GitHub PRs and READMEs.
+5. Share the path/url with the user
 
 Resolve the plugin root as two directories above this file. Use `ariel` when available; otherwise, run `<plugin-root>/bin/ariel`. The launcher requires Go.
 
@@ -61,11 +62,6 @@ FILE STRUCTURE OPTION 2 — multiple diagrams
   Each step must have at least one of: narration, label, highlight_nodes,
   focus_nodes. Unknown fields at any level are errors.
 
-CHOOSING A DIAGRAM
-  Use a flowchart when runtime flow, decisions, dependencies, or data movement are primary.
-  Use a sequence diagram when message order and interactions between participants are primary.
-  Use a class diagram when source structure, types, members, and type relationships are primary.
-
 NODE IDs
   From "A[Display Label]", the node ID is "A". Always reference the ID, never
   the label. IDs are case-sensitive. Check the mermaid_diagram block for exact
@@ -80,6 +76,7 @@ NODE IDs
 
   Wrap long flowchart labels in Markdown strings so Mermaid can wrap them
   automatically: A["`Long label text that Mermaid should wrap`"]
+  Markdown strings also support bold, italics, and literal newline. Anything else will error.
 
   For sequenceDiagram, participant IDs are the short IDs, not the aliases:
     participant HP as Human Prompter  →  node ID is "HP"
@@ -123,6 +120,11 @@ AUTHORING TIPS
     - If a diagram is sufficiently complicated, use separate sections to progress from simple to detailed:
       - Section 1: high-level overview (few nodes, major components only)
       - Section 2+: drill into subsystems or failure paths
+    - It may be useful to include some of the following types of views:
+      - Structural: "What is there?" Shows components, boundaries, relationships, and important characteristics. Use to orient the viewer and show where to look.
+      - Algorithmic: "How does it work?" Shows how selected responsibilities produce behavior. Use for core logic, complex logic, and likely misconceptions.
+      - Temporal: "What changed or will change?" Use a before-and-after diagram and emphasize only meaningful differences.
+      - Decision: "How to decide" Guides the viewer through conditions, evidence, and tradeoffs toward an appropriate action.
 
   What to narrate:
     - Decision points (forks where the system chooses between paths)
