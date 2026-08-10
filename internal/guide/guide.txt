@@ -49,7 +49,7 @@ NODE IDs
 
   Wrap long flowchart labels in Markdown strings so Mermaid can wrap them
   automatically: A["`Long label text that Mermaid should wrap`"]
-  Markdown strings also support bold, italics, and literal newline. Anything else will error.
+  Markdown strings also support bold, italics, and literal newlines.
 
   For sequenceDiagram, participant IDs are the short IDs, not the aliases:
     participant HP as Human Prompter  →  node ID is "HP"

@@ -2,16 +2,16 @@ package renderer
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"html"
+	"html/template"
 	"os"
 	"regexp"
 	"strings"
-	"text/template"
 
 	"github.com/scottrogowski/ariel/internal/dsl"
 	"github.com/scottrogowski/ariel/internal/logo"
+	"github.com/scottrogowski/ariel/internal/mermaidjs"
 	"github.com/scottrogowski/ariel/internal/renderadapter"
 	"github.com/scottrogowski/ariel/internal/theme"
 )
@@ -58,14 +58,15 @@ type jsSection struct {
 type templateData struct {
 	Title           string
 	GitHubURL       string
-	SectionsJSON    string
-	LogoSVG         string
-	FaviconBase64   string
-	ThemeCSS        string // :root palette variables (+ light @media in auto mode)
-	MermaidConfigJS string // arielMermaidConfig() definition
-	RenderAdapterJS string // shared Mermaid element mapping
-	ThemeListener   string // prefers-color-scheme listener (auto mode only)
-	WSSnippet       string // empty for generate, populated for watch
+	Sections        []jsSection
+	LogoSVG         template.HTML
+	FaviconURL      template.URL
+	MermaidJSURL    template.URL
+	ThemeCSS        template.CSS
+	MermaidConfigJS template.JS
+	RenderAdapterJS template.JS
+	ThemeListener   template.JS
+	WSSnippet       template.HTML
 }
 
 var tmpl = template.Must(
@@ -83,8 +84,7 @@ func RenderWatch(w *dsl.Walkthrough, port int, mode theme.Mode) (string, error) 
 	return render(w, srv.wsSnippet(), mode)
 }
 
-// render is the shared path for Generate and RenderWatch: serializes sections to JSON
-// and executes the HTML template.
+// render is the shared path for Generate and RenderWatch.
 func render(w *dsl.Walkthrough, wsSnippet string, mode theme.Mode) (string, error) {
 	sections := w.ToSections()
 	jsSections := make([]jsSection, len(sections))
@@ -111,24 +111,18 @@ func render(w *dsl.Walkthrough, wsSnippet string, mode theme.Mode) (string, erro
 		}
 	}
 
-	var jsonBuf bytes.Buffer
-	enc := json.NewEncoder(&jsonBuf)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(jsSections); err != nil {
-		return "", fmt.Errorf("failed to marshal sections: %w", err)
-	}
-
 	data := templateData{
 		Title:           w.Title,
 		GitHubURL:       "https://github.com/scottrogowski/ariel",
-		SectionsJSON:    strings.TrimRight(jsonBuf.String(), "\n"),
-		LogoSVG:         logo.SVG,
-		FaviconBase64:   logo.FaviconBase64(),
-		ThemeCSS:        theme.HTMLRootCSS(mode),
-		MermaidConfigJS: theme.HTMLMermaidConfigJS(mode),
-		RenderAdapterJS: renderadapter.InlineJavaScript(),
-		ThemeListener:   theme.HTMLThemeListenerJS(mode),
-		WSSnippet:       wsSnippet,
+		Sections:        jsSections,
+		LogoSVG:         template.HTML(logo.SVG),
+		FaviconURL:      template.URL("data:image/svg+xml;base64," + logo.FaviconBase64()),
+		MermaidJSURL:    template.URL(mermaidjs.BrowserScriptURL()),
+		ThemeCSS:        template.CSS(theme.HTMLRootCSS(mode)),
+		MermaidConfigJS: template.JS(theme.HTMLMermaidConfigJS(mode)),
+		RenderAdapterJS: template.JS(renderadapter.InlineJavaScript()),
+		ThemeListener:   template.JS(theme.HTMLThemeListenerJS(mode)),
+		WSSnippet:       template.HTML(wsSnippet),
 	}
 
 	var buf bytes.Buffer
@@ -136,7 +130,15 @@ func render(w *dsl.Walkthrough, wsSnippet string, mode theme.Mode) (string, erro
 		return "", fmt.Errorf("template execution failed: %w", err)
 	}
 
-	return buf.String(), nil
+	return trimLineEndWhitespace(buf.String()), nil
+}
+
+func trimLineEndWhitespace(text string) string {
+	lines := strings.Split(text, "\n")
+	for i := range lines {
+		lines[i] = strings.TrimRight(lines[i], " \t")
+	}
+	return strings.Join(lines, "\n")
 }
 
 // WriteFile writes html to path, creating or truncating the file.

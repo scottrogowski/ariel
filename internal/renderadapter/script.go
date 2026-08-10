@@ -27,6 +27,12 @@ function buildArielElementMap(svg, diagramKind, nodeLabels) {
   return {nodeMap, edgeMap};
 }
 
+function assertArielMappedNodes(nodeMap, nodeIds) {
+  const missingIds = [...new Set(nodeIds)].filter(id => !nodeMap[id] || nodeMap[id].length === 0);
+  if (missingIds.length === 0) return;
+  throw new Error('Ariel could not map rendered Mermaid nodes: ' + missingIds.join(', '));
+}
+
 function arielAddNode(nodeMap, id, element) {
   if (!id || !element) return;
   if (!nodeMap[id]) nodeMap[id] = [];

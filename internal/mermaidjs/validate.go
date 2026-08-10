@@ -2,6 +2,7 @@ package mermaidjs
 
 import (
 	_ "embed"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -11,6 +12,11 @@ import (
 
 //go:embed mermaid.min.js
 var mermaidJS string
+
+// BrowserScriptURL returns the pinned Mermaid bundle as a self-contained data URL.
+func BrowserScriptURL() string {
+	return "data:text/javascript;base64," + base64.StdEncoding.EncodeToString([]byte(mermaidJS))
+}
 
 // Browser/UMD environment stubs required for the mermaid bundle to initialize.
 const jsPrefix = `

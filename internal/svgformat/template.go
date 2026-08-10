@@ -7,6 +7,7 @@ import (
 	"text/template"
 
 	"github.com/scottrogowski/ariel/internal/dsl"
+	"github.com/scottrogowski/ariel/internal/mermaidjs"
 	"github.com/scottrogowski/ariel/internal/renderadapter"
 	"github.com/scottrogowski/ariel/internal/theme"
 )
@@ -25,6 +26,7 @@ func renderExtractionHTML(p theme.Palette, mermaidDiagram string, analysis dsl.D
 		NodeLabelsJSON  string
 		AnimateEdges    bool
 		MermaidInit     string
+		MermaidJSURL    string
 		DiagramColorsJS string
 		RenderAdapterJS string
 		BodyBg          string
@@ -34,6 +36,7 @@ func renderExtractionHTML(p theme.Palette, mermaidDiagram string, analysis dsl.D
 		NodeLabelsJSON:  string(labelsJSON),
 		AnimateEdges:    analysis.AnimateEdges,
 		MermaidInit:     p.MermaidInit(),
+		MermaidJSURL:    mermaidjs.BrowserScriptURL(),
 		DiagramColorsJS: p.DiagramColorsJS(),
 		RenderAdapterJS: renderadapter.InlineJavaScript(),
 		BodyBg:          p.Bg,
@@ -51,7 +54,7 @@ const extractionHTMLTemplate = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+<script src="[[.MermaidJSURL]]"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: [[.BodyBg]]; }
@@ -98,13 +101,13 @@ async function init() {
 // self-contained. When highlightNodes and focusNodes are both empty (step 0),
 // the diagram is left as Mermaid rendered it.
 function applyStep(highlightNodes, focusNodes) {
+  assertArielMappedNodes(nodeMap, [...highlightNodes, ...focusNodes]);
   const hasHighlights = highlightNodes.length > 0 || focusNodes.length > 0;
   if (!hasHighlights) return;
 
   const activeSet = new Set([...highlightNodes, ...focusNodes]);
   const focusSet = new Set(focusNodes);
 
-  // Apply emphasis to mapped nodes for every supported diagram type.
   Object.entries(nodeMap).forEach(([id, els]) => {
     els.forEach(group => {
       if (focusSet.has(id)) {

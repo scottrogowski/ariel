@@ -103,6 +103,12 @@ func verifyWalkthrough(w *dsl.Walkthrough) []dsl.Issue {
 			}
 			issues = append(issues, issue)
 		}
+		for _, issue := range dsl.VerifySequenceAliases(analysis) {
+			if multi {
+				issue.Message = fmt.Sprintf("section %d: %s", i+1, issue.Message)
+			}
+			issues = append(issues, issue)
+		}
 		for _, issue := range dsl.Verify(sec.Steps, analysis.Nodes, analysis.Edges) {
 			if multi {
 				issue.Message = fmt.Sprintf("section %d: %s", i+1, issue.Message)

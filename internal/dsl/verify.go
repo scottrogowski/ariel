@@ -2,6 +2,7 @@ package dsl
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"unicode/utf8"
 )
@@ -37,6 +38,30 @@ func Verify(steps []Step, nodes map[string]string, edges [][2]string) []Issue {
 	}
 
 	return issues
+}
+
+// VerifySequenceAliases rejects display labels that cannot map to one participant.
+func VerifySequenceAliases(analysis DiagramAnalysis) []Issue {
+	if analysis.Kind != DiagramKindSequence {
+		return nil
+	}
+	ids := make([]string, 0, len(analysis.Nodes))
+	for id := range analysis.Nodes {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	labelOwner := make(map[string]string, len(ids))
+	for _, id := range ids {
+		label := strings.Join(strings.Fields(analysis.Nodes[id]), " ")
+		if existingID, exists := labelOwner[label]; exists {
+			return []Issue{{
+				Severity: SeverityError,
+				Message:  fmt.Sprintf("sequence participants %q and %q use duplicate display label %q", existingID, id, label),
+			}}
+		}
+		labelOwner[label] = id
+	}
+	return nil
 }
 
 // VerifyFlowchartLabels warns when a plain label is long enough to impair diagram readability.

@@ -3,6 +3,7 @@ package mp4
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/chromedp/chromedp"
@@ -23,6 +24,9 @@ func TestClassDiagramCapturePage(t *testing.T) {
 
 	pagePath := filepath.Join(t.TempDir(), "class.html")
 	html := buildSectionHTML(theme.ModeDark.Baked(), walkthrough.Title, walkthrough.ToSections()[0])
+	if strings.Contains(html, "cdnjs.cloudflare.com") {
+		t.Fatal("MP4 capture page depends on the Mermaid CDN")
+	}
 	if err := os.WriteFile(pagePath, []byte(html), 0644); err != nil {
 		t.Fatalf("write capture page: %v", err)
 	}
@@ -54,5 +58,13 @@ func TestClassDiagramCapturePage(t *testing.T) {
 	want := `{"mapped":6,"handler":true,"service":true,"repository":true,"annotation":true,"edgeAnimated":true,"label":"Request entry","narration":"Delegates work."}`
 	if raw != want {
 		t.Errorf("capture class state = %s, want %s", raw, want)
+	}
+
+	// This check prevents missing rendered nodes from producing incomplete frames.
+	err = chromedp.Run(ctx, chromedp.Evaluate(
+		`applyStep(['Missing'], [], 'Invalid', 'Invalid')`, nil,
+	))
+	if err == nil || !strings.Contains(err.Error(), "Ariel could not map rendered Mermaid nodes: Missing") {
+		t.Errorf("missing node error = %v, want rendered-node mapping error", err)
 	}
 }

@@ -188,6 +188,21 @@ func TestVerify_FirstStepNoVisuals(t *testing.T) {
 	}
 }
 
+// This test prevents ambiguous sequence aliases from silently losing emphasis.
+func TestVerifySequenceAliases_DuplicateLabel(t *testing.T) {
+	analysis := DiagramAnalysis{
+		Kind:  DiagramKindSequence,
+		Nodes: map[string]string{"API1": "API", "API2": "API"},
+	}
+	issues := VerifySequenceAliases(analysis)
+	if len(issues) != 1 || issues[0].Severity != SeverityError {
+		t.Fatalf("VerifySequenceAliases() = %#v, want one error", issues)
+	}
+	if !strings.Contains(issues[0].Message, `"API1" and "API2"`) {
+		t.Errorf("duplicate alias error = %q, want both participant IDs", issues[0].Message)
+	}
+}
+
 func TestVerifyHighlightSupport_UnsupportedType(t *testing.T) {
 	steps := []Step{
 		{Label: "Overview"},

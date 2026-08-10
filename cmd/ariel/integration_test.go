@@ -15,6 +15,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	browsertest "github.com/scottrogowski/ariel/dev-tools/e2e-tests"
 )
 
 var binaryPath string
@@ -71,6 +74,27 @@ func TestCLI_VerifyClassDiagram(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "6 nodes, 5 edges") {
 		t.Errorf("class verification summary = %q, want node and edge counts", stdout)
+	}
+}
+
+// This test prevents CLI verification from accepting ambiguous sequence participants.
+func TestCLI_VerifyDuplicateSequenceAliases(t *testing.T) {
+	yaml := `mermaid_diagram: |
+  sequenceDiagram
+    participant API1 as API
+    participant API2 as API
+    API1->>API2: Request
+steps:
+  - label: "Overview"
+    narration: "Full diagram."
+`
+	f := writeTempYAML(t, yaml)
+	stdout, _, exitCode := run("verify", f)
+	if exitCode != 1 {
+		t.Fatalf("expected exit 1 for duplicate aliases, got %d; output: %s", exitCode, stdout)
+	}
+	if !strings.Contains(stdout, `participants "API1" and "API2" use duplicate display label "API"`) {
+		t.Errorf("duplicate alias output = %q, want participant IDs and label", stdout)
 	}
 }
 
@@ -156,9 +180,7 @@ func TestCLI_MultipleDiagramExampleVerifies(t *testing.T) {
 	}
 }
 
-// TestCLI_GenerateHTML confirms that ariel generate produces a structurally
-// correct HTML file. Visual correctness (layout, highlighting, animation)
-// requires human review — see package-level comment.
+// TestCLI_GenerateHTML confirms that ariel generate produces a self-contained HTML file.
 func TestCLI_GenerateHTML(t *testing.T) {
 	outPath := filepath.Join(t.TempDir(), "out.html")
 	stdout, _, exitCode := run("generate", "--output", outPath, "../../testdata/auth-flow.ariel.yaml")
@@ -174,7 +196,7 @@ func TestCLI_GenerateHTML(t *testing.T) {
 
 	for _, want := range []string{
 		"<html",
-		"mermaid.min.js",
+		"data:text/javascript;base64,",
 		"User Authentication Flow", // title from testdata file
 	} {
 		if !strings.Contains(html, want) {
@@ -208,26 +230,23 @@ steps:
 		t.Fatalf("generate: exit %d", exitCode)
 	}
 
-	data, err := os.ReadFile(outPath)
-	if err != nil {
-		t.Fatalf("read output: %v", err)
+	session := browsertest.Open(t, outPath)
+	session.Next()
+	if !session.WaitTrue(`document.querySelector('#narration a') !== null`, time.Second) {
+		t.Fatal("generated HTML did not render the narration link")
 	}
-	html := string(data)
-
-	// Inside the JSON blob, attribute quotes are backslash-escaped.
-	if !strings.Contains(html, `href=\"https://example.com/paper\"`) {
-		t.Error("generated HTML missing expected href")
-	}
-	if !strings.Contains(html, `>See the paper<`) {
-		t.Error("generated HTML missing expected link text")
-	}
-	if strings.Contains(html, "[See the paper]") {
-		t.Error("generated HTML contains raw markdown link syntax")
+	got := session.Eval(`JSON.stringify({
+    href: document.querySelector('#narration a').href,
+    text: document.querySelector('#narration a').textContent,
+    narration: document.getElementById('narration').textContent
+  })`)
+	want := `{"href":"https://example.com/paper","text":"See the paper","narration":"See the paper for details."}`
+	if got != want {
+		t.Errorf("rendered narration = %s, want %s", got, want)
 	}
 }
 
-// TestCLI_GenerateSVG confirms that ariel generate --format svg produces a
-// structurally valid SVG file. Visual correctness requires human review.
+// TestCLI_GenerateSVG confirms that ariel generate --format svg produces valid SVG.
 func TestCLI_GenerateSVG(t *testing.T) {
 	outPath := filepath.Join(t.TempDir(), "out.svg")
 	stdout, stderr, exitCode := run("generate", "--format", "svg", "--output", outPath, "../../testdata/auth-flow.ariel.yaml")

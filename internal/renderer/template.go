@@ -8,8 +8,8 @@ const htmlTemplate = `<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>[[.Title]] | Ariel</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,[[.FaviconBase64]]">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+<link rel="icon" type="image/svg+xml" href="[[.FaviconURL]]">
+<script src="[[.MermaidJSURL]]"></script>
 <style>
   [[.ThemeCSS]]
 
@@ -423,7 +423,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
 <div id="ariel-ready" style="display:none"></div>
 <script>
-const sections = [[.SectionsJSON]];
+const sections = [[.Sections]];
 
 let nodeMap = {};   // id → [SVGElement, ...] — all SVG groups for this node (seq has top+bottom)
 let edgeMap = {};
@@ -472,6 +472,8 @@ async function initSection(idx) {
   const elementMap = buildArielElementMap(freshSvg, sec.diagram_type, sec.node_labels || {});
   nodeMap = elementMap.nodeMap;
   edgeMap = elementMap.edgeMap;
+  const referencedNodes = sec.steps.flatMap(step => [...step.highlight_nodes, ...step.focus_nodes]);
+  assertArielMappedNodes(nodeMap, referencedNodes);
   buildNodeSteps();
 }
 

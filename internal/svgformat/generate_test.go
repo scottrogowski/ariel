@@ -1,6 +1,12 @@
 package svgformat
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	"github.com/scottrogowski/ariel/internal/dsl"
+	"github.com/scottrogowski/ariel/internal/theme"
+)
 
 // This test prevents Mermaid timestamp identifiers from changing generated examples on each run.
 func TestNormalizeMermaidIDs(t *testing.T) {
@@ -10,6 +16,14 @@ func TestNormalizeMermaidIDs(t *testing.T) {
 	got := normalizeMermaidIDs(input)
 	if got != want {
 		t.Fatalf("normalizeMermaidIDs() = %q; want %q", got, want)
+	}
+}
+
+// This test prevents SVG generation from requiring a network connection.
+func TestExtractionHTMLUsesEmbeddedMermaid(t *testing.T) {
+	html := renderExtractionHTML(theme.ModeDark.Baked(), "graph TD\n  A", dsl.AnalyzeDiagram("graph TD\n  A"))
+	if strings.Contains(html, "cdnjs.cloudflare.com") {
+		t.Fatal("SVG extraction page depends on the Mermaid CDN")
 	}
 }
 

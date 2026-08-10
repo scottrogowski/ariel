@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
+	browsertest "github.com/scottrogowski/ariel/dev-tools/e2e-tests"
 	"github.com/scottrogowski/ariel/internal/dsl"
 	"github.com/scottrogowski/ariel/internal/renderer"
 	"github.com/scottrogowski/ariel/internal/theme"
-	browsertest "github.com/scottrogowski/ariel/dev-tools/e2e-tests"
 )
 
 // parseWalkthrough parses a fixture into a Walkthrough, failing on any error-severity issue.
@@ -86,6 +86,9 @@ func TestWatch_UpdateRerendersDiagram(t *testing.T) {
 	// Precondition: the initial (fits) diagram has node A but not node K.
 	if s.Eval("(!!nodeMap['K']).toString()") == "true" {
 		t.Fatal("precondition failed: fits fixture unexpectedly has node K")
+	}
+	if !s.WaitTrue(`window.arielWatchSocket && window.arielWatchSocket.readyState === WebSocket.OPEN`, 5*time.Second) {
+		t.Fatal("watch WebSocket did not connect")
 	}
 
 	// Simulate a file change on disk being picked up by the watcher.

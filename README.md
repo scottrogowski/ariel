@@ -46,8 +46,6 @@ The `~/go/bin` directory is usually not on Claude's path so if you install this 
 
 MP4 output requires [`ffmpeg`](https://ffmpeg.org/download.html).
 
-Windows is not supported at this time.
-
 ## Usage
 
 Prompt your agent:

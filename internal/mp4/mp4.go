@@ -18,6 +18,7 @@ import (
 
 	"github.com/scottrogowski/ariel/internal/dsl"
 	"github.com/scottrogowski/ariel/internal/logo"
+	"github.com/scottrogowski/ariel/internal/mermaidjs"
 	"github.com/scottrogowski/ariel/internal/renderadapter"
 	"github.com/scottrogowski/ariel/internal/theme"
 )
@@ -44,6 +45,7 @@ type sectionData struct {
 	RenderAdapter  string
 	ThemeCSS       string
 	MermaidInit    string
+	MermaidJSURL   string
 	LogoSVG        string
 }
 
@@ -194,6 +196,7 @@ func buildSectionHTML(palette theme.Palette, title string, sec dsl.Section) stri
 		RenderAdapter:  renderadapter.InlineJavaScript(),
 		ThemeCSS:       palette.RootBlock(),
 		MermaidInit:    palette.MermaidInit(),
+		MermaidJSURL:   mermaidjs.BrowserScriptURL(),
 		LogoSVG:        logo.SVG,
 	}); err != nil {
 		panic(fmt.Sprintf("section HTML template: %v", err))

@@ -7,7 +7,7 @@ const sectionHTMLTemplate = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <title>[[.Title]]</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+<script src="[[.MermaidJSURL]]"></script>
 <style>
   *, *::before, *::after {
     transition: none !important;
@@ -196,6 +196,7 @@ async function init() {
 }
 
 function applyStep(highlightNodes, focusNodes, label, narration) {
+  assertArielMappedNodes(nodeMap, [...highlightNodes, ...focusNodes]);
   const svg = document.querySelector('#mermaid-container svg');
   svg.querySelectorAll('[data-ariel-node-id]').forEach(element => element.classList.remove('highlighted', 'active'));
   svg.querySelectorAll('[data-ariel-edge-source]').forEach(element => element.classList.remove('animated'));
