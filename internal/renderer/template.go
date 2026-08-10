@@ -1,6 +1,6 @@
 package renderer
 
-// htmlTemplate is the Go text/template for the generated HTML.
+// htmlTemplate is the Go html/template for the generated HTML.
 // Delimiters are [[ and ]] to avoid conflicts with CSS/JS braces.
 const htmlTemplate = `<!DOCTYPE html>
 <html lang="en">
@@ -560,7 +560,7 @@ function applyStep(step) {
   const allNodes = [...activeSet];
   for (let i = 0; i < allNodes.length; i++) {
     for (let j = 0; j < allNodes.length; j++) {
-      if (i !== j) (edgeMap[allNodes[i] + '-' + allNodes[j]] || []).forEach(el => el.classList.add('animated'));
+      if (i !== j) (edgeMap[arielEdgeKey(allNodes[i], allNodes[j])] || []).forEach(el => el.classList.add('animated'));
     }
   }
 }

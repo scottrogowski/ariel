@@ -43,11 +43,15 @@ function arielAddNode(nodeMap, id, element) {
 
 function arielAddEdge(edgeMap, source, target, element) {
   if (!source || !target || !element || source === target) return;
-  const key = source + '-' + target;
+  const key = arielEdgeKey(source, target);
   if (!edgeMap[key]) edgeMap[key] = [];
   edgeMap[key].push(element);
   element.setAttribute('data-ariel-edge-source', source);
   element.setAttribute('data-ariel-edge-target', target);
+}
+
+function arielEdgeKey(source, target) {
+  return JSON.stringify([source, target]);
 }
 
 function arielMapFlowchartNodes(svg, addNode) {

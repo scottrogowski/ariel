@@ -35,9 +35,9 @@ FILE STRUCTURE OPTION 1 — single diagram
     graph TD
       A[Node A] --> B[Node B]
   steps:                           # required; at least one entry
-    # NOTE: The first step of each section is the overview with precisely two fields: label & narration
-    - label: "Overview label"      # required for first step; 2–4 words shown above narration
-      narration: "What happens."   # required for first step; 1–3 plain-English sentences
+    # NOTE: The first step is the overview. It may contain only label and/or narration.
+    - label: "Overview label"      # optional; 2–4 words shown above narration
+      narration: "What happens."   # optional; 1–3 plain-English sentences
     - label: "Step 2"              # optional; 2–4 words shown above narration
       narration: "Next this."      # optional; 1–3 plain-English sentences
       highlight_nodes: [A]         # optional; node IDs to dim everything else (context)

@@ -48,7 +48,7 @@ func TestClassDiagramCapturePage(t *testing.T) {
     service: nodeMap.Service[0].classList.contains('active'),
     repository: getComputedStyle(nodeMap.Repository[0]).opacity === '0.4',
     annotation: nodeMap.Repository[0].textContent.includes('interface'),
-    edgeAnimated: edgeMap['Handler-Service'][0].classList.contains('animated'),
+    edgeAnimated: edgeMap[arielEdgeKey('Handler', 'Service')][0].classList.contains('animated'),
     label: document.getElementById('step-label').textContent,
     narration: document.getElementById('narration').textContent
   })`
@@ -66,5 +66,33 @@ func TestClassDiagramCapturePage(t *testing.T) {
 	))
 	if err == nil || !strings.Contains(err.Error(), "Ariel could not map rendered Mermaid nodes: Missing") {
 		t.Errorf("missing node error = %v, want rendered-node mapping error", err)
+	}
+}
+
+// This test prevents walkthrough titles from executing code during MP4 capture.
+func TestCapturePageTreatsTitleAsText(t *testing.T) {
+	title := `</title><script>window.arielTitleInjected=true</script>`
+	section := dsl.Section{MermaidDiagram: "graph TD\n  A[Safe]"}
+	pagePath := filepath.Join(t.TempDir(), "security.html")
+	if err := os.WriteFile(pagePath, []byte(buildSectionHTML(theme.ModeDark.Baked(), title, section)), 0644); err != nil {
+		t.Fatalf("write capture page: %v", err)
+	}
+
+	ctx, cancel := newBrowserCtx()
+	defer cancel()
+	var state string
+	if err := chromedp.Run(ctx,
+		chromedp.Navigate("file://"+pagePath),
+		chromedp.WaitVisible("#ready", chromedp.ByID),
+		chromedp.Evaluate(`JSON.stringify({
+      injected: window.arielTitleInjected === true,
+      title: document.querySelector('.page-title').textContent
+    })`, &state),
+	); err != nil {
+		t.Fatalf("render capture page: %v", err)
+	}
+	want := `{"injected":false,"title":"` + title + `"}`
+	if state != want {
+		t.Errorf("capture page state = %s, want %s", state, want)
 	}
 }

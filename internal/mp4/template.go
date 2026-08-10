@@ -182,8 +182,8 @@ const sectionHTMLTemplate = `<!DOCTYPE html>
 [[.RenderAdapter]]
 
 let nodeMap = {}, edgeMap = {};
-const diagramKind = [[printf "%q" .DiagramKind]];
-const nodeLabels = [[.NodeLabelsJSON]];
+const diagramKind = [[.DiagramKind]];
+const nodeLabels = [[.NodeLabels]];
 const animateEdges = [[.AnimateEdges]];
 
 async function init() {
@@ -216,7 +216,7 @@ function applyStep(highlightNodes, focusNodes, label, narration) {
   const allNodes = [...new Set([...highlightNodes, ...focusNodes])];
   for (let i = 0; i < allNodes.length; i++) {
     for (let j = 0; j < allNodes.length; j++) {
-      if (i !== j) (edgeMap[allNodes[i] + '-' + allNodes[j]] || []).forEach(el => el.classList.add('animated'));
+      if (i !== j) (edgeMap[arielEdgeKey(allNodes[i], allNodes[j])] || []).forEach(el => el.classList.add('animated'));
     }
   }
   document.getElementById('step-label').textContent = label;

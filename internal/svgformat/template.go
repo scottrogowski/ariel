@@ -151,7 +151,7 @@ function applyStep(highlightNodes, focusNodes) {
   for (let i = 0; i < allActive.length; i++) {
     for (let j = 0; j < allActive.length; j++) {
       if (i !== j) {
-        (edgeMap[allActive[i] + '-' + allActive[j]] || []).forEach(el => {
+        (edgeMap[arielEdgeKey(allActive[i], allActive[j])] || []).forEach(el => {
           // flowchart-link is on the <path> itself in Mermaid 10.6.1, not a wrapping <g>.
           // Sequence messageLine0/messageLine1 are line/polyline elements.
           const targets = el.tagName.toLowerCase() === 'path'

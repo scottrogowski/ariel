@@ -5,13 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"html"
+	"html/template"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/chromedp/chromedp"
@@ -40,13 +39,13 @@ type sectionData struct {
 	Title          string
 	MermaidDiagram string
 	DiagramKind    string
-	NodeLabelsJSON string
+	NodeLabels     map[string]string
 	AnimateEdges   bool
-	RenderAdapter  string
-	ThemeCSS       string
-	MermaidInit    string
-	MermaidJSURL   string
-	LogoSVG        string
+	RenderAdapter  template.JS
+	ThemeCSS       template.CSS
+	MermaidInit    template.JS
+	MermaidJSURL   template.URL
+	LogoSVG        template.HTML
 }
 
 type frame struct {
@@ -182,22 +181,18 @@ func newBrowserCtx() (context.Context, context.CancelFunc) {
 // buildSectionHTML renders the per-section static screenshot HTML from the section template.
 func buildSectionHTML(palette theme.Palette, title string, sec dsl.Section) string {
 	analysis := dsl.AnalyzeDiagram(sec.MermaidDiagram)
-	nodeLabelsJSON, err := json.Marshal(analysis.Nodes)
-	if err != nil {
-		panic(fmt.Sprintf("section node labels: %v", err))
-	}
 	var buf bytes.Buffer
 	if err := sectionTmpl.Execute(&buf, sectionData{
 		Title:          title,
-		MermaidDiagram: html.EscapeString(strings.TrimRight(sec.MermaidDiagram, "\n")),
+		MermaidDiagram: strings.TrimRight(sec.MermaidDiagram, "\n"),
 		DiagramKind:    string(analysis.Kind),
-		NodeLabelsJSON: string(nodeLabelsJSON),
+		NodeLabels:     analysis.Nodes,
 		AnimateEdges:   analysis.AnimateEdges,
-		RenderAdapter:  renderadapter.InlineJavaScript(),
-		ThemeCSS:       palette.RootBlock(),
-		MermaidInit:    palette.MermaidInit(),
-		MermaidJSURL:   mermaidjs.BrowserScriptURL(),
-		LogoSVG:        logo.SVG,
+		RenderAdapter:  template.JS(renderadapter.InlineJavaScript()),
+		ThemeCSS:       template.CSS(palette.RootBlock()),
+		MermaidInit:    template.JS(palette.MermaidInit()),
+		MermaidJSURL:   template.URL(mermaidjs.BrowserScriptURL()),
+		LogoSVG:        template.HTML(logo.SVG),
 	}); err != nil {
 		panic(fmt.Sprintf("section HTML template: %v", err))
 	}

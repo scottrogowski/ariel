@@ -32,7 +32,7 @@ func TestSequenceDiagramElementMapping(t *testing.T) {
 		t.Errorf("all sequence actors mapped twice = %s, want true", got)
 	}
 	wantEdges := "C-CLI,CLI-C,CLI-HP,CLI-HR,HP-C"
-	if got := session.Eval(`Object.keys(edgeMap).sort().join(',')`); got != wantEdges {
+	if got := session.Eval(`Object.keys(edgeMap).map(key => JSON.parse(key).join('-')).sort().join(',')`); got != wantEdges {
 		t.Errorf("sequence edges = %s, want %s", got, wantEdges)
 	}
 	session.Next()
@@ -63,11 +63,26 @@ func assertClassVisualStates(t *testing.T, session *browsertest.Session) {
     serviceFill: getComputedStyle(nodeMap.Service[0].querySelector('rect')).fill,
     dimmed: ['Repository', 'SQLStore', 'Cache', 'Metrics'].every(id =>
       nodeMap[id][0].classList.contains('dimmed') && getComputedStyle(nodeMap[id][0]).opacity === '0.4'),
-    edgeAnimated: edgeMap['Handler-Service'][0].classList.contains('animated')
+    edgeAnimated: edgeMap[arielEdgeKey('Handler', 'Service')][0].classList.contains('animated')
   })`)
 	want := `{"handler":true,"handlerFill":"rgb(30, 58, 110)","service":true,"serviceFill":"rgb(26, 74, 122)","dimmed":true,"edgeAnimated":true}`
 	if got != want {
 		t.Errorf("class visual states = %s, want %s", got, want)
+	}
+}
+
+// This test prevents hyphenated node identifiers from merging distinct edges.
+func TestEdgeKeysDistinguishHyphenatedNodeIDs(t *testing.T) {
+	htmlPath := generateHTML(t, "../../testdata/class-diagram.ariel.yaml")
+	session := browsertest.Open(t, htmlPath)
+	got := session.Eval(`(function() {
+    const edges = {};
+    arielAddEdge(edges, 'A-B', 'C', document.createElementNS('http://www.w3.org/2000/svg', 'path'));
+    arielAddEdge(edges, 'A', 'B-C', document.createElementNS('http://www.w3.org/2000/svg', 'path'));
+    return Object.keys(edges).length.toString();
+  })()`)
+	if got != "2" {
+		t.Errorf("distinct edge key count = %s, want 2", got)
 	}
 }
 
