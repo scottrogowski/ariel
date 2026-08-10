@@ -1,9 +1,8 @@
 ---
 name: create-walkthrough
 description: >-
-  Create an animated Mermaid diagram walkthrough to explain a system, PR, code
-  path, or concept with the `ariel` CLI. Use when the user asks to visualize,
-  diagram, or walk through how something works. Renders step-by-step narrated diagrams from a YAML DSL.
+  Create a guided Mermaid diagram walkthrough to explain a system, PR, code path, or concept.
+  Use when the user asks to visualize, diagram, or walk through how something works.
 ---
 
 # Create an ariel walkthrough
@@ -13,10 +12,11 @@ description: >-
 1. Read the DSL reference below before authoring — it is authoritative and short (`ariel guide` prints the identical text).
 2. Author a `.ariel.yaml` file describing the diagram and the narrated steps.
 3. Run `ariel verify <file>` and fix any reported issues.
-4. Render or preview:
+4. Render:
    - `ariel watch <file>` — live-reloading browser preview while iterating (best for working with the user).
    - `ariel generate <file>` — self-contained HTML file.
    - `ariel generate --format svg <file>` — interactive SVG for embedding in GitHub PRs and READMEs.
+5. Share the path/url with the user
 
 Resolve the plugin root as two directories above this file. Use `ariel` when available; otherwise, run `<plugin-root>/bin/ariel`. The launcher requires Go.
 
@@ -35,9 +35,9 @@ FILE STRUCTURE OPTION 1 — single diagram
     graph TD
       A[Node A] --> B[Node B]
   steps:                           # required; at least one entry
-    # NOTE: The first step of each section is the overview with precisely two fields: label & narration
-    - label: "Overview label"      # required for first step; 2–4 words shown above narration
-      narration: "What happens."   # required for first step; 1–3 plain-English sentences
+    # NOTE: The first step is the overview. It may contain only label and/or narration.
+    - label: "Overview label"      # optional; 2–4 words shown above narration
+      narration: "What happens."   # optional; 1–3 plain-English sentences
     - label: "Step 2"              # optional; 2–4 words shown above narration
       narration: "Next this."      # optional; 1–3 plain-English sentences
       highlight_nodes: [A]         # optional; node IDs to dim everything else (context)
@@ -76,14 +76,20 @@ NODE IDs
 
   Wrap long flowchart labels in Markdown strings so Mermaid can wrap them
   automatically: A["`Long label text that Mermaid should wrap`"]
+  Markdown strings also support bold, italics, and literal newlines.
 
   For sequenceDiagram, participant IDs are the short IDs, not the aliases:
     participant HP as Human Prompter  →  node ID is "HP"
 
+  For classDiagram, class IDs are class names, not labels or members:
+    class Store["Data Store"]  →  node ID is "Store"
+    Store : +Save() error       →  "Save" is not a node ID
+
 VISUAL EMPHASIS
-  highlight_nodes and focus_nodes are supported for two diagram types only:
+  highlight_nodes and focus_nodes are supported for three diagram types only:
     - flowchart / graph (e.g. "graph TD", "flowchart LR")
     - sequenceDiagram
+    - classDiagram / classDiagram-v2
   Using these fields with any other Mermaid diagram type is a verify error.
 
   highlight_nodes — dims all other nodes; highlighted nodes show a blue tint.
@@ -91,7 +97,7 @@ VISUAL EMPHASIS
   If a node appears in both, focus takes precedence.
 
   Edges between highlighted and focused nodes are animated automatically for
-  flowchart diagrams. Edge animation is not supported for sequenceDiagram.
+  flowchart and class diagrams. Edge animation is not supported for sequenceDiagram.
 
 OUTPUT FORMATS
   html  — highly interactive diagram; best experience (default)
@@ -114,6 +120,11 @@ AUTHORING TIPS
     - If a diagram is sufficiently complicated, use separate sections to progress from simple to detailed:
       - Section 1: high-level overview (few nodes, major components only)
       - Section 2+: drill into subsystems or failure paths
+    - It may be useful to include some of the following types of views:
+      - Structural: "What is there?" Shows components, boundaries, relationships, and important characteristics. Use to orient the viewer and show where to look.
+      - Algorithmic: "How does it work?" Shows how selected responsibilities produce behavior. Use for core logic, complex logic, and likely misconceptions.
+      - Temporal: "What changed or will change?" Use a before-and-after diagram and emphasize only meaningful differences.
+      - Decision: "How to decide" Guides the viewer through conditions, evidence, and tradeoffs toward an appropriate action.
 
   What to narrate:
     - Decision points (forks where the system chooses between paths)

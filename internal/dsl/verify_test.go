@@ -188,6 +188,21 @@ func TestVerify_FirstStepNoVisuals(t *testing.T) {
 	}
 }
 
+// This test prevents ambiguous sequence aliases from silently losing emphasis.
+func TestVerifySequenceAliases_DuplicateLabel(t *testing.T) {
+	analysis := DiagramAnalysis{
+		Kind:  DiagramKindSequence,
+		Nodes: map[string]string{"API1": "API", "API2": "API"},
+	}
+	issues := VerifySequenceAliases(analysis)
+	if len(issues) != 1 || issues[0].Severity != SeverityError {
+		t.Fatalf("VerifySequenceAliases() = %#v, want one error", issues)
+	}
+	if !strings.Contains(issues[0].Message, `"API1" and "API2"`) {
+		t.Errorf("duplicate alias error = %q, want both participant IDs", issues[0].Message)
+	}
+}
+
 func TestVerifyHighlightSupport_UnsupportedType(t *testing.T) {
 	steps := []Step{
 		{Label: "Overview"},
@@ -195,7 +210,7 @@ func TestVerifyHighlightSupport_UnsupportedType(t *testing.T) {
 	}
 
 	// Supported types must return no issues.
-	for _, dtype := range []string{"flowchart", "sequence"} {
+	for _, dtype := range []DiagramKind{DiagramKindFlowchart, DiagramKindSequence, DiagramKindClass} {
 		if issues := VerifyHighlightSupport(dtype, steps); len(issues) != 0 {
 			t.Errorf("type %q: expected no issues, got %+v", dtype, issues)
 		}
@@ -203,7 +218,7 @@ func TestVerifyHighlightSupport_UnsupportedType(t *testing.T) {
 
 	// Unsupported type must return an error on the first offending step,
 	// not a confusing "unknown node ID" message.
-	issues := VerifyHighlightSupport("unsupported", steps)
+	issues := VerifyHighlightSupport(DiagramKindUnsupported, steps)
 	if len(issues) != 1 {
 		t.Fatalf("unsupported type: expected 1 issue, got %d: %+v", len(issues), issues)
 	}
@@ -216,8 +231,26 @@ func TestVerifyHighlightSupport_UnsupportedType(t *testing.T) {
 	}
 
 	// Steps with no visual fields must not trigger the error.
-	if issues := VerifyHighlightSupport("unsupported", []Step{{Narration: "ok"}}); len(issues) != 0 {
+	if issues := VerifyHighlightSupport(DiagramKindUnsupported, []Step{{Narration: "ok"}}); len(issues) != 0 {
 		t.Errorf("no-visual steps: expected no issues, got %+v", issues)
+	}
+}
+
+// This test prevents class members and labels from becoming valid walkthrough targets.
+func TestVerify_ClassTargets(t *testing.T) {
+	diagram := "classDiagram\n  class Store[\"Data Store\"] {\n    +Save() error\n  }"
+	nodes, edges := ExtractGraph(diagram)
+
+	validIssues := Verify([]Step{{Label: "Overview"}, {FocusNodes: []string{"Store"}}}, nodes, edges)
+	if len(validIssues) != 0 {
+		t.Fatalf("Verify() valid class target issues = %+v, want none", validIssues)
+	}
+
+	for _, invalidID := range []string{"Data Store", "Save"} {
+		issues := Verify([]Step{{Label: "Overview"}, {FocusNodes: []string{invalidID}}}, nodes, edges)
+		if len(issues) != 1 || issues[0].Severity != SeverityError {
+			t.Errorf("Verify() target %q issues = %+v, want one error", invalidID, issues)
+		}
 	}
 }
 

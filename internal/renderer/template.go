@@ -1,6 +1,6 @@
 package renderer
 
-// htmlTemplate is the Go text/template for the generated HTML.
+// htmlTemplate is the Go html/template for the generated HTML.
 // Delimiters are [[ and ]] to avoid conflicts with CSS/JS braces.
 const htmlTemplate = `<!DOCTYPE html>
 <html lang="en">
@@ -8,8 +8,8 @@ const htmlTemplate = `<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>[[.Title]] | Ariel</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,[[.FaviconBase64]]">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+<link rel="icon" type="image/svg+xml" href="[[.FaviconURL]]">
+<script src="[[.MermaidJSURL]]"></script>
 <style>
   [[.ThemeCSS]]
 
@@ -311,13 +311,13 @@ const htmlTemplate = `<!DOCTYPE html>
     transition: fill 0.35s ease, stroke 0.35s ease, filter 0.35s ease;
   }
 
-  #mermaid-container .node.navigable { cursor: pointer; }
+  #mermaid-container [data-ariel-node-id].navigable { cursor: pointer; }
 
-  #mermaid-container .node.navigable:hover rect,
-  #mermaid-container .node.navigable:hover circle,
-  #mermaid-container .node.navigable:hover polygon,
-  #mermaid-container .node.navigable:hover ellipse,
-  #mermaid-container .node.navigable:hover path {
+  #mermaid-container [data-ariel-node-id].navigable:hover rect,
+  #mermaid-container [data-ariel-node-id].navigable:hover circle,
+  #mermaid-container [data-ariel-node-id].navigable:hover polygon,
+  #mermaid-container [data-ariel-node-id].navigable:hover ellipse,
+  #mermaid-container [data-ariel-node-id].navigable:hover path {
     opacity: 0.75;
   }
 
@@ -363,7 +363,8 @@ const htmlTemplate = `<!DOCTYPE html>
 
   #mermaid-container .flowchart-link.animated,
   #mermaid-container .messageLine0.animated,
-  #mermaid-container .messageLine1.animated {
+  #mermaid-container .messageLine1.animated,
+  #mermaid-container .relation.animated {
     stroke: var(--accent) !important;
     stroke-width: 2px !important;
     stroke-dasharray: 8 4;
@@ -422,7 +423,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
 <div id="ariel-ready" style="display:none"></div>
 <script>
-const sections = [[.SectionsJSON]];
+const sections = [[.Sections]];
 
 let nodeMap = {};   // id → [SVGElement, ...] — all SVG groups for this node (seq has top+bottom)
 let edgeMap = {};
@@ -438,6 +439,7 @@ const zoomButtonFactor = 1.25;
 
 [[.MermaidConfigJS]]
 mermaid.initialize(arielMermaidConfig());
+[[.RenderAdapterJS]]
 
 // reapplyTheme re-initializes Mermaid with the current OS color scheme and
 // re-renders the active section+step. Wired to a prefers-color-scheme listener
@@ -455,8 +457,10 @@ async function initSection(idx) {
   const sec = sections[idx];
   const container = document.getElementById('mermaid-container');
   diagramViewport = null;
-  container.innerHTML = '<div class="mermaid">' + sec.mermaid_diagram + '</div>';
-  await mermaid.run({ nodes: [container.querySelector('.mermaid')] });
+  container.innerHTML = '<div class="mermaid"></div>';
+  const mermaidElement = container.querySelector('.mermaid');
+  mermaidElement.textContent = sec.mermaid_diagram;
+  await mermaid.run({ nodes: [mermaidElement] });
   // viewBox.baseVal.width is the true natural coordinate width mermaid always sets.
   // style.maxWidth may be "100%" (→ parseFloat gives 100, not the pixel width), so we
   // avoid it. getBoundingClientRect reflects CSS layout, not the intrinsic SVG size.
@@ -465,7 +469,11 @@ async function initSection(idx) {
   nodeMap = {};
   edgeMap = {};
   nodeSteps = {};
-  buildNodeMap();
+  const elementMap = buildArielElementMap(freshSvg, sec.diagram_type, sec.node_labels || {});
+  nodeMap = elementMap.nodeMap;
+  edgeMap = elementMap.edgeMap;
+  const referencedNodes = sec.steps.flatMap(step => [...step.highlight_nodes, ...step.focus_nodes]);
+  assertArielMappedNodes(nodeMap, referencedNodes);
   buildNodeSteps();
 }
 
@@ -491,140 +499,6 @@ initSection(startSection).then(() => {
 });
 
 [[.ThemeListener]]
-
-function buildNodeMap() {
-  const svg = document.querySelector('#mermaid-container svg');
-  if (!svg) return;
-
-  const labels = sections[currentSection].node_labels || {};
-  // Invert: display label → node ID. First occurrence wins (labels should be unique).
-  const labelToId = {};
-  for (const [id, label] of Object.entries(labels)) {
-    const key = (label && label.trim()) ? label.trim() : id;
-    if (!(key in labelToId)) labelToId[key] = id;
-  }
-
-  function addGroup(id, group) {
-    if (!nodeMap[id]) nodeMap[id] = [];
-    nodeMap[id].push(group);
-  }
-
-  // normalize collapses runs of whitespace (handles multi-tspan SVG text and foreignObject HTML).
-  function normalize(text) { return text.replace(/\s+/g, ' ').trim(); }
-
-  // Strategy 1: flowchart — Mermaid 10.6.1 sets id="flowchart-{nodeId}-{n}" on .node groups.
-  svg.querySelectorAll('.node').forEach(group => {
-    const m = group.id.match(/^flowchart-(\w+)-\d+$/);
-    if (m) addGroup(m[1], group);
-  });
-
-  // Strategy 2: sequence diagram — match all g.actor groups (top AND bottom mirrors) by text.
-  // Uses textContent to cover both SVG <text> elements and HTML inside <foreignObject>.
-  svg.querySelectorAll('g.actor').forEach(group => {
-    const label = normalize(group.textContent);
-    const id = labelToId[label];
-    if (id) addGroup(id, group);
-  });
-
-  // Strategy 3: generic fallback — for any diagram type not covered above.
-  // Only runs if some expected IDs remain unmapped after strategies 1 and 2.
-  if (Object.keys(labels).some(id => !nodeMap[id])) {
-    const alreadyMapped = new Set(Object.values(nodeMap).flat());
-    // Skip groups nested inside an already-mapped group: sequence diagram outer
-    // lifeline+actor groups and their inner actor box sub-groups share the same
-    // textContent; mapping both causes opacity double-multiplication (0.4 × 0.4).
-    function isDescendantOfMapped(el) {
-      let p = el.parentElement;
-      while (p && p !== svg) {
-        if (alreadyMapped.has(p)) return true;
-        p = p.parentElement;
-      }
-      return false;
-    }
-    svg.querySelectorAll('g').forEach(group => {
-      if (alreadyMapped.has(group) || isDescendantOfMapped(group)) return;
-      const label = normalize(group.textContent);
-      const id = labelToId[label];
-      if (id) { addGroup(id, group); alreadyMapped.add(group); }
-    });
-  }
-
-  // Sequence diagram z-order fix: Mermaid renders top actor box groups before lifelines in
-  // DOM order, causing lifelines to paint over actor boxes. Moving top actor boxes to the
-  // SVG end fixes stacking. In some Mermaid versions class="actor" is on <rect>/<text>
-  // children, not on the <g> wrapper, so we detect by presence of rect.actor without <line>.
-  {
-    const svgKids = Array.from(svg.children);
-    const firstLifelineIdx = svgKids.findIndex(el =>
-      el.tagName && el.tagName.toLowerCase() === 'g' && (
-        el.classList.contains('actor-line') ||
-        el.querySelector('line:not(.messageLine0):not(.messageLine1)')
-      )
-    );
-    if (firstLifelineIdx > 0) {
-      const toMove = svgKids.slice(0, firstLifelineIdx).filter(el =>
-        el.tagName && el.tagName.toLowerCase() === 'g' &&
-        el.querySelector('rect.actor, text.actor')
-      );
-      toMove.forEach(el => svg.appendChild(el));
-    }
-  }
-
-  // Flowchart edge map — Mermaid labels edges with LS-{src} and LE-{dst} classes.
-  svg.querySelectorAll('.flowchart-link').forEach(el => {
-    const cls = Array.from(el.classList);
-    const srcCls = cls.find(c => c.startsWith('LS-'));
-    const dstCls = cls.find(c => c.startsWith('LE-'));
-    if (!srcCls || !dstCls) return;
-    const key = srcCls.slice(3) + '-' + dstCls.slice(3);
-    if (!edgeMap[key]) edgeMap[key] = [];
-    edgeMap[key].push(el);
-  });
-
-  // Sequence edge map — message lines have no participant-based selectors, so infer
-  // source/target by matching each line's endpoint x-coordinates to actor x-centers.
-  const actorX = {};
-  Object.entries(nodeMap).forEach(([id, els]) => {
-    try {
-      const b = els[0].getBBox();
-      actorX[id] = b.x + b.width / 2;
-    } catch (_) {}
-  });
-  const actorEntries = Object.entries(actorX);
-  if (actorEntries.length > 0) {
-    function closestActor(x) {
-      let best = actorEntries[0][0], bestDist = Infinity;
-      for (const [id, cx] of actorEntries) {
-        const d = Math.abs(cx - x);
-        if (d < bestDist) { bestDist = d; best = id; }
-      }
-      return best;
-    }
-    function lineEndpointX(el) {
-      const tag = el.tagName.toLowerCase();
-      if (tag === 'line') {
-        return [parseFloat(el.getAttribute('x1')), parseFloat(el.getAttribute('x2'))];
-      }
-      if (tag === 'polyline') {
-        const pts = (el.getAttribute('points') || '').trim().split(/[\s,]+/).map(Number);
-        return pts.length >= 4 ? [pts[0], pts[pts.length - 2]] : null;
-      }
-      // path — extract all numbers from d, take first x and last x (second-to-last number).
-      const nums = (el.getAttribute('d') || '').match(/-?[\d.]+/g);
-      return nums && nums.length >= 4 ? [parseFloat(nums[0]), parseFloat(nums[nums.length - 2])] : null;
-    }
-    svg.querySelectorAll('.messageLine0, .messageLine1').forEach(el => {
-      const xs = lineEndpointX(el);
-      if (!xs) return;
-      const src = closestActor(xs[0]);
-      const dst = closestActor(xs[1]);
-      if (src === dst) return; // skip self-messages
-      const key = src + '-' + dst;
-      if (!edgeMap[key]) edgeMap[key] = [];
-      edgeMap[key].push(el);
-    });
-  }
-}
 
 function buildNodeSteps() {
   const steps = sections[currentSection].steps;
@@ -657,7 +531,7 @@ function clearAllHighlights() {
   svg.querySelectorAll('.highlighted, .active, .dimmed, .dimmed-actor').forEach(el => {
     el.classList.remove('highlighted', 'active', 'dimmed', 'dimmed-actor');
   });
-  svg.querySelectorAll('.flowchart-link, .messageLine0, .messageLine1').forEach(e => e.classList.remove('animated'));
+  svg.querySelectorAll('[data-ariel-edge-source]').forEach(element => element.classList.remove('animated'));
 }
 
 function applyStep(step) {
@@ -682,10 +556,11 @@ function applyStep(step) {
     });
   });
 
+  if (!sections[currentSection].animate_edges) return;
   const allNodes = [...activeSet];
   for (let i = 0; i < allNodes.length; i++) {
     for (let j = 0; j < allNodes.length; j++) {
-      if (i !== j) (edgeMap[allNodes[i] + '-' + allNodes[j]] || []).forEach(el => el.classList.add('animated'));
+      if (i !== j) (edgeMap[arielEdgeKey(allNodes[i], allNodes[j])] || []).forEach(el => el.classList.add('animated'));
     }
   }
 }

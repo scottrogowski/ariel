@@ -3,21 +3,21 @@
 // These tests build the ariel binary and invoke it as a subprocess, exercising
 // the full stack from CLI flag parsing through DSL verification and rendering.
 //
-// VISUAL OUTPUT TESTING LIMITATION: ariel generate produces HTML and MP4 files
-// whose visual correctness (node highlighting, edge animation, layout, video
-// playback) cannot be verified automatically. After any change to the renderer
-// template, the MP4 capture pipeline, or CSS/JS, a human must:
-//   - Open the generated HTML in a browser and step through it
-//   - Play the MP4 and confirm distinct frames and correct highlighting
+// Browser tests verify emphasis, edge animation, layout, and MP4 capture pages.
+// Manual inspection still validates complete video playback and rendering quality.
 package main_test
 
 import (
+	"bytes"
 	"encoding/xml"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	browsertest "github.com/scottrogowski/ariel/dev-tools/e2e-tests"
 )
 
 var binaryPath string
@@ -63,6 +63,38 @@ func TestCLI_VerifyKnownGoodFile(t *testing.T) {
 	}
 	if strings.Contains(stdout, ": error:") {
 		t.Errorf("expected no error lines in output, got: %q", stdout)
+	}
+}
+
+// This test prevents class diagrams from bypassing public CLI verification.
+func TestCLI_VerifyClassDiagram(t *testing.T) {
+	stdout, _, exitCode := run("verify", "../../testdata/class-diagram.ariel.yaml")
+	if exitCode != 0 {
+		t.Fatalf("expected exit 0, got %d; output: %s", exitCode, stdout)
+	}
+	if !strings.Contains(stdout, "6 nodes, 5 edges") {
+		t.Errorf("class verification summary = %q, want node and edge counts", stdout)
+	}
+}
+
+// This test prevents CLI verification from accepting ambiguous sequence participants.
+func TestCLI_VerifyDuplicateSequenceAliases(t *testing.T) {
+	yaml := `mermaid_diagram: |
+  sequenceDiagram
+    participant API1 as API
+    participant API2 as API
+    API1->>API2: Request
+steps:
+  - label: "Overview"
+    narration: "Full diagram."
+`
+	f := writeTempYAML(t, yaml)
+	stdout, _, exitCode := run("verify", f)
+	if exitCode != 1 {
+		t.Fatalf("expected exit 1 for duplicate aliases, got %d; output: %s", exitCode, stdout)
+	}
+	if !strings.Contains(stdout, `participants "API1" and "API2" use duplicate display label "API"`) {
+		t.Errorf("duplicate alias output = %q, want participant IDs and label", stdout)
 	}
 }
 
@@ -148,9 +180,7 @@ func TestCLI_MultipleDiagramExampleVerifies(t *testing.T) {
 	}
 }
 
-// TestCLI_GenerateHTML confirms that ariel generate produces a structurally
-// correct HTML file. Visual correctness (layout, highlighting, animation)
-// requires human review — see package-level comment.
+// TestCLI_GenerateHTML confirms that ariel generate produces a self-contained HTML file.
 func TestCLI_GenerateHTML(t *testing.T) {
 	outPath := filepath.Join(t.TempDir(), "out.html")
 	stdout, _, exitCode := run("generate", "--output", outPath, "../../testdata/auth-flow.ariel.yaml")
@@ -166,7 +196,7 @@ func TestCLI_GenerateHTML(t *testing.T) {
 
 	for _, want := range []string{
 		"<html",
-		"mermaid.min.js",
+		"data:text/javascript;base64,",
 		"User Authentication Flow", // title from testdata file
 	} {
 		if !strings.Contains(html, want) {
@@ -200,26 +230,23 @@ steps:
 		t.Fatalf("generate: exit %d", exitCode)
 	}
 
-	data, err := os.ReadFile(outPath)
-	if err != nil {
-		t.Fatalf("read output: %v", err)
+	session := browsertest.Open(t, outPath)
+	session.Next()
+	if !session.WaitTrue(`document.querySelector('#narration a') !== null`, time.Second) {
+		t.Fatal("generated HTML did not render the narration link")
 	}
-	html := string(data)
-
-	// Inside the JSON blob, attribute quotes are backslash-escaped.
-	if !strings.Contains(html, `href=\"https://example.com/paper\"`) {
-		t.Error("generated HTML missing expected href")
-	}
-	if !strings.Contains(html, `>See the paper<`) {
-		t.Error("generated HTML missing expected link text")
-	}
-	if strings.Contains(html, "[See the paper]") {
-		t.Error("generated HTML contains raw markdown link syntax")
+	got := session.Eval(`JSON.stringify({
+    href: document.querySelector('#narration a').href,
+    text: document.querySelector('#narration a').textContent,
+    narration: document.getElementById('narration').textContent
+  })`)
+	want := `{"href":"https://example.com/paper","text":"See the paper","narration":"See the paper for details."}`
+	if got != want {
+		t.Errorf("rendered narration = %s, want %s", got, want)
 	}
 }
 
-// TestCLI_GenerateSVG confirms that ariel generate --format svg produces a
-// structurally valid SVG file. Visual correctness requires human review.
+// TestCLI_GenerateSVG confirms that ariel generate --format svg produces valid SVG.
 func TestCLI_GenerateSVG(t *testing.T) {
 	outPath := filepath.Join(t.TempDir(), "out.svg")
 	stdout, stderr, exitCode := run("generate", "--format", "svg", "--output", outPath, "../../testdata/auth-flow.ariel.yaml")
@@ -257,6 +284,75 @@ func TestCLI_GenerateSVG(t *testing.T) {
 	// inside foreignObject; if they aren't made self-closing the file is broken.
 	if err := xml.Unmarshal(data, new(interface{})); err != nil {
 		t.Errorf("generated SVG is not valid XML: %v", err)
+	}
+}
+
+// This test prevents class emphasis from disappearing in generated SVG artifacts.
+func TestCLI_ClassDiagramSVG(t *testing.T) {
+	outPath := filepath.Join(t.TempDir(), "class.svg")
+	stdout, stderr, exitCode := run(
+		"generate",
+		"--theme", "dark",
+		"--format", "svg",
+		"--output", outPath,
+		"../../testdata/class-diagram.ariel.yaml",
+	)
+	if exitCode != 0 {
+		t.Fatalf("generate class SVG: exit %d\nstdout: %s\nstderr: %s", exitCode, stdout, stderr)
+	}
+
+	data, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("read class SVG: %v", err)
+	}
+	svg := string(data)
+	for _, nodeID := range []string{"Handler", "Service", "Repository", "SQLStore", "Cache", "Metrics"} {
+		attribute := `data-ariel-node-id="` + nodeID + `"`
+		if count := strings.Count(svg, attribute); count != 4 {
+			t.Errorf("%s count = %d, want one per step", attribute, count)
+		}
+	}
+	for _, expected := range []string{
+		`fill: rgb(30, 58, 110) !important`,
+		`fill: rgb(26, 74, 122) !important`,
+		`style="opacity: 0.4;"`,
+		`data-ariel-edge-source="Handler"`,
+		`<animate attributeName="stroke-dashoffset"`,
+		`interface`,
+	} {
+		if !strings.Contains(svg, expected) {
+			t.Errorf("generated class SVG missing %q", expected)
+		}
+	}
+	if err := xml.Unmarshal(data, new(interface{})); err != nil {
+		t.Errorf("generated class SVG is not valid XML: %v", err)
+	}
+}
+
+// This test prevents class walkthroughs from failing during MP4 assembly.
+func TestCLI_ClassDiagramMP4(t *testing.T) {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		t.Skip("ffmpeg is not installed")
+	}
+	outPath := filepath.Join(t.TempDir(), "class.mp4")
+	stdout, stderr, exitCode := run(
+		"generate",
+		"--theme", "dark",
+		"--format", "mp4",
+		"--step-duration", "1",
+		"--output", outPath,
+		"../../testdata/class-diagram.ariel.yaml",
+	)
+	if exitCode != 0 {
+		t.Fatalf("generate class MP4: exit %d\nstdout: %s\nstderr: %s", exitCode, stdout, stderr)
+	}
+
+	data, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("read class MP4: %v", err)
+	}
+	if len(data) < 1000 || !bytes.Contains(data[:min(len(data), 64)], []byte("ftyp")) {
+		t.Errorf("generated class MP4 is not a valid-looking video: %d bytes", len(data))
 	}
 }
 

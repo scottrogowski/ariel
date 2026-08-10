@@ -2,6 +2,7 @@ package dsl
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"unicode/utf8"
 )
@@ -37,6 +38,30 @@ func Verify(steps []Step, nodes map[string]string, edges [][2]string) []Issue {
 	}
 
 	return issues
+}
+
+// VerifySequenceAliases rejects display labels that cannot map to one participant.
+func VerifySequenceAliases(analysis DiagramAnalysis) []Issue {
+	if analysis.Kind != DiagramKindSequence {
+		return nil
+	}
+	ids := make([]string, 0, len(analysis.Nodes))
+	for id := range analysis.Nodes {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	labelOwner := make(map[string]string, len(ids))
+	for _, id := range ids {
+		label := strings.Join(strings.Fields(analysis.Nodes[id]), " ")
+		if existingID, exists := labelOwner[label]; exists {
+			return []Issue{{
+				Severity: SeverityError,
+				Message:  fmt.Sprintf("sequence participants %q and %q use duplicate display label %q", existingID, id, label),
+			}}
+		}
+		labelOwner[label] = id
+	}
+	return nil
 }
 
 // VerifyFlowchartLabels warns when a plain label is long enough to impair diagram readability.
@@ -151,11 +176,9 @@ func disconnectedHighlightWarning(step Step, stepNum int, nodes map[string]strin
 	return nil
 }
 
-// VerifyHighlightSupport returns an error if any step uses visual fields (highlight_nodes
-// or focus_nodes) on an unsupported diagram type.
-// Only "flowchart" and "sequence" diagrams support highlighting.
-func VerifyHighlightSupport(diagramType string, steps []Step) []Issue {
-	if diagramType != "unsupported" {
+// VerifyHighlightSupport returns an error if a diagram family does not support visual fields.
+func VerifyHighlightSupport(diagramKind DiagramKind, steps []Step) []Issue {
+	if diagramKind != DiagramKindUnsupported {
 		return nil
 	}
 	for i, step := range steps {
@@ -163,7 +186,7 @@ func VerifyHighlightSupport(diagramType string, steps []Step) []Issue {
 			return []Issue{{
 				Severity: SeverityError,
 				Message: fmt.Sprintf(
-					"step %d: highlight_nodes and focus_nodes are only supported for flowchart and sequenceDiagram",
+					"step %d: highlight_nodes and focus_nodes are only supported for flowchart, sequenceDiagram, and classDiagram",
 					i+1,
 				),
 			}}

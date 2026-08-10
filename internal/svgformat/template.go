@@ -3,8 +3,12 @@ package svgformat
 import (
 	"bytes"
 	"encoding/json"
+	"html"
 	"text/template"
 
+	"github.com/scottrogowski/ariel/internal/dsl"
+	"github.com/scottrogowski/ariel/internal/mermaidjs"
+	"github.com/scottrogowski/ariel/internal/renderadapter"
 	"github.com/scottrogowski/ariel/internal/theme"
 )
 
@@ -12,16 +16,31 @@ var extractionTmpl = template.Must(
 	template.New("svg-extract").Delims("[[", "]]").Parse(extractionHTMLTemplate),
 )
 
-func renderExtractionHTML(p theme.Palette, mermaidDiagram string, nodeLabels map[string]string) string {
-	labelsJSON, _ := json.Marshal(nodeLabels)
+func renderExtractionHTML(p theme.Palette, mermaidDiagram string, analysis dsl.DiagramAnalysis) string {
+	labelsJSON, _ := json.Marshal(analysis.Nodes)
+	diagramKindJSON, _ := json.Marshal(analysis.Kind)
 	var buf bytes.Buffer
 	if err := extractionTmpl.Execute(&buf, struct {
 		MermaidDiagram  string
+		DiagramKindJSON string
 		NodeLabelsJSON  string
+		AnimateEdges    bool
 		MermaidInit     string
+		MermaidJSURL    string
 		DiagramColorsJS string
+		RenderAdapterJS string
 		BodyBg          string
-	}{mermaidDiagram, string(labelsJSON), p.MermaidInit(), p.DiagramColorsJS(), p.Bg}); err != nil {
+	}{
+		MermaidDiagram:  html.EscapeString(mermaidDiagram),
+		DiagramKindJSON: string(diagramKindJSON),
+		NodeLabelsJSON:  string(labelsJSON),
+		AnimateEdges:    analysis.AnimateEdges,
+		MermaidInit:     p.MermaidInit(),
+		MermaidJSURL:    mermaidjs.BrowserScriptURL(),
+		DiagramColorsJS: p.DiagramColorsJS(),
+		RenderAdapterJS: renderadapter.InlineJavaScript(),
+		BodyBg:          p.Bg,
+	}); err != nil {
 		panic("svgformat: extraction template: " + err.Error())
 	}
 	return buf.String()
@@ -35,7 +54,7 @@ const extractionHTMLTemplate = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+<script src="[[.MermaidJSURL]]"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: [[.BodyBg]]; }
@@ -53,9 +72,12 @@ const extractionHTMLTemplate = `<!DOCTYPE html>
 <script>
 [[.MermaidInit]]
 [[.DiagramColorsJS]]
+[[.RenderAdapterJS]]
 
 let nodeMap = {}, edgeMap = {};
+const diagramKind = [[.DiagramKindJSON]];
 const nodeLabels = [[.NodeLabelsJSON]];
+const animateEdges = [[.AnimateEdges]];
 
 async function init() {
   await mermaid.run({ nodes: [document.querySelector('.mermaid')] });
@@ -65,145 +87,27 @@ async function init() {
   const naturalW = parseFloat(svg.style.maxWidth) || Math.ceil(svg.getBoundingClientRect().width);
   svg.style.width = naturalW + 'px';
   svg.style.maxWidth = 'none';
-  buildNodeMap(svg);
-  buildEdgeMap(svg);
+  const elementMap = buildArielElementMap(svg, diagramKind, nodeLabels);
+  nodeMap = elementMap.nodeMap;
+  edgeMap = elementMap.edgeMap;
+  svg.querySelectorAll('marker path, marker polygon').forEach(element => {
+    element.style.setProperty('fill', ARIEL_COLORS.arrowHead, 'important');
+    element.style.setProperty('stroke', ARIEL_COLORS.arrowHead, 'important');
+  });
   document.getElementById('ready').style.display = 'block';
-}
-
-function buildNodeMap(svg) {
-  // Invert nodeLabels: display label → node ID.
-  const labelToId = {};
-  for (const [id, label] of Object.entries(nodeLabels)) {
-    const key = (label && label.trim()) ? label.trim() : id;
-    if (!(key in labelToId)) labelToId[key] = id;
-  }
-  function normalize(text) { return text.replace(/\s+/g, ' ').trim(); }
-  function addGroup(id, group) {
-    if (!nodeMap[id]) nodeMap[id] = [];
-    nodeMap[id].push(group);
-  }
-  // Strategy 1: flowchart nodes.
-  svg.querySelectorAll('.node').forEach(group => {
-    const m = group.id.match(/^flowchart-(\w+)-\d+$/);
-    if (m) addGroup(m[1], group);
-  });
-  // Strategy 2: sequence diagram actors (top and bottom mirrors).
-  svg.querySelectorAll('g.actor').forEach(group => {
-    const label = normalize(group.textContent);
-    const id = labelToId[label];
-    if (id) addGroup(id, group);
-  });
-  // Strategy 3: generic fallback for any remaining unmapped IDs.
-  if (Object.keys(nodeLabels).some(id => !nodeMap[id])) {
-    const alreadyMapped = new Set(Object.values(nodeMap).flat());
-    // Skip groups that are nested inside an already-mapped group: in sequence diagrams the
-    // outer lifeline+actor group and the inner actor box group both have the same textContent,
-    // and mapping both causes double-opacity multiplication (0.4 × 0.4 = 0.16) which makes
-    // the actor box far more transparent than the lifeline, so the lifeline shows through.
-    function isDescendantOfMapped(el) {
-      let p = el.parentElement;
-      while (p && p !== svg) {
-        if (alreadyMapped.has(p)) return true;
-        p = p.parentElement;
-      }
-      return false;
-    }
-    svg.querySelectorAll('g').forEach(group => {
-      if (alreadyMapped.has(group) || isDescendantOfMapped(group)) return;
-      const label = normalize(group.textContent);
-      const id = labelToId[label];
-      if (id) { addGroup(id, group); alreadyMapped.add(group); }
-    });
-  }
-  // Sequence diagram z-order fix: Mermaid renders top actor box groups before lifelines in
-  // DOM order, causing lifelines to paint over actor boxes. Moving top actor boxes to the
-  // SVG end fixes stacking without changing visual position (SVG uses coordinates, not flow).
-  //
-  // In some Mermaid versions class="actor" is on <rect>/<text> children, not on the <g>
-  // wrapper. To be robust, we detect top actor box groups as: direct <g> children that
-  // contain rect.actor/text.actor but no <line> (lifelines are in groups containing <line>).
-  // Works for both the old (g.actor) and new (g > rect.actor) Mermaid structures.
-  {
-    const svgKids = Array.from(svg.children);
-    const firstLifelineIdx = svgKids.findIndex(el =>
-      el.tagName && el.tagName.toLowerCase() === 'g' && (
-        el.classList.contains('actor-line') ||
-        el.querySelector('line:not(.messageLine0):not(.messageLine1)')
-      )
-    );
-    if (firstLifelineIdx > 0) {
-      const toMove = svgKids.slice(0, firstLifelineIdx).filter(el =>
-        el.tagName && el.tagName.toLowerCase() === 'g' &&
-        el.querySelector('rect.actor, text.actor')
-      );
-      toMove.forEach(el => svg.appendChild(el));
-    }
-  }
-  // Inheritable properties (including fill) use the referencing element's value as the
-  // initial value inside marker content, so a message line's inline fill:none would make
-  // its arrowhead invisible. Setting fill inline on the marker takes precedence.
-  svg.querySelectorAll('marker path, marker polygon').forEach(el => {
-    el.style.setProperty('fill', ARIEL_COLORS.arrowHead, 'important');
-    el.style.setProperty('stroke', ARIEL_COLORS.arrowHead, 'important');
-  });
-}
-
-function buildEdgeMap(svg) {
-  // Flowchart edges — LS-{src}/LE-{dst} classes.
-  svg.querySelectorAll('.flowchart-link').forEach(el => {
-    const cls = Array.from(el.classList);
-    const srcCls = cls.find(c => c.startsWith('LS-'));
-    const dstCls = cls.find(c => c.startsWith('LE-'));
-    if (!srcCls || !dstCls) return;
-    const key = srcCls.slice(3) + '-' + dstCls.slice(3);
-    if (!edgeMap[key]) edgeMap[key] = [];
-    edgeMap[key].push(el);
-  });
-  // Sequence diagram edges — infer source/target from line endpoint x vs actor x-center.
-  const actorX = {};
-  Object.entries(nodeMap).forEach(([id, els]) => {
-    try { const b = els[0].getBBox(); actorX[id] = b.x + b.width / 2; } catch (_) {}
-  });
-  const actorEntries = Object.entries(actorX);
-  if (actorEntries.length > 0) {
-    function closestActor(x) {
-      let best = actorEntries[0][0], bestDist = Infinity;
-      for (const [id, cx] of actorEntries) { const d = Math.abs(cx - x); if (d < bestDist) { bestDist = d; best = id; } }
-      return best;
-    }
-    function lineEndpointX(el) {
-      const tag = el.tagName.toLowerCase();
-      if (tag === 'line') return [parseFloat(el.getAttribute('x1')), parseFloat(el.getAttribute('x2'))];
-      if (tag === 'polyline') {
-        const pts = (el.getAttribute('points') || '').trim().split(/[\s,]+/).map(Number);
-        return pts.length >= 4 ? [pts[0], pts[pts.length - 2]] : null;
-      }
-      const nums = (el.getAttribute('d') || '').match(/-?[\d.]+/g);
-      return nums && nums.length >= 4 ? [parseFloat(nums[0]), parseFloat(nums[nums.length - 2])] : null;
-    }
-    svg.querySelectorAll('.messageLine0, .messageLine1').forEach(el => {
-      const xs = lineEndpointX(el);
-      if (!xs) return;
-      const src = closestActor(xs[0]), dst = closestActor(xs[1]);
-      if (src === dst) return;
-      const key = src + '-' + dst;
-      if (!edgeMap[key]) edgeMap[key] = [];
-      edgeMap[key].push(el);
-    });
-  }
 }
 
 // applyStep sets visual state as inline styles so the extracted SVG is
 // self-contained. When highlightNodes and focusNodes are both empty (step 0),
 // the diagram is left as Mermaid rendered it.
 function applyStep(highlightNodes, focusNodes) {
+  assertArielMappedNodes(nodeMap, [...highlightNodes, ...focusNodes]);
   const hasHighlights = highlightNodes.length > 0 || focusNodes.length > 0;
   if (!hasHighlights) return;
 
   const activeSet = new Set([...highlightNodes, ...focusNodes]);
   const focusSet = new Set(focusNodes);
 
-  // Apply highlight/dim to all known nodes via nodeMap (covers flowchart + sequence).
   Object.entries(nodeMap).forEach(([id, els]) => {
     els.forEach(group => {
       if (focusSet.has(id)) {
@@ -242,11 +146,12 @@ function applyStep(highlightNodes, focusNodes) {
     });
   });
 
+  if (!animateEdges) return;
   const allActive = [...activeSet];
   for (let i = 0; i < allActive.length; i++) {
     for (let j = 0; j < allActive.length; j++) {
       if (i !== j) {
-        (edgeMap[allActive[i] + '-' + allActive[j]] || []).forEach(el => {
+        (edgeMap[arielEdgeKey(allActive[i], allActive[j])] || []).forEach(el => {
           // flowchart-link is on the <path> itself in Mermaid 10.6.1, not a wrapping <g>.
           // Sequence messageLine0/messageLine1 are line/polyline elements.
           const targets = el.tagName.toLowerCase() === 'path'
@@ -302,7 +207,10 @@ function getDimensions() {
   return JSON.stringify({w, h: Math.ceil(rect.height), nw: w});
 }
 
-init();
+init().catch(error => {
+  window.arielInitError = error && (error.str || error.message) ? (error.str || error.message) : String(error);
+  document.getElementById('ready').style.display = 'block';
+});
 </script>
 </body>
 </html>

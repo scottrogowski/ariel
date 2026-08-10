@@ -1,6 +1,6 @@
 <p align="center"><img src="internal/logo/logo.svg" width="100%" alt="ariel logo"></p>
 
-Ariel is a CLI that generates mermaid diagram walkthroughs. It enables LLMs to explain complex systems/concepts to humans.
+Ariel is a CLI and plugin for creating guided Mermaid walkthroughs. It enables LLMs to teach humans unfamiliar software systems/concepts and quickly build useful mental models.
 
 Ariel walkthroughs simplify otherwise complex systems/ideas into comprehensible chunks. Output formats include interactive:
 - self-contained HTML (best experience)
@@ -11,11 +11,13 @@ Ariel's most powerful command is `ariel watch`. This allows your agent to iterat
 
 _If a picture is worth 1000 words, is a walkthrough worth 10,000?_
 
-## Example SVGs
+## Examples
 
-[![ariel-why walkthrough](https://raw.githubusercontent.com/scottrogowski/ariel/refs/heads/main/examples/example-output/ariel-why-output.svg)](https://raw.githubusercontent.com/scottrogowski/ariel/refs/heads/main/examples/example-output/ariel-why-output.svg)
+[Interactive HTML walkthrough](https://scottrogowski.github.io/ariel/)
 
-[![ariel-what walkthrough](https://raw.githubusercontent.com/scottrogowski/ariel/refs/heads/main/examples/example-output/ariel-what-output.svg)](https://raw.githubusercontent.com/scottrogowski/ariel/refs/heads/main/examples/example-output/ariel-what-output.svg)
+[![What is Ariel walkthrough](https://raw.githubusercontent.com/scottrogowski/ariel/refs/heads/main/examples/example-output/what-is-ariel.svg)](https://raw.githubusercontent.com/scottrogowski/ariel/refs/heads/main/examples/example-output/what-is-ariel.svg)
+
+[![How Ariel works walkthrough](https://raw.githubusercontent.com/scottrogowski/ariel/refs/heads/main/examples/example-output/how-ariel-works.svg)](https://raw.githubusercontent.com/scottrogowski/ariel/refs/heads/main/examples/example-output/how-ariel-works.svg)
 
 ## Install
 
@@ -43,8 +45,6 @@ The `~/go/bin` directory is usually not on Claude's path so if you install this 
 **Notes**
 
 MP4 output requires [`ffmpeg`](https://ffmpeg.org/download.html).
-
-Windows is not supported at this time.
 
 ## Usage
 

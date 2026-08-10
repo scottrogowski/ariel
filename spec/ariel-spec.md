@@ -106,6 +106,7 @@ Lint a walkthrough file. Runs automatically as part of `generate` and `watch`.
 
 *Semantic:*
 - All node IDs in `highlight_nodes`, `focus_nodes` exist in the diagram
+- Sequence participant display aliases are unique
 - At least one step per section
 - The first step of each section may only use `label` and `narration` — `highlight_nodes` and `focus_nodes` on step 1 are errors (see DSL section)
 - Steps with no content are warnings
@@ -205,7 +206,7 @@ Colors come from a single palette source (`internal/theme`) with a dark and a li
 
 ### Node identification
 
-Nodes are identified by their DSL node ID after rendering. For flowchart diagrams, IDs are read directly from the rendered SVG. For sequence diagrams and other types, nodes are matched by their display label using the `node_labels` mapping derived from the DSL. A generic text-content fallback handles any remaining types.
+Nodes are identified by their DSL node ID after rendering. Flowcharts use node identifiers. Sequence diagrams use participant identifiers. Class diagrams use class identifiers. Class methods, attributes, annotations, and namespaces are not walkthrough nodes.
 
 ### Node highlighting
 
@@ -216,7 +217,7 @@ When a step has any `highlight_nodes` or `focus_nodes`, all unreferenced nodes a
 
 ### Edge animation
 
-Edges between any two nodes in the combined set of `highlight_nodes` and `focus_nodes` are animated automatically — no manual specification.
+Flowchart and class diagram edges animate between referenced nodes automatically. Sequence diagram edges do not animate.
 
 ### Diagram viewport (pan and zoom)
 

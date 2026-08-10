@@ -5,18 +5,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/chromedp/chromedp"
 
 	"github.com/scottrogowski/ariel/internal/dsl"
 	"github.com/scottrogowski/ariel/internal/logo"
+	"github.com/scottrogowski/ariel/internal/mermaidjs"
+	"github.com/scottrogowski/ariel/internal/renderadapter"
 	"github.com/scottrogowski/ariel/internal/theme"
 )
 
@@ -36,9 +38,14 @@ var sectionTmpl = template.Must(
 type sectionData struct {
 	Title          string
 	MermaidDiagram string
-	ThemeCSS       string
-	MermaidInit    string
-	LogoSVG        string
+	DiagramKind    string
+	NodeLabels     map[string]string
+	AnimateEdges   bool
+	RenderAdapter  template.JS
+	ThemeCSS       template.CSS
+	MermaidInit    template.JS
+	MermaidJSURL   template.URL
+	LogoSVG        template.HTML
 }
 
 type frame struct {
@@ -173,13 +180,19 @@ func newBrowserCtx() (context.Context, context.CancelFunc) {
 
 // buildSectionHTML renders the per-section static screenshot HTML from the section template.
 func buildSectionHTML(palette theme.Palette, title string, sec dsl.Section) string {
+	analysis := dsl.AnalyzeDiagram(sec.MermaidDiagram)
 	var buf bytes.Buffer
 	if err := sectionTmpl.Execute(&buf, sectionData{
 		Title:          title,
 		MermaidDiagram: strings.TrimRight(sec.MermaidDiagram, "\n"),
-		ThemeCSS:       palette.RootBlock(),
-		MermaidInit:    palette.MermaidInit(),
-		LogoSVG:        logo.SVG,
+		DiagramKind:    string(analysis.Kind),
+		NodeLabels:     analysis.Nodes,
+		AnimateEdges:   analysis.AnimateEdges,
+		RenderAdapter:  template.JS(renderadapter.InlineJavaScript()),
+		ThemeCSS:       template.CSS(palette.RootBlock()),
+		MermaidInit:    template.JS(palette.MermaidInit()),
+		MermaidJSURL:   template.URL(mermaidjs.BrowserScriptURL()),
+		LogoSVG:        template.HTML(logo.SVG),
 	}); err != nil {
 		panic(fmt.Sprintf("section HTML template: %v", err))
 	}

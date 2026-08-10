@@ -96,8 +96,12 @@ func Generate(w *dsl.Walkthrough, outPath string, mode theme.Mode) error {
 	for si, sec := range sections {
 		secsMeta[si] = sectionMeta{title: sec.Title, start: globalIdx, count: len(sec.Steps)}
 
-		nodeLabels, _ := dsl.ExtractGraph(sec.MermaidDiagram)
-		if err := os.WriteFile(htmlPath, []byte(renderExtractionHTML(palette, sec.MermaidDiagram, nodeLabels)), 0644); err != nil {
+		analysis := dsl.AnalyzeDiagram(sec.MermaidDiagram)
+		if err := os.WriteFile(htmlPath, []byte(renderExtractionHTML(
+			palette,
+			sec.MermaidDiagram,
+			analysis,
+		)), 0644); err != nil {
 			return fmt.Errorf("write extraction HTML: %w", err)
 		}
 
@@ -111,6 +115,13 @@ func Generate(w *dsl.Walkthrough, outPath string, mode theme.Mode) error {
 				chromedp.WaitVisible("#ready", chromedp.ByID),
 			); err != nil {
 				return fmt.Errorf("step %d: load: %w", globalIdx, err)
+			}
+			var initError string
+			if err := chromedp.Run(ctx, chromedp.Evaluate(`window.arielInitError || ""`, &initError)); err != nil {
+				return fmt.Errorf("step %d: read render status: %w", globalIdx, err)
+			}
+			if initError != "" {
+				return fmt.Errorf("step %d: render diagram: %s", globalIdx, initError)
 			}
 
 			hJSON, _ := json.Marshal(strSlice(step.HighlightNodes))

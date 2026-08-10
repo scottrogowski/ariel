@@ -157,6 +157,7 @@ func (s *WatchServer) wsSnippet() string {
 	return strings.ReplaceAll(`<script>
 (function() {
   var ws = new WebSocket('ws://localhost:PORT/ws');
+  window.arielWatchSocket = ws;
   var overlay = null;
 
   function showError(msg) {

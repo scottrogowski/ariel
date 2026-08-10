@@ -1,1 +1,1 @@
-- Add theme parameter to relevant subcommands. Default is dark. Alternative is light.
+- Add source anchors so classes and steps can reference repository paths and line numbers.
