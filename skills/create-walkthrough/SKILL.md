@@ -1,9 +1,8 @@
 ---
 name: create-walkthrough
 description: >-
-  Create an animated Mermaid diagram walkthrough to explain a system, PR, code
-  path, or concept with the `ariel` CLI. Use when the user asks to visualize,
-  diagram, or walk through how something works. Renders step-by-step narrated diagrams from a YAML DSL.
+  Create a guided Mermaid diagram walkthrough to explain a system, PR, code path, or concept.
+  Use when the user asks to visualize, diagram, or walk through how something works.
 ---
 
 # Create an ariel walkthrough
@@ -61,6 +60,11 @@ FILE STRUCTURE OPTION 2 — multiple diagrams
 
   Each step must have at least one of: narration, label, highlight_nodes,
   focus_nodes. Unknown fields at any level are errors.
+
+CHOOSING A DIAGRAM
+  Use a flowchart when runtime flow, decisions, dependencies, or data movement are primary.
+  Use a sequence diagram when message order and interactions between participants are primary.
+  Use a class diagram when source structure, types, members, and type relationships are primary.
 
 NODE IDs
   From "A[Display Label]", the node ID is "A". Always reference the ID, never

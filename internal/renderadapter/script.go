@@ -61,9 +61,9 @@ function arielMapClassNodes(svg, nodeLabels, addNode) {
 
 function arielMapSequenceNodes(svg, nodeLabels, addNode) {
   const labelToId = arielLabelToId(nodeLabels);
-  svg.querySelectorAll('g.actor').forEach(group => {
-    const id = labelToId[arielNormalizeText(group.textContent)];
-    if (id) addNode(id, group);
+  svg.querySelectorAll('text.actor').forEach(label => {
+    const id = labelToId[arielNormalizeText(label.textContent)];
+    if (id) addNode(id, label.parentElement);
   });
 }
 
@@ -130,32 +130,22 @@ function arielMapFlowchartEdges(svg, addEdge) {
 function arielMapSequenceEdges(svg, nodeMap, addEdge) {
   const actorCenters = arielNodeCenters(nodeMap);
   svg.querySelectorAll('.messageLine0, .messageLine1').forEach(element => {
-    const endpoints = arielLineEndpointX(element);
-    if (!endpoints) return;
+    const start = arielGeometryScreenPoint(element, 0);
+    const end = arielGeometryScreenPoint(element, element.getTotalLength());
+    if (!start || !end) return;
     addEdge(
-      arielClosestNode(actorCenters, endpoints[0], 0),
-      arielClosestNode(actorCenters, endpoints[1], 0),
+      arielClosestNode(actorCenters, start.x, 0),
+      arielClosestNode(actorCenters, end.x, 0),
       element
     );
   });
 }
 
-function arielLineEndpointX(element) {
-  const tag = element.tagName.toLowerCase();
-  if (tag === 'line') return [parseFloat(element.getAttribute('x1')), parseFloat(element.getAttribute('x2'))];
-  if (tag === 'polyline') {
-    const points = (element.getAttribute('points') || '').trim().split(/[\s,]+/).map(Number);
-    return points.length >= 4 ? [points[0], points[points.length - 2]] : null;
-  }
-  const numbers = (element.getAttribute('d') || '').match(/-?[\d.]+/g);
-  return numbers && numbers.length >= 4 ? [parseFloat(numbers[0]), parseFloat(numbers[numbers.length - 2])] : null;
-}
-
 function arielMapClassEdges(svg, nodeMap, addEdge) {
   const centers = arielNodeCenters(nodeMap);
   svg.querySelectorAll('path.relation').forEach(element => {
-    const start = arielPathScreenPoint(element, 0);
-    const end = arielPathScreenPoint(element, element.getTotalLength());
+    const start = arielGeometryScreenPoint(element, 0);
+    const end = arielGeometryScreenPoint(element, element.getTotalLength());
     if (!start || !end) return;
     addEdge(
       arielClosestNode(centers, start.x, start.y),
@@ -174,10 +164,10 @@ function arielNodeCenters(nodeMap) {
   return centers;
 }
 
-function arielPathScreenPoint(path, length) {
-  const matrix = path.getScreenCTM();
+function arielGeometryScreenPoint(element, length) {
+  const matrix = element.getScreenCTM();
   if (!matrix) return null;
-  const point = path.getPointAtLength(length);
+  const point = element.getPointAtLength(length);
   return {x: matrix.a * point.x + matrix.c * point.y + matrix.e, y: matrix.b * point.x + matrix.d * point.y + matrix.f};
 }
 

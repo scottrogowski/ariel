@@ -3,12 +3,8 @@
 // These tests build the ariel binary and invoke it as a subprocess, exercising
 // the full stack from CLI flag parsing through DSL verification and rendering.
 //
-// VISUAL OUTPUT TESTING LIMITATION: ariel generate produces HTML and MP4 files
-// whose visual correctness (node highlighting, edge animation, layout, video
-// playback) cannot be verified automatically. After any change to the renderer
-// template, the MP4 capture pipeline, or CSS/JS, a human must:
-//   - Open the generated HTML in a browser and step through it
-//   - Play the MP4 and confirm distinct frames and correct highlighting
+// Browser tests verify emphasis, edge animation, layout, and MP4 capture pages.
+// Manual inspection still validates complete video playback and rendering quality.
 package main_test
 
 import (

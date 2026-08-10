@@ -20,8 +20,25 @@ func TestClassDiagramBrowserBehavior(t *testing.T) {
 	}
 	assertClassVisualStates(t, session)
 	assertClassFraming(t, session)
-	assertClassEdgeAnimation(t, session)
 	assertClassNavigation(t, session)
+}
+
+// This test prevents sequence mapping from mixing SVG and screen coordinates.
+func TestSequenceDiagramElementMapping(t *testing.T) {
+	htmlPath := generateHTML(t, "../../examples/example-input/ariel-what.ariel.yaml")
+	session := browsertest.Open(t, htmlPath)
+
+	if got := session.Eval(`Object.values(nodeMap).every(elements => elements.length === 2).toString()`); got != "true" {
+		t.Errorf("all sequence actors mapped twice = %s, want true", got)
+	}
+	wantEdges := "C-CLI,CLI-C,CLI-HP,CLI-HR,HP-C"
+	if got := session.Eval(`Object.keys(edgeMap).sort().join(',')`); got != wantEdges {
+		t.Errorf("sequence edges = %s, want %s", got, wantEdges)
+	}
+	session.Next()
+	if got := session.Eval(`document.querySelectorAll('[data-ariel-edge-source].animated').length.toString()`); got != "0" {
+		t.Errorf("animated sequence edges = %s, want 0", got)
+	}
 }
 
 func assertClassMappings(t *testing.T, session *browsertest.Session) {
@@ -45,9 +62,10 @@ func assertClassVisualStates(t *testing.T, session *browsertest.Session) {
     service: nodeMap.Service[0].classList.contains('active'),
     serviceFill: getComputedStyle(nodeMap.Service[0].querySelector('rect')).fill,
     dimmed: ['Repository', 'SQLStore', 'Cache', 'Metrics'].every(id =>
-      nodeMap[id][0].classList.contains('dimmed') && getComputedStyle(nodeMap[id][0]).opacity === '0.4')
+      nodeMap[id][0].classList.contains('dimmed') && getComputedStyle(nodeMap[id][0]).opacity === '0.4'),
+    edgeAnimated: edgeMap['Handler-Service'][0].classList.contains('animated')
   })`)
-	want := `{"handler":true,"handlerFill":"rgb(30, 58, 110)","service":true,"serviceFill":"rgb(26, 74, 122)","dimmed":true}`
+	want := `{"handler":true,"handlerFill":"rgb(30, 58, 110)","service":true,"serviceFill":"rgb(26, 74, 122)","dimmed":true,"edgeAnimated":true}`
 	if got != want {
 		t.Errorf("class visual states = %s, want %s", got, want)
 	}
@@ -62,17 +80,6 @@ func assertClassFraming(t *testing.T, session *browsertest.Session) {
 	errorX, errorY := session.BBoxCenterError([]string{"Handler", "Service"})
 	if math.Max(errorX, errorY) > centerTolerance {
 		t.Errorf("class framing error = (%.1fpx, %.1fpx), want at most %.1fpx", errorX, errorY, centerTolerance)
-	}
-}
-
-func assertClassEdgeAnimation(t *testing.T, session *browsertest.Session) {
-	t.Helper()
-	animated := session.Eval(`JSON.stringify({
-    mapped: (edgeMap['Handler-Service'] || []).length,
-    animated: (edgeMap['Handler-Service'] || []).filter(element => element.classList.contains('animated')).length
-  })`)
-	if animated != `{"mapped":1,"animated":1}` {
-		t.Errorf("Handler-Service edge state = %s, want one mapped animated edge", animated)
 	}
 }
 

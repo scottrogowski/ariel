@@ -152,10 +152,8 @@ func disconnectedHighlightWarning(step Step, stepNum int, nodes map[string]strin
 }
 
 // VerifyHighlightSupport returns an error if a diagram family does not support visual fields.
-func VerifyHighlightSupport(diagramType string, steps []Step) []Issue {
-	if diagramType == string(DiagramKindFlowchart) ||
-		diagramType == string(DiagramKindSequence) ||
-		diagramType == string(DiagramKindClass) {
+func VerifyHighlightSupport(diagramKind DiagramKind, steps []Step) []Issue {
+	if diagramKind != DiagramKindUnsupported {
 		return nil
 	}
 	for i, step := range steps {

@@ -554,6 +554,7 @@ function applyStep(step) {
     });
   });
 
+  if (!sections[currentSection].animate_edges) return;
   const allNodes = [...activeSet];
   for (let i = 0; i < allNodes.length; i++) {
     for (let j = 0; j < allNodes.length; j++) {

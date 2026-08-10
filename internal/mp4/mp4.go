@@ -190,7 +190,7 @@ func buildSectionHTML(palette theme.Palette, title string, sec dsl.Section) stri
 		MermaidDiagram: html.EscapeString(strings.TrimRight(sec.MermaidDiagram, "\n")),
 		DiagramKind:    string(analysis.Kind),
 		NodeLabelsJSON: string(nodeLabelsJSON),
-		AnimateEdges:   analysis.Kind != dsl.DiagramKindSequence,
+		AnimateEdges:   analysis.AnimateEdges,
 		RenderAdapter:  renderadapter.InlineJavaScript(),
 		ThemeCSS:       palette.RootBlock(),
 		MermaidInit:    palette.MermaidInit(),

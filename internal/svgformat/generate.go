@@ -100,8 +100,7 @@ func Generate(w *dsl.Walkthrough, outPath string, mode theme.Mode) error {
 		if err := os.WriteFile(htmlPath, []byte(renderExtractionHTML(
 			palette,
 			sec.MermaidDiagram,
-			analysis.Kind,
-			analysis.Nodes,
+			analysis,
 		)), 0644); err != nil {
 			return fmt.Errorf("write extraction HTML: %w", err)
 		}

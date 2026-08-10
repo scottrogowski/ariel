@@ -88,7 +88,7 @@ func verifyWalkthrough(w *dsl.Walkthrough) []dsl.Issue {
 		}
 		// If the diagram type doesn't support visual fields, report that and skip
 		// node/edge verification — node extraction is not defined for this type.
-		if typeIssues := dsl.VerifyHighlightSupport(string(analysis.Kind), sec.Steps); len(typeIssues) > 0 {
+		if typeIssues := dsl.VerifyHighlightSupport(analysis.Kind, sec.Steps); len(typeIssues) > 0 {
 			for _, issue := range typeIssues {
 				if multi {
 					issue.Message = fmt.Sprintf("section %d: %s", i+1, issue.Message)

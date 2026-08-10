@@ -35,6 +35,11 @@ FILE STRUCTURE OPTION 2 — multiple diagrams
   Each step must have at least one of: narration, label, highlight_nodes,
   focus_nodes. Unknown fields at any level are errors.
 
+CHOOSING A DIAGRAM
+  Use a flowchart when runtime flow, decisions, dependencies, or data movement are primary.
+  Use a sequence diagram when message order and interactions between participants are primary.
+  Use a class diagram when source structure, types, members, and type relationships are primary.
+
 NODE IDs
   From "A[Display Label]", the node ID is "A". Always reference the ID, never
   the label. IDs are case-sensitive. Check the mermaid_diagram block for exact

@@ -292,7 +292,7 @@ func TestExtractGraph_ClassRelationships(t *testing.T) {
 		{name: "lollipop", relation: "Service --() Port", source: "Service", target: "Port"},
 		{name: "cardinality and label", relation: `Customer "1" --> "*" Order : places`, source: "Customer", target: "Order"},
 		{name: "no spaces", relation: "Source-->Target", source: "Source", target: "Target"},
-		{name: "backtick names", relation: "`Job Runner` --> `Data Store`", source: "Job Runner", target: "Data Store"},
+		{name: "backtick punctuation", relation: "`Job--Runner` --> `Data:Store`", source: "Job--Runner", target: "Data:Store"},
 	}
 
 	for _, tt := range tests {

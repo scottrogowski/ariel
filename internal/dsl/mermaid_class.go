@@ -21,7 +21,6 @@ func extractClassGraph(lines []string) (map[string]string, [][2]string) {
 	nodes := make(map[string]string)
 	var edges [][2]string
 	classBodyDepth := 0
-
 	for _, rawLine := range lines {
 		line := strings.TrimSpace(rawLine)
 		if line == "" || strings.HasPrefix(line, "%%") {
@@ -31,26 +30,22 @@ func extractClassGraph(lines []string) (map[string]string, [][2]string) {
 			classBodyDepth += strings.Count(line, "{") - strings.Count(line, "}")
 			continue
 		}
-
 		if match := classDeclarationRe.FindStringSubmatch(line); match != nil {
 			id := normalizeClassName(match[1])
 			registerClass(nodes, id, strings.TrimSpace(match[2]))
 			classBodyDepth = strings.Count(line, "{") - strings.Count(line, "}")
 			continue
 		}
-
 		if source, target, ok := classRelationship(line); ok {
 			registerClass(nodes, source, "")
 			registerClass(nodes, target, "")
 			edges = append(edges, [2]string{source, target})
 			continue
 		}
-
 		if match := classMemberRe.FindStringSubmatch(line); match != nil {
 			registerClass(nodes, normalizeClassName(match[1]), "")
 			continue
 		}
-
 		if match := classAnnotationRe.FindStringSubmatch(line); match != nil {
 			registerClass(nodes, normalizeClassName(match[1]), "")
 		}
@@ -60,14 +55,13 @@ func extractClassGraph(lines []string) (map[string]string, [][2]string) {
 }
 
 func classRelationship(line string) (string, string, bool) {
-	operator := classRelationRe.FindStringIndex(line)
+	operator := classRelationRe.FindStringIndex(maskBacktickContent(line))
 	if operator == nil {
 		return "", "", false
 	}
-
 	left := trailingCardinalityRe.ReplaceAllString(line[:operator[0]], "")
 	right := leadingCardinalityRe.ReplaceAllString(line[operator[1]:], "")
-	if labelStart := strings.Index(right, ":"); labelStart >= 0 {
+	if labelStart := strings.Index(maskBacktickContent(right), ":"); labelStart >= 0 {
 		right = right[:labelStart]
 	}
 
@@ -77,6 +71,21 @@ func classRelationship(line string) (string, string, bool) {
 		return "", "", false
 	}
 	return source, target, true
+}
+
+func maskBacktickContent(value string) string {
+	masked := []byte(value)
+	insideBackticks := false
+	for i := range masked {
+		if masked[i] == '`' {
+			insideBackticks = !insideBackticks
+			continue
+		}
+		if insideBackticks {
+			masked[i] = ' '
+		}
+	}
+	return string(masked)
 }
 
 func parseClassName(value string) (string, bool) {

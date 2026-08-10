@@ -15,14 +15,15 @@ var extractionTmpl = template.Must(
 	template.New("svg-extract").Delims("[[", "]]").Parse(extractionHTMLTemplate),
 )
 
-func renderExtractionHTML(p theme.Palette, mermaidDiagram string, diagramKind dsl.DiagramKind, nodeLabels map[string]string) string {
-	labelsJSON, _ := json.Marshal(nodeLabels)
-	diagramKindJSON, _ := json.Marshal(diagramKind)
+func renderExtractionHTML(p theme.Palette, mermaidDiagram string, analysis dsl.DiagramAnalysis) string {
+	labelsJSON, _ := json.Marshal(analysis.Nodes)
+	diagramKindJSON, _ := json.Marshal(analysis.Kind)
 	var buf bytes.Buffer
 	if err := extractionTmpl.Execute(&buf, struct {
 		MermaidDiagram  string
 		DiagramKindJSON string
 		NodeLabelsJSON  string
+		AnimateEdges    bool
 		MermaidInit     string
 		DiagramColorsJS string
 		RenderAdapterJS string
@@ -31,6 +32,7 @@ func renderExtractionHTML(p theme.Palette, mermaidDiagram string, diagramKind ds
 		MermaidDiagram:  html.EscapeString(mermaidDiagram),
 		DiagramKindJSON: string(diagramKindJSON),
 		NodeLabelsJSON:  string(labelsJSON),
+		AnimateEdges:    analysis.AnimateEdges,
 		MermaidInit:     p.MermaidInit(),
 		DiagramColorsJS: p.DiagramColorsJS(),
 		RenderAdapterJS: renderadapter.InlineJavaScript(),
@@ -72,6 +74,7 @@ const extractionHTMLTemplate = `<!DOCTYPE html>
 let nodeMap = {}, edgeMap = {};
 const diagramKind = [[.DiagramKindJSON]];
 const nodeLabels = [[.NodeLabelsJSON]];
+const animateEdges = [[.AnimateEdges]];
 
 async function init() {
   await mermaid.run({ nodes: [document.querySelector('.mermaid')] });
@@ -101,7 +104,7 @@ function applyStep(highlightNodes, focusNodes) {
   const activeSet = new Set([...highlightNodes, ...focusNodes]);
   const focusSet = new Set(focusNodes);
 
-  // Apply highlight/dim to all known nodes via nodeMap (covers flowchart + sequence).
+  // Apply emphasis to mapped nodes for every supported diagram type.
   Object.entries(nodeMap).forEach(([id, els]) => {
     els.forEach(group => {
       if (focusSet.has(id)) {
@@ -140,6 +143,7 @@ function applyStep(highlightNodes, focusNodes) {
     });
   });
 
+  if (!animateEdges) return;
   const allActive = [...activeSet];
   for (let i = 0; i < allActive.length; i++) {
     for (let j = 0; j < allActive.length; j++) {

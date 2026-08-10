@@ -50,6 +50,7 @@ type jsSection struct {
 	Title          string            `json:"title"`
 	MermaidDiagram string            `json:"mermaid_diagram"`
 	DiagramType    string            `json:"diagram_type"`
+	AnimateEdges   bool              `json:"animate_edges"`
 	NodeLabels     map[string]string `json:"node_labels"`
 	Steps          []jsStep          `json:"steps"`
 }
@@ -104,6 +105,7 @@ func render(w *dsl.Walkthrough, wsSnippet string, mode theme.Mode) (string, erro
 			Title:          sec.Title,
 			MermaidDiagram: strings.TrimRight(sec.MermaidDiagram, "\n"),
 			DiagramType:    string(analysis.Kind),
+			AnimateEdges:   analysis.AnimateEdges,
 			NodeLabels:     analysis.Nodes,
 			Steps:          steps,
 		}

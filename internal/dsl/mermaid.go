@@ -14,17 +14,19 @@ const (
 
 // DiagramAnalysis contains the walkthrough targets and relationships in a Mermaid diagram.
 type DiagramAnalysis struct {
-	Kind  DiagramKind
-	Nodes map[string]string
-	Edges [][2]string
+	Kind         DiagramKind
+	Nodes        map[string]string
+	Edges        [][2]string
+	AnimateEdges bool
 }
 
 type graphExtractor func([]string) (map[string]string, [][2]string)
 
 type diagramAdapter struct {
-	kind      DiagramKind
-	matches   func(string) bool
-	extractor graphExtractor
+	kind         DiagramKind
+	matches      func(string) bool
+	extractor    graphExtractor
+	animateEdges bool
 }
 
 var diagramAdapters = []diagramAdapter{
@@ -40,7 +42,8 @@ var diagramAdapters = []diagramAdapter{
 		matches: func(header string) bool {
 			return header == "classdiagram" || header == "classdiagram-v2"
 		},
-		extractor: extractClassGraph,
+		extractor:    extractClassGraph,
+		animateEdges: true,
 	},
 	{
 		kind: DiagramKindFlowchart,
@@ -48,7 +51,8 @@ var diagramAdapters = []diagramAdapter{
 			return strings.HasPrefix(header, "graph ") || strings.HasPrefix(header, "graph\t") ||
 				header == "graph" || strings.HasPrefix(header, "flowchart ") || strings.HasPrefix(header, "flowchart\t")
 		},
-		extractor: extractFlowchartGraph,
+		extractor:    extractFlowchartGraph,
+		animateEdges: true,
 	},
 }
 
@@ -74,7 +78,7 @@ func AnalyzeDiagram(diagram string) DiagramAnalysis {
 			continue
 		}
 		nodes, edges := adapter.extractor(lines)
-		return DiagramAnalysis{Kind: adapter.kind, Nodes: nodes, Edges: edges}
+		return DiagramAnalysis{Kind: adapter.kind, Nodes: nodes, Edges: edges, AnimateEdges: adapter.animateEdges}
 	}
 
 	return DiagramAnalysis{Kind: DiagramKindUnsupported, Nodes: make(map[string]string)}

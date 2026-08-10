@@ -195,7 +195,7 @@ func TestVerifyHighlightSupport_UnsupportedType(t *testing.T) {
 	}
 
 	// Supported types must return no issues.
-	for _, dtype := range []string{"flowchart", "sequence", "class"} {
+	for _, dtype := range []DiagramKind{DiagramKindFlowchart, DiagramKindSequence, DiagramKindClass} {
 		if issues := VerifyHighlightSupport(dtype, steps); len(issues) != 0 {
 			t.Errorf("type %q: expected no issues, got %+v", dtype, issues)
 		}
@@ -203,7 +203,7 @@ func TestVerifyHighlightSupport_UnsupportedType(t *testing.T) {
 
 	// Unsupported type must return an error on the first offending step,
 	// not a confusing "unknown node ID" message.
-	issues := VerifyHighlightSupport("unsupported", steps)
+	issues := VerifyHighlightSupport(DiagramKindUnsupported, steps)
 	if len(issues) != 1 {
 		t.Fatalf("unsupported type: expected 1 issue, got %d: %+v", len(issues), issues)
 	}
@@ -216,7 +216,7 @@ func TestVerifyHighlightSupport_UnsupportedType(t *testing.T) {
 	}
 
 	// Steps with no visual fields must not trigger the error.
-	if issues := VerifyHighlightSupport("unsupported", []Step{{Narration: "ok"}}); len(issues) != 0 {
+	if issues := VerifyHighlightSupport(DiagramKindUnsupported, []Step{{Narration: "ok"}}); len(issues) != 0 {
 		t.Errorf("no-visual steps: expected no issues, got %+v", issues)
 	}
 }
